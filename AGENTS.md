@@ -1,0 +1,189 @@
+# AGENTS.md — AI 编码 Agent 规则
+
+> 面向 AI 编码 Agent。动手前先读第 1、2、3、6、7、8 节。
+> 架构细节见 `ARCHITECTURE.md`，插件开发见 `PLUGIN_DEV.md`。
+> 三者冲突时，以 `ARCHITECTURE.md` 为准，并在同一次改动里直接修正文档（本仓库暂无远程 PR 流程，不需要“提 PR”）。
+
+---
+
+## 0. 项目信息
+
+- 项目名：**MMCL**（插件化 Minecraft Java 启动器）
+- 当前版本：**0.0.1**，唯一来源是 `gradle.properties` 的 `version`，代码里不得另写一份
+- 包名 / groupId：**`dev.mmcl`**（插件 id 形如 `dev.mmcl.auth.microsoft`）
+- 目标平台：Windows / macOS / Linux（一套代码三平台）
+- 仓库形态：本地 git 仓库；**提交必须经用户授权**，见第 7 节
+- 版本阶段约定：`0.x` 阶段允许 API 破坏性变更，但必须在提交说明里标注 `API-BREAK:`；`1.0.0` 起严格执行 6.1 节的兼容规则
+- 文档清单（都是**必须维护的活文档**，不是一次性产物）：
+  - `AGENTS.md`：本文件，AI Agent 规则
+  - `ARCHITECTURE.md`：架构与边界，冲突时以它为准
+  - `PLUGIN_DEV.md`：插件开发指南
+  - `TODO.md`：里程碑任务清单，勾选状态必须反映真实进度，**不得提前打勾**
+  - `CHANGELOG.md`：Keep a Changelog 格式，每次改动先写进 `[Unreleased]`，发版时归档
+
+---
+
+## 1. 速读
+
+- 语言：Kotlin / JVM，**字节码目标 17**，编译用 **JDK 21 toolchain**（见 5.5）
+- UI：Compose Multiplatform（仅 `app` 与 `api-ui` 可依赖）
+- 构建：Gradle Kotlin DSL，多模块，**只用仓库自带的 Gradle Wrapper**
+- 插件发现：`java.util.ServiceLoader`
+- 开发主机：**macOS 27（Apple Silicon）**，需同时产出 Windows / macOS / Linux 产物
+- 铁律：
+  - `api` 不含实现
+  - `core` 不含具体功能
+  - 插件之间不直接类引用
+  - **任何 git 操作先问用户**
+- 新增功能 → **默认先做插件**，除非它属于核心边界
+- 改 `api` 前必须确认向后兼容（`0.x` 阶段允许破坏，但要标注）
+- 改 `core` 后必须跑插件加载测试
+
+---
+
+## 2. 每次改动前的三问
+
+1. **这个功能去掉后，启动器还能不能把游戏启动起来？**
+   - 不能 → 属于 `core`
+   - 能 → 做成插件
+2. **它需要扩展点还是只需要事件？**
+   - 要让别人调用/替换 → 服务注册
+   - 只是通知发生了某事 → 事件总线
+3. **它是否会让 `api` 失去向后兼容？**
+   - 会 → 停止，改用默认实现或新接口（若当前仍是 `0.0.x`，确认后标注 `API-BREAK: minor`）
+
+---
+
+## 3. 禁止事项（硬性）
+
+- ❌ `core` 依赖任何具体插件
+- ❌ `api` 依赖任何实现模块
+- ❌ 插件之间直接 `import` 对方类
+- ❌ 在 `core` 里写“下载 Modrinth 整合包”这类具体功能
+- ❌ 硬编码 `/Users/xxx`、`C:\`、`/home/` 等路径
+- ❌ 在插件中使用 `GlobalScope`
+- ❌ 在 `onLoad` / `onEnable` 中执行长时间阻塞操作
+- ❌ 吞掉异常不记录日志
+- ❌ 让插件异常导致 core 主流程崩溃
+- ❌ 改 `api` 时删除或修改已有方法签名（`0.x` 例外，但必须标注 `API-BREAK`）
+- ❌ 在源码中写死 `arm64` 或 `x86_64` 的架构判断（用 `OperatingSystem.current()` 封装）
+- ❌ **未经用户明确许可执行任何 git 操作**（`init`/`add`/`commit`/`push`/`tag`/`branch`/`reset`/`clean`/`stash`/`checkout`/`rebase` 等，见第 7 节）
+- ❌ 使用系统 `gradle` 或擅自升级 wrapper 版本
+- ❌ 提交构建产物（`build/`、`.gradle/`）与本地路径、密钥、令牌
+
+---
+
+## 4. 代码规范
+
+- Kotlin 官方风格；`ktlint` / `detekt` 配置就位后必须通过
+- 公共 API 必须有 KDoc
+- 插件 `id`：小写反向域名，段间用 `.`，如 `dev.mmcl.auth.microsoft`
+- 版本：语义化 `MAJOR.MINOR.PATCH`；启动器版本只在 `gradle.properties` 维护
+- 路径一律用 `java.nio.file.Path`，禁止字符串拼接分隔符
+- 协程：插件对外 `suspend`，core 提供作用域
+- 日志：使用 `PluginContext.logger`，禁止 `println`
+- 资源：`use {}` 或 `Closeable`
+- 插件 `onDisable` 必须幂等
+- macOS 开发时，JVM 参数与运行脚本都要考虑 Apple Silicon（`arm64`）与 Intel（`x86_64`）两种产物
+
+---
+
+## 5. 常见任务手册
+
+### 5.1 新增插件
+
+1. `plugins/<name>/` 新建 Gradle 子项目，在 `settings.gradle.kts` 注册
+2. `build.gradle.kts` 依赖 `:api`（UI 插件可加 `:api-ui`）
+3. 实现 `Plugin` 接口及所需能力接口（如 `AuthProvider`）
+4. 在 `src/main/resources/META-INF/services/dev.mmcl.api.plugin.Plugin` 写入实现类全名
+5. 在 `onLoad` 中通过 `context.services.register(...)` 注册能力
+6. 如为内置插件，由 `:app` 的 `syncBuiltinPlugins` 任务复制 JAR 到 `builtin-plugins/`
+7. 补测试，`./gradlew :plugins:<name>:test` 先绿
+
+### 5.2 扩展 API
+
+1. 在 `api` 新增接口/方法，**必须提供默认实现**
+2. 在 `core` 中实现或转发
+3. 更新 KDoc
+4. 在提交说明标注 `API-BREAK: none|minor|major`
+5. 补测试
+
+### 5.3 修改 core
+
+1. 先跑 `./gradlew :core:test`
+2. 确保插件隔离逻辑不退化
+3. 变更后跑全量 `./gradlew build`
+4. 在 macOS 上额外跑 `./gradlew :app:run`，验证 Compose 界面在 Apple Silicon 下的表现
+
+### 5.4 新增事件
+
+1. 在 `api` 的 `events` 包下定义 `data class` / `sealed class`
+2. `core` 在对应时机 `events.publish(...)`
+3. 更新 `ARCHITECTURE.md` 的事件列表
+
+### 5.5 本机开发环境（已就绪，勿重复安装）
+
+1. 操作系统：macOS 27.x，Apple Silicon（`arm64`）
+2. JDK：**Temurin 21（arm64）** 作为 Gradle toolchain；机器上另有 Zulu 25，只用来启动 Gradle 本身
+3. 校验：`/usr/libexec/java_home -V` 应同时列出 21 与 25；`./gradlew -version` 应显示 wrapper 版本与 `Launcher JVM`
+4. Gradle：**只用 `./gradlew`**（版本以 `gradle/wrapper/gradle-wrapper.properties` 为准），不要 `brew install gradle`
+5. 首次构建会联网下载依赖；网络受限时用 `./gradlew build --offline`（依赖须已在 `~/.gradle/caches`）
+6. 三平台验证：`./gradlew build`（字节码跨平台一致）+ `./gradlew :app:run`（本机冒烟），打包见 `ARCHITECTURE.md` §13
+
+---
+
+## 6. 完成定义（DoD）
+
+一次改动视为完成，需满足：
+
+- [ ] 新功能以插件形式实现（或明确说明为何属于 core）
+- [ ] 不破坏 `api` 兼容性，或已标注 `API-BREAK`
+- [ ] `./gradlew build` 通过
+- [ ] `./gradlew test` 通过，核心加载逻辑测试覆盖
+- [ ] 新增公共 API 有 KDoc
+- [ ] 无第 3 节反模式
+- [ ] 跨平台路径处理已审查（含 macOS 的 `~/Library/Application Support`）
+- [ ] 插件异常隔离已确认（手动或测试验证）
+- [ ] 在 macOS 27 本机运行 `./gradlew :app:run` 无异常
+- [ ] 版本号已按第 4 节规则处理（改动即说明是否升版）
+- [ ] `CHANGELOG.md` 的 `[Unreleased]` 已记录本次改动（用户可见的行为变化必须写）
+- [ ] `TODO.md` 已同步勾选状态与新增任务
+- [ ] 文档（本文件 / `ARCHITECTURE.md` / `PLUGIN_DEV.md`）已同步
+
+### 6.1 API 兼容规则
+
+- 新增方法必须提供默认实现
+- 不删除、不改签名、不改语义（`0.x` 阶段例外，须标注 `API-BREAK`）
+- 数据类新增字段必须给默认值
+- `api` 的公开类型只增不改；失效接口用 `@Deprecated` 标记并保留至少一个 MINOR 周期
+
+---
+
+## 7. Git 规则（强制）
+
+- **任何 git 操作执行前，必须先获得用户明确许可**，包括但不限于
+  `init`、`add`、`commit`、`push`、`pull`、`fetch`、`tag`、`branch`、`switch`、`merge`、`rebase`、
+  `reset`、`revert`、`stash`、`clean`、`checkout`、`worktree`、`submodule`、修改 remote、修改 git config
+- 许可**一次有效**：上一次同意过 `commit`，不代表下一次可以自动提交
+- 只读操作（`status`、`diff`、`log`、`show`、`blame`）不算写操作，可以直接执行
+- 破坏性操作（`push --force`、`reset --hard`、`clean -fd`、`branch -D`、`tag -d`、`filter-branch`）
+  **必须单独申请**，并先说明会丢什么
+- 提交前向用户展示 `git status --short` 与 `git diff --stat` 摘要，等确认
+- 一个提交只做一件事；标题用祈使句、≤ 50 字符；正文写清动机与影响（含 `API-BREAK` 标注）
+- 不自动 `amend` / `rebase` / `squash` 用户已有的提交
+- 不修改全局 git 配置（`~/.gitconfig`），不动用户的 `user.name` / `user.email`
+- `.gitignore` 先于第一次 `git add` 就位
+
+---
+
+## 8. 提交前自检清单
+
+- 依赖方向是否仍然自上而下？
+- 是否新增了插件之间的直接引用？
+- 是否把具体功能写进了 `core`？
+- 是否硬编码了平台相关路径（尤其是 `/Users/` 与 `C:\`）？
+- 是否在 `onLoad` 中做了阻塞操作？
+- 是否遗漏了 `META-INF/services` 声明？
+- 是否更新了对应文档？
+- 是否考虑了 Apple Silicon 与 Intel 双架构？
+- 是否已就本次 git 操作征求用户同意？
