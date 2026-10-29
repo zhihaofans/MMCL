@@ -9,9 +9,10 @@
 
 插件是一个独立 JAR，实现 `dev.mmcl.api.plugin.Plugin` 接口，通过 `ServiceLoader` 被 core 发现并加载。
 
-- 插件不依赖 `core`，只依赖 `api`（UI 插件可额外依赖 `api-ui`）
+- 插件不依赖 `core`，只依赖 `api`（UI 插件改依赖 `ui-kit`，它会传递 `api-ui`）
 - 插件之间不直接引用，通过事件总线或服务注册通信
-- 插件 JAR 命名：`<pluginId>-<version>.jar`
+- 插件版本：**独立于启动器，从 `0.0.1` 起**；`build.gradle.kts` 的 `version` 与 `Plugin.version` 必须一致
+- 插件 JAR 命名：`<pluginId>-<version>.jar`（用插件版本，不是启动器版本）
 
 ---
 
@@ -195,7 +196,7 @@ sources.forEach { it.search("sodium") }
 | `AuthProvider` | 账户认证方式 |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
-| `UiContribution` | UI 面板/标签页（在 `api-ui`，包名 `dev.mmcl.api.ui`） |
+| `UiContribution` | UI 面板/标签页（占位契约；P1 起为 `UiPage`，见 `UI_DESIGN.md`） |
 
 接口定义示例：
 
@@ -220,55 +221,68 @@ interface LoaderInstaller {
 
 ## 8. UI 插件
 
-UI 插件依赖 `api-ui`，实现 `UiContribution`：
+> **状态**：契约已定义、渲染未实现。完整方案（布局、`UiPage`、主题、安全阀）见 **`UI_DESIGN.md`**。
+> P1 会把下面的 `UiContribution` 替换成 `UiPage`，在那之前 UI 插件加了也不会显示。
+
+**构建前提**：UI 插件必须启用 compose 编译器插件，并且**不要把 Compose 打进 JAR**（运行期由启动器提供）：
 
 ```kotlin
-package dev.mmcl.api.ui
+// plugins/my-ui/build.gradle.kts
+plugins {
+    kotlin("jvm")
+    kotlin("plugin.compose")        // @Composable 必需
+    id("org.jetbrains.compose")
+}
 
-import androidx.compose.runtime.Composable
+dependencies {
+    compileOnly(project(":ui-kit")) // 会传递 api-ui
+    compileOnly(libs.slf4j.api)
+}
+```
 
+当前占位契约（`api-ui`，P1 将被 `UiPage` 取代）：
+
+```kotlin
 interface UiContribution {
     val id: String
     val title: String
     val order: Int get() = 100
     @Composable fun Content()
 }
-
-interface UiPanelRegistry {
-    fun register(contribution: UiContribution)
-    fun all(): List<UiContribution>
-}
 ```
 
-示例：
+目标形态（细节见 `UI_DESIGN.md` §4）：
 
 ```kotlin
-class LogViewerPanel : UiContribution {
+class LogPage : UiPage {
     override val id = "dev.mmcl.ui.logviewer"
     override val title = "日志"
-    override val order = 50
+    override val icon = UiIcon.INFO
+    override val group = UiGroup.TOOLS
+    override val order = 120
 
     @Composable
-    override fun Content() {
-        // Compose UI
+    override fun Content(navigator: AppNavigator) {
+        PageScaffold(title = "日志") { /* Compose UI */ }
     }
 }
 
 class LogViewerPlugin : Plugin {
     override val id = "dev.mmcl.ui.logviewer.plugin"
-    override val version = "1.0.0"
+    override val version = "0.1.0"
 
     override fun onLoad(context: PluginContext) {
-        context.services.register(UiContribution::class, LogViewerPanel())
+        context.services.register(UiPage::class, LogPage())
     }
 }
 ```
 
 **注意：**
 
-- 非 UI 插件不要依赖 `api-ui`
-- UI 插件不得在 `Content()` 中做阻塞操作
-- macOS 27 上 Compose 菜单栏、窗口装饰有平台差异，建议用 `OperatingSystem` 分支
+- 非 UI 插件不要依赖 `api-ui` / `ui-kit`
+- UI 插件不得在 `Content()` 中做阻塞操作，也不要从后台线程直接改 Compose 状态（走 `StateFlow`）
+- 主题插件是另一类扩展点：注册 `LauncherTheme`，只能换配色/排版，**改不动布局骨架**
+- 不要自己开窗口或改窗口装饰，外层窗口与平台差异由 `app` 统一处理
 
 ---
 
@@ -277,7 +291,7 @@ class LogViewerPlugin : Plugin {
 ```kotlin
 class MyPlugin : Plugin {
     override val id = "dev.mmcl.my"
-    override val version = "1.0.0"
+    override val version = "0.0.1"   // 插件自己的版本，从 0.0.1 起，与启动器无关
     override val dependencies = listOf("dev.mmcl.auth.microsoft")
     override val optionalDependencies = listOf("dev.mmcl.download.modrinth")
 }
@@ -402,7 +416,7 @@ class HelloPluginTest {
 不能。插件只能通过 `api` 暴露的接口访问。
 
 **Q：插件能修改启动器 UI 布局吗？**
-通过 `UiContribution` 注册面板；深度定制需扩展 `api-ui`。
+现在还不能 —— 渲染尚未实现（见 `UI_DESIGN.md`）。目标形态：用 `UiPage` 加整页、用 `UiWidget` 往固定区域塞部件、用 `LauncherTheme` 换主题；**布局骨架（导航栏/顶栏/状态栏）不允许插件改**。
 
 **Q：插件能调用游戏加载器安装器吗？**
 通过 `ServiceRegistry` 获取 `LoaderInstaller` 能力，不要自己实现安装逻辑。
@@ -418,10 +432,11 @@ class HelloPluginTest {
 
 ## 15. 插件检查清单
 
-- [ ] 只依赖 `api`（UI 插件可加 `api-ui`）
+- [ ] 只依赖 `api`（UI 插件用 `ui-kit`，且不要把 Compose 打进 JAR）
 - [ ] 已声明 `META-INF/services/dev.mmcl.api.plugin.Plugin`
 - [ ] 插件 `id` 为反向域名
-- [ ] 版本为语义化版本
+- [ ] 版本为语义化版本，且**从 `0.0.1` 起**（插件独立版本，与启动器解耦）
+- [ ] `build.gradle.kts` 的 `version` 与 `Plugin.version` 一致
 - [ ] 不在 `onLoad` / `onEnable` 中阻塞
 - [ ] 使用 `ctx.logger`，不 `println`
 - [ ] 异常已隔离

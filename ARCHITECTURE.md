@@ -15,7 +15,7 @@
 2. **最大化插件化**：外围功能以插件形式扩展
 3. **稳定核心**：核心极简，保证“永远能启动”
 
-版本策略：启动器遵循语义化版本，当前 **0.0.1**；版本号唯一来源是 `gradle.properties` 的 `version`，`app` 通过 `BuildConfig`/资源读入，代码中不得重复定义。`0.x` 阶段允许破坏性 API 变更（提交标注 `API-BREAK`），`1.0.0` 起按 §6.1 执行。插件各自独立版本，与启动器版本解耦。
+版本策略：启动器遵循语义化版本，当前 **0.0.1**（**能实际启动游戏之前固定不升版**）；版本号唯一来源是 `gradle.properties` 的 `version`，`app` 通过 `BuildConfig`/资源读入，代码中不得重复定义。`0.x` 阶段允许破坏性 API 变更（提交标注 `API-BREAK`），`1.0.0` 起按 §6.1 执行。插件各自独立版本，**从 `0.0.1` 起**，与启动器版本解耦；插件包名遵循 `<pluginId>-<插件版本>.jar`。
 
 > 游戏模组（放进 `mods/` 的 JAR）的通用性与本启动器语言无关；启动器只负责调用加载器安装器并管理文件。
 
@@ -45,7 +45,7 @@
 ├─────────────────────────────────────────────┤
 │  core (插件运行时 + 启动引擎 + 事件总线)        │
 ├─────────────────────────────────────────────┤
-│  api        api-ui  (纯契约，无实现)           │
+│  api  api-ui  ui-kit  (契约 + UI 公共组件)      │
 ├─────────────────────────────────────────────┤
 │  plugins/*  (认证 / 下载源 / 主题 / 面板 ...)   │
 └─────────────────────────────────────────────┘
@@ -65,16 +65,19 @@
 /
 ├── settings.gradle.kts
 ├── build.gradle.kts
-├── gradle.properties        # version=0.0.1（版本号唯一来源）
+├── gradle.properties        # version=0.0.1（启动器版本唯一来源）
 ├── gradle/
 │   ├── libs.versions.toml   # 依赖版本目录
 │   └── wrapper/
 ├── api/                 # 纯契约：接口、数据类、事件、异常
 ├── api-ui/              # UI 扩展契约（依赖 Compose）
+├── ui-kit/              # UI 公共组件：调色板、图标映射、PageScaffold（规划中，见 UI_DESIGN.md）
 ├── core/                # 插件运行时、启动引擎、事件总线、服务注册
 ├── app/                 # main 入口、Compose 窗口、组装
 └── plugins/
-    ├── hello/           # 0.0.1 已落地：内置示例插件
+    ├── hello/           # 已落地：内置示例插件
+    ├── ui-about/        # 已落地：UI 页面插件示例
+    ├── theme-sakura/    # 已落地：主题插件示例
     ├── auth-microsoft/  # 规划中
     ├── auth-offline/
     ├── download-modrinth/
@@ -90,8 +93,8 @@
 ```
 app ──► core ──► api
  │                ▲
- ├──► api-ui ─────┘
- └──► plugins/* ──► api (可选 api-ui)
+ ├──► ui-kit ──► api-ui ──► api
+ └──► plugins/* ──► api (UI 插件：ui-kit)
 ```
 
 **禁止的依赖：**
@@ -99,7 +102,8 @@ app ──► core ──► api
 - `api` → 任何模块
 - `core` → 任何具体插件
 - 插件 A → 插件 B（通过事件总线或服务注册通信）
-- 非 UI 插件 → `api-ui`（避免被 Compose 污染）
+- 非 UI 插件 → `api-ui` / `ui-kit`（避免被 Compose 污染）
+- `core` / `api` → Compose（UI 类型只允许出现在 `app`、`api-ui`、`ui-kit`）
 
 ---
 
@@ -177,7 +181,7 @@ app ──► core ──► api
 | `AuthProvider` | 账户认证方式 |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
-| `UiContribution` | UI 面板/标签页 |
+| `UiContribution` | UI 面板/标签页（占位契约，P1 替换为 `UiPage`，见 `UI_DESIGN.md`） |
 
 ---
 
@@ -228,10 +232,13 @@ app ──► core ──► api
 
 ## 11. UI 扩展
 
-- `api-ui` 依赖 Compose，单独成模块
-- **仅 UI 插件与 `app` 依赖它**
-- `app` 在启动时从 `ServiceRegistry` 取出所有 `UiContribution` 并渲染为标签页/侧边栏
-- 非 UI 插件绝不依赖 `api-ui`
+完整方案见 **`UI_DESIGN.md`**（布局蓝图、契约、主题机制、分期与安全阀）。要点：
+
+- 模块分层：`api-ui`（纯契约）→ `ui-kit`（公共组件，规划中）→ UI 插件 / `app`
+- 页面、部件、主题统一通过 `ServiceRegistry` 注册，`app` 负责渲染与兜底
+- 默认页面与默认主题内置在 `app`，插件只做增量；`--safe-mode` 可跳过全部插件 UI
+- 非 UI 插件绝不依赖 `api-ui` / `ui-kit`；`core` 永不依赖 Compose
+- **当前状态**：`UiContribution` 只是占位契约，`app` 尚未渲染，P1 会替换为 `UiPage`（见 `TODO.md`）
 
 ---
 

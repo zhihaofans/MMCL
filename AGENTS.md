@@ -12,11 +12,17 @@
 - 当前版本：**0.0.1**，唯一来源是 `gradle.properties` 的 `version`，代码里不得另写一份
 - 包名 / groupId：**`dev.mmcl`**（插件 id 形如 `dev.mmcl.auth.microsoft`）
 - 目标平台：Windows / macOS / Linux（一套代码三平台）
-- 仓库形态：本地 git 仓库；**提交必须经用户授权**，见第 7 节
+- 仓库形态：本地 git 仓库；**任何 git 操作都必须先经用户允许**，见第 7 节
 - 版本阶段约定：`0.x` 阶段允许 API 破坏性变更，但必须在提交说明里标注 `API-BREAK:`；`1.0.0` 起严格执行 6.1 节的兼容规则
+- 版本规则：
+  - **启动器**：`gradle.properties` 的 `version` 是唯一来源（当前 `0.0.1`）
+  - **插件**：每个插件版本**独立，从 `0.0.1` 起**，不跟随启动器版本；插件 `build.gradle.kts` 的 `version` 与代码里 `Plugin.version` 必须一致，插件 JAR 名因此为 `<pluginId>-<插件版本>.jar`
+  - **版本闸门**：启动器**能实际启动 Minecraft 之前，版本号固定 `0.0.1`，不升版**
+  - **升版需要请示**：即使过了闸门，启动器与插件的 `version` 变更前也要先问用户，同意后再改并同步 `CHANGELOG.md`
 - 文档清单（都是**必须维护的活文档**，不是一次性产物）：
   - `AGENTS.md`：本文件，AI Agent 规则
   - `ARCHITECTURE.md`：架构与边界，冲突时以它为准
+  - `UI_DESIGN.md`：界面外壳与主题化方案（含分期与安全阀）
   - `PLUGIN_DEV.md`：插件开发指南
   - `TODO.md`：里程碑任务清单，勾选状态必须反映真实进度，**不得提前打勾**
   - `CHANGELOG.md`：Keep a Changelog 格式，每次改动先写进 `[Unreleased]`，发版时归档
@@ -26,7 +32,7 @@
 ## 1. 速读
 
 - 语言：Kotlin / JVM，**字节码目标 17**，编译用 **JDK 21 toolchain**（见 5.5）
-- UI：Compose Multiplatform（仅 `app` 与 `api-ui` 可依赖）
+- UI：Compose Multiplatform（仅 `app`、`api-ui`、`ui-kit` 可依赖；方案见 `UI_DESIGN.md`）
 - 构建：Gradle Kotlin DSL，多模块，**只用仓库自带的 Gradle Wrapper**
 - 插件发现：`java.util.ServiceLoader`
 - 开发主机：**macOS 27（Apple Silicon）**，需同时产出 Windows / macOS / Linux 产物
@@ -65,6 +71,9 @@
 - ❌ 在 `onLoad` / `onEnable` 中执行长时间阻塞操作
 - ❌ 吞掉异常不记录日志
 - ❌ 让插件异常导致 core 主流程崩溃
+- ❌ `core` / `api` 依赖 Compose（UI 只属于 `app`、`api-ui`、`ui-kit` 与 UI 插件）
+- ❌ 非 UI 插件依赖 `api-ui` 或 `ui-kit`
+- ❌ 插件把自己的 UI 或主题实现塞进 `core`
 - ❌ 改 `api` 时删除或修改已有方法签名（`0.x` 例外，但必须标注 `API-BREAK`）
 - ❌ 在源码中写死 `arm64` 或 `x86_64` 的架构判断（用 `OperatingSystem.current()` 封装）
 - ❌ **未经用户明确许可执行任何 git 操作**（`init`/`add`/`commit`/`push`/`tag`/`branch`/`reset`/`clean`/`stash`/`checkout`/`rebase` 等，见第 7 节）
@@ -78,7 +87,7 @@
 - Kotlin 官方风格；`ktlint` / `detekt` 配置就位后必须通过
 - 公共 API 必须有 KDoc
 - 插件 `id`：小写反向域名，段间用 `.`，如 `dev.mmcl.auth.microsoft`
-- 版本：语义化 `MAJOR.MINOR.PATCH`；启动器版本只在 `gradle.properties` 维护
+- 版本：语义化 `MAJOR.MINOR.PATCH`；启动器版本只在 `gradle.properties` 维护，插件版本在各自模块维护（均从 `0.0.1` 起）
 - 路径一律用 `java.nio.file.Path`，禁止字符串拼接分隔符
 - 协程：插件对外 `suspend`，core 提供作用域
 - 日志：使用 `PluginContext.logger`，禁止 `println`
@@ -93,7 +102,7 @@
 ### 5.1 新增插件
 
 1. `plugins/<name>/` 新建 Gradle 子项目，在 `settings.gradle.kts` 注册
-2. `build.gradle.kts` 依赖 `:api`（UI 插件可加 `:api-ui`）
+2. `build.gradle.kts` 依赖 `:api`；UI 插件改依赖 `:ui-kit`（传递 `api-ui`），并启用 compose 编译器插件（见 `UI_DESIGN.md`）
 3. 实现 `Plugin` 接口及所需能力接口（如 `AuthProvider`）
 4. 在 `src/main/resources/META-INF/services/dev.mmcl.api.plugin.Plugin` 写入实现类全名
 5. 在 `onLoad` 中通过 `context.services.register(...)` 注册能力
@@ -169,10 +178,11 @@
 - 破坏性操作（`push --force`、`reset --hard`、`clean -fd`、`branch -D`、`tag -d`、`filter-branch`）
   **必须单独申请**，并先说明会丢什么
 - 提交前向用户展示 `git status --short` 与 `git diff --stat` 摘要，等确认
-- 一个提交只做一件事；标题用祈使句、≤ 50 字符；正文写清动机与影响（含 `API-BREAK` 标注）
+- 一个提交只做一件事；标题用祈使句、不超过 50 字符；正文写清动机与影响（含 `API-BREAK` 标注）
 - 不自动 `amend` / `rebase` / `squash` 用户已有的提交
 - 不修改全局 git 配置（`~/.gitconfig`），不动用户的 `user.name` / `user.email`
 - `.gitignore` 先于第一次 `git add` 就位
+- **版本号变更同样需要许可**：启动器（`gradle.properties`）与插件模块的 `version` 都要先问
 
 ---
 

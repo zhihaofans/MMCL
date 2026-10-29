@@ -15,7 +15,9 @@
 - [x] Compose 桌面外壳 + 插件列表
 - [x] `./gradlew build` 全绿（含测试，core 34 个用例）
 - [x] `./gradlew :app:run` 本机冒烟通过（窗口显示 0.0.1 + hello 插件 ENABLED）
+- [x] 无头渲染测试：`AppShellRenderTest` 输出外壳截图到 `app/build/screenshots/`
 - [ ] ktlint / detekt 接入 CI 前置检查
+- [ ] 插件版本自动化：把 `build.gradle.kts` 的 `version` 生成为资源，消除与 `Plugin.version` 的重复
 
 ## 0.1.x — 能启动游戏
 
@@ -27,15 +29,30 @@
 - [ ] 实例目录与实例配置管理
 - [ ] 离线账户（`auth-offline` 插件）
 
-## 0.2.x — 插件生态
+## 0.2.x — 界面外壳与主题（对应 `UI_DESIGN.md` P1 / P2）
+
+- [x] P1：`NavRail` + 顶栏 + 状态栏 + 内容区外壳
+- [x] P1：`UiPage` / `AppNavigator` 契约与路由，4 个内置页（游戏 / 下载 / 设置 / 插件）
+- [x] P1：示例 UI 插件 `plugins/ui-about`
+- [x] P1：`UiContribution` → `UiPage`（API-BREAK: minor），删除 `UiPanelRegistry`
+- [x] P2：新模块 `ui-kit`（调色板 / 图标映射 / `PageScaffold` / 间距）
+- [x] P2：`LauncherTheme` + `ThemeController`，主题热切换
+- [x] P2：`SettingsService`（core）+ `PluginContext.settings`（API-BREAK: minor）
+- [x] P2：`--safe-mode`，跳过全部插件主题与页面
+- [x] P2：示例主题插件 `plugins/theme-sakura`
+- [x] 构建期校验：插件 JAR 禁止包含 `androidx/compose/**`
+- [ ] P3：首页 / 实例页接 core 数据服务（依赖 0.1.x 的实例与启动链）
+- [ ] P4：`UiWidget` / `UiSlot`（顶栏、状态栏、首页卡片）
+
+## 0.3.x — 插件生态
 
 - [ ] `auth-microsoft`（设备码 / OAuth 流程）
 - [ ] `download-modrinth` + `download-curseforge`
 - [ ] `loader-fabric` / `loader-forge` / `loader-neoforge`
-- [ ] 插件设置页与 `api-ui` 面板注册表落地
+- [ ] 插件设置页
 - [ ] 插件版本冲突、签名与来源校验
 
-## 0.3.x — 打包发布
+## 0.4.x — 打包发布
 
 - [ ] Windows 安装包（MSI/EXE）与 Linux 发行包（deb/AppImage）
 - [ ] macOS `.app` / `.dmg`，Developer ID 签名 + 公证

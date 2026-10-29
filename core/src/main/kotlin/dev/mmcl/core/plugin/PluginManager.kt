@@ -7,8 +7,10 @@ import dev.mmcl.api.event.PluginEnabled
 import dev.mmcl.api.event.PluginFailed
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.service.ServiceRegistry
+import dev.mmcl.api.service.SettingsService
 import dev.mmcl.core.event.DefaultEventBus
 import dev.mmcl.core.service.DefaultServiceRegistry
+import dev.mmcl.core.settings.InMemorySettingsService
 import java.nio.file.Files
 import java.nio.file.Path
 import org.slf4j.Logger
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory
  * @param logger 运行时日志
  * @param events 事件总线，默认自建
  * @param services 服务注册表，默认自建
+ * @param settings 键值设置，默认内存实现（app 会传入持久化实现）
  * @param sorter 依赖排序器
  * @param loader 插件发现器
  */
@@ -32,6 +35,7 @@ class PluginManager(
     private val logger: Logger,
     val events: EventBus = DefaultEventBus(logger),
     val services: ServiceRegistry = DefaultServiceRegistry(),
+    val settings: SettingsService = InMemorySettingsService(),
     private val sorter: DependencySorter = DependencySorter(),
     private val loader: PluginLoader = PluginLoader(logger),
 ) : AutoCloseable {
@@ -132,6 +136,7 @@ class PluginManager(
             logger = LoggerFactory.getLogger("dev.mmcl.plugin.${descriptor.id}"),
             events = events,
             services = services,
+            settings = settings,
             launcher = launcher,
         )
     }

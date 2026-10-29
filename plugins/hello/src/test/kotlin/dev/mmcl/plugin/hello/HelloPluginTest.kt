@@ -8,6 +8,7 @@ import dev.mmcl.api.event.EventBus
 import dev.mmcl.api.event.Subscription
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.service.ServiceRegistry
+import dev.mmcl.api.service.SettingsService
 import java.nio.file.Path
 import kotlin.reflect.KClass
 import kotlin.test.Test
@@ -44,6 +45,7 @@ class HelloPluginTest {
         override val logger = org.slf4j.LoggerFactory.getLogger("test.hello")
         override val events: EventBus = NoopEventBus()
         override val services: ServiceRegistry = FakeServiceRegistry()
+        override val settings: SettingsService = FakeSettings()
         override val launcher: LauncherInfo =
             LauncherInfo(
                 name = "MMCL",
@@ -76,6 +78,16 @@ class HelloPluginTest {
         override fun <T : Any> getAll(type: KClass<T>): List<T> {
             @Suppress("UNCHECKED_CAST")
             return store[type]?.map { it as T }.orEmpty()
+        }
+    }
+
+    private class FakeSettings : SettingsService {
+        private val values = mutableMapOf<String, String>()
+
+        override fun getString(key: String, default: String?): String? = values[key] ?: default
+
+        override fun putString(key: String, value: String?) {
+            if (value == null) values.remove(key) else values[key] = value
         }
     }
 }

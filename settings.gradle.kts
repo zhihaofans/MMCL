@@ -21,7 +21,10 @@ rootProject.name = "MMCL"
 include(
     ":api",
     ":api-ui",
+    ":ui-kit",
     ":core",
     ":app",
     ":plugins:hello",
+    ":plugins:ui-about",
+    ":plugins:theme-sakura",
 )

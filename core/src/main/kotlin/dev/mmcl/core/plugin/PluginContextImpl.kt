@@ -4,6 +4,7 @@ import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.event.EventBus
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.service.ServiceRegistry
+import dev.mmcl.api.service.SettingsService
 import java.nio.file.Path
 import org.slf4j.Logger
 
@@ -18,5 +19,6 @@ internal class PluginContextImpl(
     override val logger: Logger,
     override val events: EventBus,
     override val services: ServiceRegistry,
+    override val settings: SettingsService,
     override val launcher: LauncherInfo,
 ) : PluginContext
