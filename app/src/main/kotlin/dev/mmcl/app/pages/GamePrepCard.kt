@@ -35,6 +35,7 @@ internal fun GamePrepCard(
     progress: DownloadProgress?,
     report: DownloadReport?,
     failure: String?,
+    javaStatus: String? = null,
     busy: Boolean,
     onCheck: () -> Unit,
     onDownload: () -> Unit,
@@ -70,6 +71,14 @@ internal fun GamePrepCard(
             style = MaterialTheme.typography.bodySmall,
             color = if (failure != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (javaStatus != null) {
+            Text(
+                text = javaStatus,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         if (busy) {
             val fraction =

@@ -20,6 +20,7 @@ import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.core.settings.FileSettingsService
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.core.version.VersionDetailService
+import dev.mmcl.core.java.JavaRuntimeDetector
 import dev.mmcl.core.net.JdkHttpTransport
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.FileDownloader
@@ -83,9 +84,11 @@ fun main(args: Array<String>) {
         if (safeMode) emptyList() else manager.services.getAll(LauncherTheme::class)
     val themeController = ThemeController(settings, pluginThemes)
 
+    val javaDetector = JavaRuntimeDetector(launcher.dataDir, launcher.os, launcher.arch, settings, logger)
+
     val builtinPages: List<UiPage> =
         listOf(
-            InstancesPage(manifestService, installer, autoLoad = true),
+            InstancesPage(manifestService, installer, javaDetector, autoLoad = true),
             DownloadsPage(),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode, manifestService),

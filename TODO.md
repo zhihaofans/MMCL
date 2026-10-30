@@ -33,7 +33,9 @@
 - [ ] 老版本 natives / classifiers 下载（1.19 之前）
 - [ ] 下载失败重试与限速
 - [ ] 游戏文件下载与 SHA-1 校验
-- [ ] Java 运行时检测（已有 JDK / 启动器自带 JRE）
+- [x] Java 运行时检测：设置指定 / 自带 runtime / `JAVA_HOME` / `PATH` / macOS `java_home`，
+      只读 JDK 的 `release` 文件判版本（`1.8.0` → 8），版本不够自动跳过
+- [ ] Java 运行时下载（地址来自运行时来源插件，解压到 `<dataDir>/runtime/<os>-<arch>/`）
 - [ ] JVM 参数与主类组装，真实启动 Minecraft
 - [ ] 游戏进程日志捕获与退出码上报（`GameExited`）
 - [ ] 实例目录与实例配置管理

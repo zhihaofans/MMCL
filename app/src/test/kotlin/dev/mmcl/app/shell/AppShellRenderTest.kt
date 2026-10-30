@@ -286,6 +286,7 @@ class AppShellRenderTest {
                     progress = progress,
                     report = null,
                     failure = null,
+                    javaStatus = "Java 21（系统 JDK）",
                     busy = busy,
                     onCheck = {},
                     onDownload = {},

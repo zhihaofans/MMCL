@@ -34,6 +34,8 @@ import dev.mmcl.core.download.DownloadProgress
 import dev.mmcl.core.download.DownloadReport
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.InstallPlan
+import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.java.JavaRuntimeSource
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionManifest
 import dev.mmcl.core.version.VersionManifestEntry
@@ -55,6 +57,7 @@ import kotlinx.coroutines.launch
 class InstancesPage(
     private val manifests: VersionManifestService? = null,
     private val installer: GameInstaller? = null,
+    private val javaDetector: JavaRuntimeDetector? = null,
     private val autoLoad: Boolean = false,
 ) : UiPage {
     override val id: String = "dev.mmcl.page.instances"
@@ -67,6 +70,7 @@ class InstancesPage(
     override fun Content(navigator: AppNavigator) {
         var state by remember { mutableStateOf<ManifestUiState>(ManifestUiState.Idle) }
         var prep by remember { mutableStateOf<PrepUiState>(PrepUiState.Idle) }
+        var javaStatus by remember { mutableStateOf<String?>(null) }
         // 自动加载只触发一次：LaunchedEffect 在重组时可能重跑，用标记兜底避免重复请求
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
@@ -75,6 +79,7 @@ class InstancesPage(
         fun refresh(force: Boolean) {
             val service = manifests ?: return
             prep = PrepUiState.Idle
+            javaStatus = null
             state = ManifestUiState.Loading
             scope.launch {
                 state =
@@ -88,16 +93,29 @@ class InstancesPage(
             }
         }
 
+        fun describeJava(plan: InstallPlan): String {
+            val required = plan.detail.javaVersion?.majorVersion ?: 0
+            if (required <= 0) return "该版本未声明 Java 要求"
+            val detector = javaDetector ?: return "需要 Java ≥$required（检测器未接入）"
+            val runtime = detector.detect(required)
+            return if (runtime == null) {
+                "缺少 Java ≥$required：安装 JDK，或在设置里填写 java.home"
+            } else {
+                "Java ${runtime.majorVersion}（${javaSourceLabel(runtime.source)}）"
+            }
+        }
+
         fun checkFiles(entry: VersionManifestEntry) {
             val inst = installer ?: return
             prep = PrepUiState.Planning
             scope.launch {
-                prep =
-                    try {
-                        PrepUiState.Ready(inst.plan(entry, forceRefresh = true))
-                    } catch (t: Throwable) {
-                        PrepUiState.Failed(t.message ?: "检查文件失败")
-                    }
+                try {
+                    val plan = inst.plan(entry, forceRefresh = true)
+                    javaStatus = describeJava(plan)
+                    prep = PrepUiState.Ready(plan)
+                } catch (t: Throwable) {
+                    prep = PrepUiState.Failed(t.message ?: "检查文件失败")
+                }
             }
         }
 
@@ -110,6 +128,7 @@ class InstancesPage(
                         inst.install(entry, forceRefresh = true) { progress ->
                             prep = PrepUiState.Downloading(progress)
                         }
+                    javaStatus = describeJava(result.plan)
                     prep = PrepUiState.Done(result.report)
                 } catch (t: Throwable) {
                     prep = PrepUiState.Failed(t.message ?: "下载失败")
@@ -177,6 +196,7 @@ class InstancesPage(
                                 progress = (prep as? PrepUiState.Downloading)?.progress,
                                 report = (prep as? PrepUiState.Done)?.report,
                                 failure = (prep as? PrepUiState.Failed)?.message,
+                                javaStatus = javaStatus,
                                 busy = prep is PrepUiState.Planning || prep is PrepUiState.Downloading,
                                 onCheck = { checkFiles(latest) },
                                 onDownload = { downloadFiles(latest) },
@@ -231,6 +251,16 @@ private fun ManifestRow(label: String, value: String) {
         Text(text = value, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+/** 运行时来源的中文说明。 */
+private fun javaSourceLabel(source: JavaRuntimeSource): String =
+    when (source) {
+        JavaRuntimeSource.CONFIGURED -> "设置指定"
+        JavaRuntimeSource.BUNDLED -> "自带运行时"
+        JavaRuntimeSource.JAVA_HOME -> "JAVA_HOME"
+        JavaRuntimeSource.PATH -> "PATH"
+        JavaRuntimeSource.SYSTEM_MACOS -> "系统 JDK"
+    }
 
 private sealed interface ManifestUiState {
     data object Idle : ManifestUiState
