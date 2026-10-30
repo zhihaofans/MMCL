@@ -12,7 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.slf4j.Logger
@@ -79,6 +81,8 @@ class FileDownloader(
             val skipped = AtomicInteger(0)
             val failures = Collections.synchronizedList(mutableListOf<DownloadFailure>())
             val permits = Semaphore(concurrency.coerceAtLeast(1))
+            // 完成计数与进度回调串行化，避免并发下载时进度"倒退"（出现过 [2,1]）
+            val progressLock = Mutex()
 
             coroutineScope {
                 files
@@ -103,8 +107,12 @@ class FileDownloader(
                                     failures += DownloadFailure(file, t)
                                     logger.warn("下载失败：{}（{}）", file.relativePath, t.message)
                                 } finally {
-                                    val done = completed.incrementAndGet()
-                                    onProgress(DownloadProgress(completed = done, total = total, current = file.relativePath))
+                                    progressLock.withLock {
+                                        val done = completed.incrementAndGet()
+                                        onProgress(
+                                            DownloadProgress(completed = done, total = total, current = file.relativePath),
+                                        )
+                                    }
                                 }
                             }
                         }

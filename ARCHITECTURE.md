@@ -9,6 +9,20 @@
 
 一个 Minecraft Java 版启动器，运行于 **Windows / macOS / Linux**，管理 Forge / Fabric / NeoForge / Quilt 等游戏模组的安装与启动。
 
+支持范围（产品策略，见 `AGENTS.md` §0）：
+
+| 平台 | 支持情况 |
+|---|---|
+| macOS | **仅 Apple Silicon（arm64）**；Intel Mac 不专门适配 |
+| Windows | 默认目标 **Windows 11**；Win10 及更旧不专门兼容 |
+| Linux | 主流发行版 |
+
+| 游戏版本 | 支持情况 |
+|---|---|
+| 最新正式版及其同主版本系列（如 `26.x`） | ✅ 支持 |
+| 快照 / old_beta / old_alpha | ❌ 仅展示，不下载/不启动 |
+| 旧大版本（如 `1.21.x`） | ❌ 仅展示，不下载/不启动 |
+
 设计目标：
 
 1. **跨平台**：一套代码三平台原生运行
@@ -259,7 +273,7 @@ app ──► core ──► api
 
 ### 12.2 macOS 27 要点
 
-- **架构**：默认面向 `arm64`（Apple Silicon），同时保留 `x86_64` 兼容产物（Rosetta 仅用于运行，不用于构建）
+- **架构**：只支持 `arm64`（Apple Silicon）；不构建、不测试 `x86_64` 产物，Intel Mac 上只告警提示不受支持
 - **JDK**：使用 `arm64` 版 Temurin 21（toolchain），确认 `java -version` 含 `aarch64`
 - **数据目录**：macOS 为 `~/Library/Application Support/MMCL/`，与 Windows（`%APPDATA%\MMCL`）、Linux（`$XDG_DATA_HOME/mmcl`）统一由 `Platforms.dataDir()` 计算
 - **窗口与菜单**：Compose Multiplatform 在 macOS 上有原生菜单栏差异，需在 `app` 中做平台分支

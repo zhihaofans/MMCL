@@ -11,7 +11,13 @@
 - 项目名：**MMCL**（插件化 Minecraft Java 启动器）
 - 当前版本：**0.0.1**，唯一来源是 `gradle.properties` 的 `version`，代码里不得另写一份
 - 包名 / groupId：**`dev.mmcl`**（插件 id 形如 `dev.mmcl.auth.microsoft`）
-- 目标平台：Windows / macOS / Linux（一套代码三平台）
+- 目标平台与支持范围：
+  - **macOS：仅 Apple Silicon（arm64）**；Intel Mac 不专门适配，运行时只告警不拦
+  - **Windows：默认目标 Windows 11**；Win10 及更旧系统"能跑就跑"，不专门兼容
+  - Linux：主流发行版
+- 游戏版本：只支持**最新正式版 + 同主版本系列**（例如最新是 `26.3` 时支持 `26.x`）；
+  快照 / old_beta / old_alpha / 旧大版本不保证，清单里标注"不受支持"，不提供下载或启动
+- mod 加载器插件（Fabric / Forge / NeoForge）只针对最新正式版所属系列维护
 - 仓库形态：本地 git 仓库；**任何 git 操作都必须先经用户允许**，见第 7 节
 - 发布形态：**应用不内置任何下载源/下载地址**。版本清单从哪拉、游戏文件从哪下，全部由用户安装的插件决定
   （`source-mojang` 等只以独立插件分发）。没有源插件时启动器只能启动本机已装好的实例
@@ -82,6 +88,7 @@
 - ❌ **未经用户明确许可执行任何 git 操作**（`init`/`add`/`commit`/`push`/`tag`/`branch`/`reset`/`clean`/`stash`/`checkout`/`rebase` 等，见第 7 节）
 - ❌ 使用系统 `gradle` 或擅自升级 wrapper 版本
 - ❌ 提交构建产物（`build/`、`.gradle/`）与本地路径、密钥、令牌
+- ❌ 为旧平台（Intel Mac / Windows 10）或旧大版本专门加兼容分支、测试矩阵（除非用户明确要求）
 
 ---
 
@@ -96,7 +103,7 @@
 - 日志：使用 `PluginContext.logger`，禁止 `println`
 - 资源：`use {}` 或 `Closeable`
 - 插件 `onDisable` 必须幂等
-- macOS 开发时，JVM 参数与运行脚本都要考虑 Apple Silicon（`arm64`）与 Intel（`x86_64`）两种产物
+- macOS 开发时只需考虑 Apple Silicon（`arm64`）；不构建、不测试 `x86_64` 产物（支持范围见第 0 节）
 
 ---
 
@@ -198,7 +205,7 @@
 - 是否在 `onLoad` 中做了阻塞操作？
 - 是否遗漏了 `META-INF/services` 声明？
 - 是否更新了对应文档？
-- 是否考虑了 Apple Silicon 与 Intel 双架构？
+- 是否符合支持范围（macOS 仅 arm64；只支持最新正式版系列）？
 - 是否已就本次 git 操作征求用户同意？
 
 ---

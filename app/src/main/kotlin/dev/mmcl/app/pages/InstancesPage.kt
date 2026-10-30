@@ -40,6 +40,7 @@ import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionManifest
 import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
+import dev.mmcl.core.version.VersionSupport
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
@@ -220,19 +221,30 @@ internal fun ManifestSummary(manifest: VersionManifest) {
             .padding(MmclSpacing.l),
         verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
     ) {
+        val supportedSeries = VersionSupport.latestSeries(manifest)
         Text(text = "Mojang 版本清单", style = MaterialTheme.typography.titleSmall)
+        Text(
+            text = "只支持最新正式版系列（$supportedSeries）；其余仅展示，不可下载或启动",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         ManifestRow("最新正式版", manifest.latest.release)
         ManifestRow("最新快照", manifest.latest.snapshot)
         ManifestRow("版本总数", manifest.versions.size.toString())
         HorizontalDivider(modifier = Modifier.padding(vertical = MmclSpacing.xs))
         manifest.versions.take(6).forEach { entry ->
+            val supported = VersionSupport.isSupported(entry, supportedSeries)
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(text = entry.id, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = entry.id,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (supported) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = entry.type,
+                    text = if (supported) "${entry.type} · 支持" else "${entry.type} · 不受支持",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (supported) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
                 )
             }
         }

@@ -29,14 +29,14 @@
 
 - [ ] `auth-microsoft`（设备码 / OAuth 流程）
 - [ ] `download-modrinth` + `download-curseforge`
-- [ ] `loader-fabric` / `loader-forge` / `loader-neoforge`
+- [ ] `loader-fabric` / `loader-forge` / `loader-neoforge`（**只针对最新正式版系列维护**）
 - [ ] 插件设置页
 - [ ] 插件版本冲突、签名与来源校验
 
 ### 0.4.x — 打包发布
 
-- [ ] Windows 安装包（MSI/EXE）与 Linux 发行包（deb/AppImage）
-- [ ] macOS `.app` / `.dmg`，Developer ID 签名 + 公证
+- [ ] Windows 安装包（MSI/EXE，目标 Windows 11）与 Linux 发行包（deb/AppImage）
+- [ ] macOS `.app` / `.dmg`（仅 arm64），Developer ID 签名 + 公证
 - [ ] 自动更新通道
 - [ ] 首次启动向导
 

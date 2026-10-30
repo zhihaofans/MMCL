@@ -2,6 +2,8 @@ package dev.mmcl.app
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import dev.mmcl.api.Architecture
+import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
@@ -42,6 +44,9 @@ fun main(args: Array<String>) {
     if (safeMode) logger.warn("安全模式已开启：忽略全部插件主题与插件页面")
 
     val launcher = Platforms.launcherInfo(version = BuildInfo.version)
+    if (launcher.os == OperatingSystem.MACOS && launcher.arch != Architecture.ARM64) {
+        logger.warn("不受支持的平台：macOS 只支持 Apple Silicon（当前 {}），Intel Mac 未适配", launcher.arch)
+    }
     Files.createDirectories(launcher.dataDir)
     val settings: SettingsService = FileSettingsService(launcher.dataDir.resolve("settings.properties"))
 
