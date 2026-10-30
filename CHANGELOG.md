@@ -41,6 +41,14 @@
 - 插件 `plugins/source-mojang`（0.0.1）：Mojang 官方源，**不进入 `builtin-plugins/`，需另行安装**
 - 游戏页：有源时可刷新版本清单并显示最新正式版/快照；无源时提示安装版本源插件
 - 设置页：下载源列表与当前缓存来源，可切换优先源（`version.source`）
+- 下载引擎：`HttpTransport` / `JdkHttpTransport`、`FileDownloader`（并发、SHA-1 校验、
+  临时文件 + 原子落盘、跳过已校验文件、拒绝路径穿越）
+- 版本详情：`VersionDetail` 模型 + `VersionDetailService`（按清单 URL 拉取、本地缓存、坏缓存自愈）
+- 文件规划：`GameFilePlanner`（客户端 JAR、按平台 `rules` 过滤的库、资源索引、日志配置；
+  natives/classifiers 只告警不下载）
+- 编排：`GameInstaller`（`plan` 只规划，`install` 规划 + 下载）
+- 测试：用 JDK 内置 `HttpServer` 跑通"详情 → 规划 → 下载 → 校验"全链路；
+  `MMCL_NET_TESTS=1` 可跑真实 Mojang 冒烟
 
 ### 变更
 
@@ -61,9 +69,10 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew clean build` 通过；79 个单元测试全绿（core 57 / app 15 / 插件 7）
+- `./gradlew clean build` 通过；103 个单元测试全绿（core 81 / app 15 / 插件 7）
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，三个内置插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
 - 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 六张截图
+- 真实冒烟：最新正式版 26.3 解析出 83 个待下载文件、约 127 MB、0 条告警
 - 实跑：未装源插件时日志告警且不发起请求；把 `source-mojang` 放进 `plugins/` 后重启，
   成功拉取清单（最新正式版 26.3，921 个版本）并写入缓存

@@ -24,7 +24,13 @@
 - [x] 版本清单（`version_manifest`）解析、多源尝试与缓存（30 分钟 + 离线回退）
 - [x] `source-mojang` 版本源插件（0.0.1，**独立分发，不随应用打包**）
 - [ ] `source-bmclapi` 等镜像源插件
-- [ ] 下载器：按版本清单拉取 client / libraries / assets，逐文件 SHA-1 校验
+- [x] 版本详情解析与本地缓存（`versions/<id>/<id>.json`）
+- [x] 下载引擎：并发下载、SHA-1 校验、临时文件 + 原子落盘、跳过已校验文件、拒绝路径穿越
+- [x] 文件规划：client JAR / libraries（按平台 rules 过滤）/ asset index / 日志配置
+- [x] 真实数据冒烟：最新正式版规划出 83 个文件、约 127 MB
+- [ ] 资源对象下载（`assets/objects/<hash>`）—— 地址基址需要由来源插件提供
+- [ ] 老版本 natives / classifiers 下载（1.19 之前）
+- [ ] 下载失败重试与限速
 - [ ] 游戏文件下载与 SHA-1 校验
 - [ ] Java 运行时检测（已有 JDK / 启动器自带 JRE）
 - [ ] JVM 参数与主类组装，真实启动 Minecraft
