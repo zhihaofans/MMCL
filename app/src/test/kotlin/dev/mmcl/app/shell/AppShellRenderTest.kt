@@ -1,5 +1,6 @@
 package dev.mmcl.app.shell
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
@@ -7,10 +8,14 @@ import dev.mmcl.api.Architecture
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.LauncherTheme
+import dev.mmcl.api.ui.UiGroup
+import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.InstancesPage
+import dev.mmcl.app.pages.ManifestSummary
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
 import dev.mmcl.app.theme.BuiltinThemes
@@ -19,7 +24,13 @@ import dev.mmcl.core.plugin.LoadedPlugin
 import dev.mmcl.core.plugin.PluginDescriptor
 import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.core.settings.InMemorySettingsService
+import dev.mmcl.api.capability.VersionManifestSource
+import dev.mmcl.core.version.LatestVersions
+import dev.mmcl.core.version.VersionManifest
+import dev.mmcl.core.version.VersionManifestEntry
+import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclPalettes
+import dev.mmcl.ui.kit.PageScaffold
 import dev.mmcl.ui.kit.SimpleLauncherTheme
 import java.nio.file.Files
 import java.nio.file.Path
@@ -65,12 +76,45 @@ class AppShellRenderTest {
             plugin("dev.mmcl.theme.sakura.plugin"),
         )
 
+    private val stubSource =
+        object : VersionManifestSource {
+            override val id: String = "mojang"
+            override val displayName: String = "Mojang 官方"
+
+            override suspend fun fetchManifestJson(): String = "{}"
+        }
+
+    private val manifestStub =
+        VersionManifestService(
+            cacheFile = Path.of("build", "tmp", "render-manifest.json"),
+            logger = org.slf4j.LoggerFactory.getLogger("test.render"),
+            sources = { listOf(stubSource) },
+        )
+
+    private val noSourceService =
+        VersionManifestService(
+            cacheFile = Path.of("build", "tmp", "render-manifest-empty.json"),
+            logger = org.slf4j.LoggerFactory.getLogger("test.render"),
+        )
+
+    private val sampleManifest =
+        VersionManifest(
+            latest = LatestVersions(release = "1.21.8", snapshot = "25w31a"),
+            versions =
+                listOf(
+                    VersionManifestEntry("25w31a", "snapshot", "https://example.invalid/25w31a.json"),
+                    VersionManifestEntry("1.21.8", "release", "https://example.invalid/1.21.8.json"),
+                    VersionManifestEntry("1.21.7", "release", "https://example.invalid/1.21.7.json"),
+                    VersionManifestEntry("1.20.1", "release", "https://example.invalid/1.20.1.json"),
+                ),
+        )
+
     private fun pages(themeController: ThemeController): List<UiPage> =
         listOf(
-            InstancesPage(),
+            InstancesPage(manifestStub),
             DownloadsPage(),
             PluginsPage(plugins),
-            SettingsPage(launcher, themeController, safeMode = false),
+            SettingsPage(launcher, themeController, safeMode = false, manifests = manifestStub),
         )
 
     private fun render(
@@ -132,7 +176,7 @@ class AppShellRenderTest {
     @Test
     fun `渲染设置页（主题列表）`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
-        val settingsPage = SettingsPage(launcher, controller, safeMode = false)
+        val settingsPage = SettingsPage(launcher, controller, safeMode = false, manifests = manifestStub)
 
         render("shell-settings", controller, listOf(settingsPage, InstancesPage()))
     }
@@ -145,7 +189,36 @@ class AppShellRenderTest {
     }
 
     @Test
+    fun `渲染版本清单卡片`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        render("manifest-card", controller, listOf(ManifestPage(sampleManifest), InstancesPage(manifestStub)))
+    }
+
+    @Test
+    fun `渲染未安装版本源的状态`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+
+        render("no-source", controller, listOf(InstancesPage(noSourceService), DownloadsPage()))
+    }
+
+    @Test
     fun `内置主题 id 固定不变`() {
         assertTrue(BuiltinThemes.DARK_ID == "builtin.dark")
+    }
+
+    /** 渲染测试专用的"版本清单"页面，用来给摘要卡片出图。 */
+    private class ManifestPage(private val manifest: VersionManifest) : UiPage {
+        override val id: String = "dev.mmcl.page.render-manifest"
+        override val title: String = "版本"
+        override val icon: UiIcon = UiIcon.DOWNLOAD
+        override val group: UiGroup = UiGroup.MAIN
+        override val order: Int = 1
+
+        @Composable
+        override fun Content(navigator: AppNavigator) {
+            PageScaffold(title = "版本清单", subtitle = "来自 Mojang piston-meta，缓存 30 分钟") {
+                ManifestSummary(manifest)
+            }
+        }
     }
 }

@@ -21,7 +21,10 @@
 
 ## 0.1.x — 能启动游戏
 
-- [ ] 版本清单（`version_manifest`）解析与缓存
+- [x] 版本清单（`version_manifest`）解析、多源尝试与缓存（30 分钟 + 离线回退）
+- [x] `source-mojang` 版本源插件（0.0.1，**独立分发，不随应用打包**）
+- [ ] `source-bmclapi` 等镜像源插件
+- [ ] 下载器：按版本清单拉取 client / libraries / assets，逐文件 SHA-1 校验
 - [ ] 游戏文件下载与 SHA-1 校验
 - [ ] Java 运行时检测（已有 JDK / 启动器自带 JRE）
 - [ ] JVM 参数与主类组装，真实启动 Minecraft

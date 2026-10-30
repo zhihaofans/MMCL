@@ -197,6 +197,7 @@ sources.forEach { it.search("sodium") }
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
 | `UiContribution` | UI 面板/标签页（占位契约；P1 起为 `UiPage`，见 `UI_DESIGN.md`） |
+| `VersionManifestSource` | 版本清单来源（官方 / 镜像 / 本地），**应用内不内置任何实现** |
 
 接口定义示例：
 
@@ -218,6 +219,35 @@ interface LoaderInstaller {
 ```
 
 ---
+
+## 7.1 版本源插件（应用不内置下载源）
+
+启动器**不含任何下载地址**：没有装 `VersionManifestSource` 插件时，游戏页只提示"未安装版本源插件"。
+官方源 `source-mojang` 也是独立插件，不随应用打包。
+
+```kotlin
+class MojangVersionSource : VersionManifestSource {
+    override val id = "mojang"
+    override val displayName = "Mojang 官方"
+    override val priority = 100            // 越小越先尝试
+
+    // 只返回 JSON 原文：解析、校验、缓存、失败回退全部由 core 负责
+    override suspend fun fetchManifestJson(): String = httpGet(DEFAULT_URL)
+}
+
+class MojangSourcePlugin : Plugin {
+    override val id = "dev.mmcl.source.mojang.plugin"
+    override val version = "0.0.1"
+    override fun onLoad(context: PluginContext) {
+        context.services.register(VersionManifestSource::class, MojangVersionSource())
+    }
+}
+```
+
+- 可以装多个源，core 按 `priority` 升序逐个尝试，全部失败才回退本地缓存
+- 设置项 `version.source` 可指定优先使用哪个源
+- 插件返回脏 JSON 只会让该源被跳过，不会写坏缓存
+- 插件本身用 `compileOnly(project(":api"))`，HTTP 客户端自己选（示例用 JDK `HttpClient`）
 
 ## 8. UI 插件
 

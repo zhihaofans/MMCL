@@ -15,6 +15,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,7 +29,9 @@ import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.app.theme.ThemeController
+import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
 
@@ -38,6 +44,7 @@ class SettingsPage(
     private val launcher: LauncherInfo,
     private val themeController: ThemeController,
     private val safeMode: Boolean,
+    private val manifests: VersionManifestService? = null,
 ) : UiPage {
     override val id: String = "dev.mmcl.page.settings"
     override val title: String = "设置"
@@ -66,11 +73,68 @@ class SettingsPage(
                     )
                 }
 
+                SectionTitle("下载源")
+                val sources = manifests?.orderedSources().orEmpty()
+                if (sources.isEmpty()) {
+                    Text(
+                        text = "未安装版本源插件。本应用不内置任何下载地址：把 source-mojang 等插件放进 <数据目录>/plugins/ 后重启。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    var selectedSourceId by remember(manifests) { mutableStateOf(sources.first().id) }
+                    for (source in sources) {
+                        SourceRow(
+                            source = source,
+                            selected = source.id == selectedSourceId,
+                            onClick = {
+                                selectedSourceId = source.id
+                                manifests?.selectSource(source.id)
+                            },
+                        )
+                    }
+                    Text(
+                        text = "缓存来源：${manifests?.cachedSourceId() ?: "无"}；选中后下一次刷新生效",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 SectionTitle("关于")
                 InfoRow("版本", launcher.version)
                 InfoRow("平台", "${launcher.os} / ${launcher.arch}")
                 InfoRow("数据目录", launcher.dataDir.toString())
             }
+        }
+    }
+}
+
+@Composable
+private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = MmclSpacing.s, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MmclSpacing.xs),
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = source.displayName, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "${source.id} · 优先级 ${source.priority}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

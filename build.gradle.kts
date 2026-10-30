@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.compose.multiplatform) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
 }
 
 // 版本号唯一来源：gradle.properties 的 version（见 AGENTS.md §0）

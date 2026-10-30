@@ -22,7 +22,7 @@ class DownloadsPage : UiPage {
             EmptyState(
                 icon = UiIcon.DOWNLOAD,
                 text = "下载中心还没接上",
-                hint = "需要 `DownloadSource` 插件与下载引擎，见 TODO 0.3.x",
+                hint = "应用不内置任何下载源：需要安装下载源插件后才能下载游戏文件",
             )
         }
     }

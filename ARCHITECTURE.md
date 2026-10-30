@@ -116,7 +116,8 @@ app ──► core ──► api
 | 插件运行时本身 | 自举失败则全盘失效 |
 | 启动执行链（JVM 参数、主类调用） | 启动器存在的意义 |
 | Java 运行时检测与下载 | 启动前置条件 |
-| 核心文件下载与校验 | 安全与完整性底线 |
+| 版本清单解析 / 校验 / 缓存 | 启动前置条件，且不含任何具体来源 |
+| 核心文件下载与校验 | 安全与完整性底线（下载**引擎**在 core，下载**地址**来自插件） |
 | 实例与配置管理 | 所有插件的依赖基础 |
 | 事件总线、服务注册 | 基础设施 |
 
@@ -124,6 +125,7 @@ app ──► core ──► api
 
 | 能力 | 示例插件 |
 |---|---|
+| 版本清单来源 | `source-mojang`、`source-bmclapi`、`source-local`（**均不内置**，需另装） |
 | 账户认证 | `auth-microsoft`、`auth-offline`、`auth-authlib` |
 | 内容下载源 | `download-modrinth`、`download-curseforge`、`download-custom` |
 | 游戏加载器适配 | `loader-forge`、`loader-fabric`、`loader-neoforge`、`loader-quilt` |
@@ -217,6 +219,10 @@ app ──► core ──► api
 - 插件 JAR 命名：`<pluginId>-<version>.jar`，如 `dev.mmcl.plugin.hello-0.0.1.jar`
 
 这样只有一套加载逻辑，内置/外置无差别，便于测试与升级。
+
+> **下载源例外**：`source-*` 类插件**不进入** `builtin-plugins/`，也不随应用分发。
+> 应用启动时若没有任何 `VersionManifestSource`，游戏页显示"未安装版本源插件"，
+> 启动器本身不发起任何与游戏文件相关的网络请求。
 
 ---
 

@@ -27,4 +27,5 @@ include(
     ":plugins:hello",
     ":plugins:ui-about",
     ":plugins:theme-sakura",
+    ":plugins:source-mojang",
 )

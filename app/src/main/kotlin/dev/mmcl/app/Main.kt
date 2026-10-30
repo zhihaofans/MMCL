@@ -2,6 +2,7 @@ package dev.mmcl.app
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiPage
@@ -17,6 +18,7 @@ import dev.mmcl.core.platform.Platforms
 import dev.mmcl.core.plugin.PluginManager
 import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.core.settings.FileSettingsService
+import dev.mmcl.core.version.VersionManifestService
 import java.nio.file.Files
 import org.slf4j.LoggerFactory
 
@@ -50,16 +52,29 @@ fun main(args: Array<String>) {
             manager.plugins
         }
 
+    // 应用不内置任何下载源：清单源完全来自插件，没有源就只能启动已装好的实例
+    val manifestService =
+        VersionManifestService(
+            cacheFile = launcher.dataDir.resolve("cache").resolve("version_manifest_v2.json"),
+            logger = logger,
+            sources = { manager.services.getAll(VersionManifestSource::class) },
+            settings = settings,
+        )
+
+    if (manifestService.orderedSources().isEmpty()) {
+        logger.warn("未安装版本源插件：本应用不内置下载源，无法获取游戏版本；把 source-mojang 等插件放进 {} 后重启", pluginsDir)
+    }
+
     val pluginThemes: List<LauncherTheme> =
         if (safeMode) emptyList() else manager.services.getAll(LauncherTheme::class)
     val themeController = ThemeController(settings, pluginThemes)
 
     val builtinPages: List<UiPage> =
         listOf(
-            InstancesPage(),
+            InstancesPage(manifestService, autoLoad = true),
             DownloadsPage(),
             PluginsPage(plugins),
-            SettingsPage(launcher, themeController, safeMode),
+            SettingsPage(launcher, themeController, safeMode, manifestService),
         )
     val pluginPages: List<UiPage> =
         if (safeMode) emptyList() else manager.services.getAll(UiPage::class)

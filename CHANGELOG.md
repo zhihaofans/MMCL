@@ -35,6 +35,12 @@
 - 安全阀：`--safe-mode` / `MMCL_SAFE_MODE=1` 跳过全部插件主题与页面
 - 构建校验 `:app:verifyPluginJars`：插件 JAR 禁止打包 `androidx/compose/**`
 - 无头渲染测试 `AppShellRenderTest`，截图输出到 `app/build/screenshots/`
+- 版本清单：`VersionManifest` 模型 + `VersionManifestService`（多源逐个尝试、30 分钟缓存、
+  离线回退到过期缓存、临时文件 + 原子写盘；脏 JSON 不落盘）
+- `api`：`VersionManifestSource` 能力接口，源完全由插件提供
+- 插件 `plugins/source-mojang`（0.0.1）：Mojang 官方源，**不进入 `builtin-plugins/`，需另行安装**
+- 游戏页：有源时可刷新版本清单并显示最新正式版/快照；无源时提示安装版本源插件
+- 设置页：下载源列表与当前缓存来源，可切换优先源（`version.source`）
 
 ### 变更
 
@@ -42,6 +48,8 @@
 - `PluginContext` 新增 `settings` 字段（**API-BREAK: minor**）
 - `prepareBuiltinPlugins` 由 `Copy` 改为 `Sync`，内置插件同步增加 `.builtin-plugins.manifest`
 - 插件版本与启动器版本解耦：所有插件统一从 `0.0.1` 起
+- **应用内移除全部下载地址**：删除内置清单 URL 与 `JdkHttpFetcher`，HTTP 实现归插件所有
+- 核心边界收窄为"启动已安装的游戏"：获取游戏文件的一切来源都是插件
 
 ### 已知限制
 
@@ -53,7 +61,9 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew clean build` 通过；63 个单元测试全绿（core 45 / app 13 / 插件 5）
+- `./gradlew clean build` 通过；79 个单元测试全绿（core 57 / app 15 / 插件 7）
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，三个内置插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
-- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页截图
+- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 六张截图
+- 实跑：未装源插件时日志告警且不发起请求；把 `source-mojang` 放进 `plugins/` 后重启，
+  成功拉取清单（最新正式版 26.3，921 个版本）并写入缓存
