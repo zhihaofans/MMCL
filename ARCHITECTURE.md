@@ -291,6 +291,19 @@ app ──► core ──► api
 
 统一由 `core` 的 `Platforms.dataDir()` 计算，插件只通过 `PluginContext.dataDir` 获取自己的 `plugin-data/<pluginId>/`。
 
+数据目录布局（实例共享文件、独立存档）：
+
+```
+<dataDir>/
+├── libraries/ assets/ versions/   # 所有实例共享（下载一次）
+├── instances.json                 # 实例清单（原子写）
+├── instances/<id>/                # 实例 game_directory：saves / mods / config
+├── plugins/ plugin-data/          # 插件
+├── runtime/<os>-<arch>/           # 自带 Java 运行时
+├── cache/                         # 版本清单缓存
+└── settings.properties            # 键值设置
+```
+
 ### 12.4 安全
 
 - 插件运行在独立 `URLClassLoader`，与 core 类路径隔离

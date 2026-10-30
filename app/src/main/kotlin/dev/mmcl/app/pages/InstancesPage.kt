@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,57 +29,64 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import dev.mmcl.api.Architecture
+import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.core.download.DownloadProgress
 import dev.mmcl.core.download.DownloadReport
-import dev.mmcl.core.download.InstallResult
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.InstallPlan
+import dev.mmcl.core.download.InstallResult
+import dev.mmcl.core.instance.Instance
+import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.java.JavaRuntimeSource
 import dev.mmcl.core.launch.LaunchRequest
 import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
-import dev.mmcl.core.java.JavaRuntimeSource
 import dev.mmcl.core.version.NoVersionSourceException
+import dev.mmcl.core.version.VersionDetailService
 import dev.mmcl.core.version.VersionManifest
 import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.core.version.VersionSupport
-import java.nio.file.Path
-import kotlinx.coroutines.delay
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
+import java.nio.file.Path
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * 游戏页：版本清单 + 最新正式版的"检查文件 / 下载游戏文件"。
- *
- * 启动执行链还没落地，所以这里不提供"启动"按钮；下载完成只代表文件齐了。
- *
- * @param manifests 版本清单服务；为 `null` 时不显示刷新入口（渲染测试用）
- * @param installer 安装编排；为 `null` 时不显示准备卡片
- * @param autoLoad 首次进入是否自动拉取清单（有缓存会直接命中缓存）
- */
-/**
  * 启动所需的环境信息，由 `Main` 组装。
  *
+ * @property sharedRoot 共享根（`<dataDir>`）：libraries / assets / versions
  * @property playerName 离线占位玩家名（等 `auth-*` 插件落地后替换）
  */
 data class LaunchContext(
-    val gameDir: Path,
+    val sharedRoot: Path,
     val launcherVersion: String,
-    val os: dev.mmcl.api.OperatingSystem,
-    val arch: dev.mmcl.api.Architecture,
+    val os: OperatingSystem,
+    val arch: Architecture,
     val playerName: String = "Player",
 )
 
+/**
+ * 游戏页：实例列表 + 共享文件准备。
+ *
+ * 结构：
+ * - 实例卡片（启动 / 删除）；实例拥有独立游戏目录（存档、配置、mods）；
+ * - 共享文件：libraries / assets / versions 只下一份，所有实例复用；
+ * - 版本清单里只允许最新正式版系列，其余标"不受支持"。
+ */
 class InstancesPage(
     private val manifests: VersionManifestService? = null,
     private val installer: GameInstaller? = null,
+    private val instanceService: InstanceService? = null,
+    private val detailService: VersionDetailService? = null,
     private val javaDetector: JavaRuntimeDetector? = null,
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
@@ -94,11 +104,17 @@ class InstancesPage(
         var prep by remember { mutableStateOf<PrepUiState>(PrepUiState.Idle) }
         var javaStatus by remember { mutableStateOf<String?>(null) }
         var launchStatus by remember { mutableStateOf<String?>(null) }
+        var instances by remember { mutableStateOf<List<Instance>>(emptyList()) }
+        var pendingDelete by remember { mutableStateOf<Instance?>(null) }
         var runningSession by remember { mutableStateOf<LaunchSession?>(null) }
-        // 自动加载只触发一次：LaunchedEffect 在重组时可能重跑，用标记兜底避免重复请求
+        var runningInstanceId by remember { mutableStateOf<String?>(null) }
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         val hasSource = manifests?.hasSource() == true
+
+        fun refreshInstances() {
+            instances = instanceService?.list().orEmpty()
+        }
 
         fun refresh(force: Boolean) {
             val service = manifests ?: return
@@ -117,8 +133,8 @@ class InstancesPage(
             }
         }
 
-        fun describeJava(plan: InstallPlan): String {
-            val required = plan.detail.javaVersion?.majorVersion ?: 0
+        fun describeJava(detail: dev.mmcl.core.version.VersionDetail): String {
+            val required = detail.javaVersion?.majorVersion ?: 0
             if (required <= 0) return "该版本未声明 Java 要求"
             val detector = javaDetector ?: return "需要 Java ≥$required（检测器未接入）"
             val runtime = detector.detect(required)
@@ -135,7 +151,7 @@ class InstancesPage(
             scope.launch {
                 try {
                     val plan = inst.plan(entry, forceRefresh = true)
-                    javaStatus = describeJava(plan)
+                    javaStatus = describeJava(plan.detail)
                     prep = PrepUiState.Ready(plan)
                 } catch (t: Throwable) {
                     prep = PrepUiState.Failed(t.message ?: "检查文件失败")
@@ -152,7 +168,7 @@ class InstancesPage(
                         inst.install(entry, forceRefresh = true) { progress ->
                             prep = PrepUiState.Downloading(progress)
                         }
-                    javaStatus = describeJava(result.plan)
+                    javaStatus = describeJava(result.plan.detail)
                     prep = PrepUiState.Done(result)
                 } catch (t: Throwable) {
                     prep = PrepUiState.Failed(t.message ?: "下载失败")
@@ -160,38 +176,71 @@ class InstancesPage(
             }
         }
 
-        fun startGame(plan: InstallPlan) {
+        fun createInstance(versionId: String) {
+            val service = instanceService ?: return
+            runCatching { service.create(versionId) }
+                .onSuccess {
+                    refreshInstances()
+                    launchStatus = "已创建实例 ${it.name}"
+                }
+                .onFailure { launchStatus = "新建实例失败：${it.message ?: it::class.simpleName}" }
+        }
+
+        fun launchInstance(instance: Instance) {
+            val details = detailService
             val detector = javaDetector
-            val instance = launcher
+            val process = launcher
             val context = launchContext
-            if (detector == null || instance == null || context == null) {
-                launchStatus = "启动器未接线，无法启动游戏"
+            val service = instanceService
+            val manifest = (state as? ManifestUiState.Loaded)?.manifest
+            if (details == null || detector == null || process == null || context == null || service == null) {
+                launchStatus = "启动器未接线，无法启动"
                 return
             }
-            val required = plan.detail.javaVersion?.majorVersion ?: 0
-            val runtime = detector.detect(required)
-            if (runtime == null) {
-                launchStatus = "缺少 Java ≥$required，无法启动"
+            val entry = manifest?.find(instance.versionId)
+            if (entry == null) {
+                launchStatus = "版本清单里找不到 ${instance.versionId}，先刷新版本清单"
                 return
             }
-            try {
-                val session =
-                    instance.launch(
-                        LaunchRequest(
-                            detail = plan.detail,
-                            gameDir = context.gameDir,
-                            javaExecutable = runtime.executable,
-                            launcherVersion = context.launcherVersion,
-                            os = context.os,
-                            arch = context.arch,
-                            playerName = context.playerName,
-                        ),
-                    )
-                runningSession = session
-                launchStatus = "已启动（pid ${session.pid}）"
-            } catch (t: Throwable) {
-                launchStatus = "启动失败：${t.message ?: t::class.simpleName}"
-                runningSession = null
+            launchStatus = "正在启动 ${instance.name}…"
+            scope.launch {
+                try {
+                    val detail = details.load(entry)
+                    val required = detail.javaVersion?.majorVersion ?: 0
+                    val runtime = detector.detect(required)
+                    if (runtime == null) {
+                        launchStatus = "缺少 Java ≥$required，无法启动 ${instance.name}"
+                        return@launch
+                    }
+                    val session =
+                        process.launch(
+                            LaunchRequest(
+                                detail = detail,
+                                sharedRoot = context.sharedRoot,
+                                instanceDir = service.directoryOf(instance),
+                                javaExecutable = runtime.executable,
+                                launcherVersion = context.launcherVersion,
+                                os = context.os,
+                                arch = context.arch,
+                                playerName = context.playerName,
+                            ),
+                        )
+                    runningSession = session
+                    runningInstanceId = instance.id
+                    launchStatus = "${instance.name} 已启动（pid ${session.pid}）"
+                } catch (t: Throwable) {
+                    launchStatus = "启动失败：${t.message ?: t::class.simpleName}"
+                    runningSession = null
+                    runningInstanceId = null
+                }
+            }
+        }
+
+        LaunchedEffect(Unit) {
+            refreshInstances()
+            if (autoLoad && !autoLoadTriggered && hasSource) {
+                autoLoadTriggered = true
+                refresh(force = false)
             }
         }
 
@@ -200,22 +249,26 @@ class InstancesPage(
             while (session.isRunning) delay(1_000)
             launchStatus = "游戏已退出（code ${session.process.exitValue()}）"
             runningSession = null
+            runningInstanceId = null
         }
 
-        LaunchedEffect(Unit) {
-            if (autoLoad && !autoLoadTriggered && hasSource) {
-                autoLoadTriggered = true
-                refresh(force = false)
-            }
-        }
+        val latest = (state as? ManifestUiState.Loaded)?.manifest?.latestRelease()
 
         PageScaffold(
             title = "游戏",
-            subtitle = "实例与版本",
+            subtitle = "实例与共享文件",
             actions = {
                 if (hasSource) {
-                    Button(onClick = { refresh(force = true) }, enabled = state != ManifestUiState.Loading) {
+                    OutlinedButton(
+                        onClick = { refresh(force = true) },
+                        enabled = state != ManifestUiState.Loading,
+                    ) {
                         Text(if (state == ManifestUiState.Loading) "获取中…" else "刷新版本清单")
+                    }
+                }
+                if (instanceService != null) {
+                    Button(onClick = { latest?.let { createInstance(it.id) } }, enabled = latest != null) {
+                        Text("新建实例")
                     }
                 }
             },
@@ -226,7 +279,7 @@ class InstancesPage(
                         EmptyState(
                             icon = UiIcon.GAME,
                             text = "还没有实例",
-                            hint = "点右上角「刷新版本清单」拉取版本列表；启动执行链还在开发中",
+                            hint = "点右上角「刷新版本清单」，再「新建实例」",
                         )
                     } else {
                         EmptyState(
@@ -252,48 +305,119 @@ class InstancesPage(
                     )
 
                 is ManifestUiState.Loaded -> {
-                    val latest = current.manifest.latestRelease()
                     Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
-                        ManifestSummary(current.manifest)
-                        if (installer != null && latest != null) {
+                        if (instances.isEmpty()) {
+                            EmptyState(
+                                icon = UiIcon.GAME,
+                                text = "还没有实例",
+                                hint = "点右上角「新建实例」，会用最新正式版 ${current.manifest.latest.release} 创建",
+                            )
+                        } else {
+                            instances.forEach { instance ->
+                                InstanceCard(
+                                    instance = instance,
+                                    running = runningInstanceId == instance.id,
+                                    onLaunch = { launchInstance(instance) },
+                                    onDelete = { pendingDelete = instance },
+                                )
+                            }
+                        }
+
+                        launchStatus?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        HorizontalDivider()
+                        Text(
+                            text = "共享文件（libraries / assets / versions，所有实例复用）",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        latest?.let { entry ->
                             GamePrepCard(
-                                versionId = latest.id,
+                                versionId = entry.id,
                                 plan = (prep as? PrepUiState.Ready)?.plan,
                                 progress = (prep as? PrepUiState.Downloading)?.progress,
                                 report = (prep as? PrepUiState.Done)?.result?.report,
                                 failure = (prep as? PrepUiState.Failed)?.message,
                                 javaStatus = javaStatus,
-                                onLaunch =
-                                    (prep as? PrepUiState.Done)?.let { done ->
-                                        { startGame(done.result.plan) }
-                                    },
-                                launchStatus = launchStatus,
-                                running = runningSession != null,
-                                onStop = { runningSession?.stop()?.also { launchStatus = "正在停止游戏…" } },
                                 busy = prep is PrepUiState.Planning || prep is PrepUiState.Downloading,
-                                onCheck = { checkFiles(latest) },
-                                onDownload = { downloadFiles(latest) },
+                                onCheck = { checkFiles(entry) },
+                                onDownload = { downloadFiles(entry) },
                             )
                         }
+                        ManifestSummary(current.manifest)
                     }
                 }
             }
         }
+
+        pendingDelete?.let { target ->
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text("删除实例") },
+                text = { Text("会连同「${target.name}」的存档、配置与 mods 一起删除，且不可恢复。共享文件不受影响。") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            instanceService?.delete(target.id)
+                            refreshInstances()
+                            pendingDelete = null
+                            launchStatus = "已删除实例 ${target.name}"
+                        },
+                    ) { Text("删除") }
+                },
+                dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("取消") } },
+            )
+        }
     }
 }
 
-/** 版本清单摘要卡片：最新正式版/快照 + 版本总数 + 前几个版本。 */
+/** 实例卡片：名称、版本、目录、启动与删除。 */
 @Composable
-internal fun ManifestSummary(manifest: VersionManifest) {
-    Column(
+internal fun InstanceCard(
+    instance: Instance,
+    running: Boolean,
+    onLaunch: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .padding(MmclSpacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MmclSpacing.m),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = instance.name, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "版本 ${instance.versionId} · instances/${instance.id}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Button(onClick = onLaunch, enabled = !running) { Text(if (running) "运行中" else "启动") }
+        TextButton(onClick = onDelete, enabled = !running) { Text("删除") }
+    }
+}
+
+/** 版本清单摘要卡片：最新正式版/快照 + 支持范围 + 前几个版本。 */
+@Composable
+internal fun ManifestSummary(manifest: VersionManifest) {
+    val supportedSeries = VersionSupport.latestSeries(manifest)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
             .padding(MmclSpacing.l),
         verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
     ) {
-        val supportedSeries = VersionSupport.latestSeries(manifest)
         Text(text = "Mojang 版本清单", style = MaterialTheme.typography.titleSmall)
         Text(
             text = "只支持最新正式版系列（$supportedSeries）；其余仅展示，不可下载或启动",

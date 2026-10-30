@@ -26,10 +26,10 @@ object LaunchCommandBuilder {
             throw LaunchException("版本 ${detail.id} 缺少 mainClass，无法启动")
         }
 
-        val librariesDir = request.gameDir.resolve("libraries")
-        val assetsDir = request.gameDir.resolve("assets")
-        val nativesDir = request.gameDir.resolve("versions").resolve(detail.id).resolve("natives")
-        val clientJar = request.gameDir.resolve("versions").resolve(detail.id).resolve("${detail.id}.jar")
+        val librariesDir = request.sharedRoot.resolve("libraries")
+        val assetsDir = request.sharedRoot.resolve("assets")
+        val nativesDir = request.sharedRoot.resolve("versions").resolve(detail.id).resolve("natives")
+        val clientJar = request.sharedRoot.resolve("versions").resolve(detail.id).resolve("${detail.id}.jar")
 
         val classpath =
             buildList {
@@ -51,7 +51,7 @@ object LaunchCommandBuilder {
                 "clientid" to "",
                 "version_name" to detail.id,
                 "version_type" to detail.type,
-                "game_directory" to request.gameDir.toString(),
+                "game_directory" to request.instanceDir.toString(),
                 "assets_root" to assetsDir.toString(),
                 "assets_index_name" to (detail.assetIndex?.id ?: detail.assets),
                 "user_type" to "legacy",

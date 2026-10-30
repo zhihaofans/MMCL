@@ -23,6 +23,8 @@ import dev.mmcl.core.settings.FileSettingsService
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.core.version.VersionDetailService
 import dev.mmcl.app.pages.LaunchContext
+import dev.mmcl.core.instance.InstanceService
+import dev.mmcl.core.instance.InstanceStore
 import dev.mmcl.core.java.JavaRuntimeDetector
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.net.JdkHttpTransport
@@ -78,9 +80,16 @@ fun main(args: Array<String>) {
     }
 
     val transport = JdkHttpTransport(userAgent = "MMCL/${launcher.version}")
+    val detailService = VersionDetailService(launcher.dataDir.resolve("versions"), transport, logger)
+    val instanceService =
+        InstanceService(
+            store = InstanceStore(launcher.dataDir.resolve("instances.json"), logger),
+            instancesDir = launcher.dataDir.resolve("instances"),
+            logger = logger,
+        )
     val installer =
         GameInstaller(
-            detailService = VersionDetailService(launcher.dataDir.resolve("versions"), transport, logger),
+            detailService = detailService,
             downloader = FileDownloader(transport, logger),
             root = launcher.dataDir,
             os = launcher.os,
@@ -96,7 +105,7 @@ fun main(args: Array<String>) {
     val gameLauncher = MinecraftLauncher(manager.events, logger)
     val launchContext =
         LaunchContext(
-            gameDir = launcher.dataDir,
+            sharedRoot = launcher.dataDir,
             launcherVersion = launcher.version,
             os = launcher.os,
             arch = launcher.arch,
@@ -105,7 +114,16 @@ fun main(args: Array<String>) {
 
     val builtinPages: List<UiPage> =
         listOf(
-            InstancesPage(manifestService, installer, javaDetector, gameLauncher, launchContext, autoLoad = true),
+            InstancesPage(
+                manifestService,
+                installer,
+                instanceService,
+                detailService,
+                javaDetector,
+                gameLauncher,
+                launchContext,
+                autoLoad = true,
+            ),
             DownloadsPage(),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode, manifestService),

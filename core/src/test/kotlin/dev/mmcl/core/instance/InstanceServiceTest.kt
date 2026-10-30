@@ -1,0 +1,90 @@
+package dev.mmcl.core.instance
+
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import org.slf4j.LoggerFactory
+
+class InstanceServiceTest {
+    private val logger = LoggerFactory.getLogger("test")
+    private lateinit var root: Path
+    private lateinit var service: InstanceService
+    private var now: Long = 1_700_000_000_000
+
+    @BeforeTest
+    fun setUp() {
+        root = Files.createTempDirectory("mmcl-instance-test")
+        service =
+            InstanceService(
+                store = InstanceStore(root.resolve("instances.json"), logger),
+                instancesDir = root.resolve("instances"),
+                logger = logger,
+                clock = { now++ },
+            )
+    }
+
+    @AfterTest
+    fun tearDown() {
+        root.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `创建实例会建目录与子目录并持久化`() {
+        val instance = service.create("26.3")
+
+        assertEquals("26.3", instance.name)
+        assertEquals("26.3", instance.versionId)
+        assertTrue(Files.isDirectory(service.directoryOf(instance)))
+        listOf("saves", "mods", "config").forEach {
+            assertTrue(Files.isDirectory(service.directoryOf(instance).resolve(it)), "缺少子目录 $it")
+        }
+        assertTrue(Files.isRegularFile(root.resolve("instances.json")))
+        assertEquals(1, InstanceStore(root.resolve("instances.json"), logger).load().size)
+    }
+
+    @Test
+    fun `同名实例自动加后缀`() {
+        val first = service.create("26.3")
+        val second = service.create("26.3")
+
+        assertEquals("26.3", first.name)
+        assertEquals("26.3 2", second.name)
+        assertEquals("26.3", first.id)
+        assertEquals("26.3-2", second.id)
+    }
+
+    @Test
+    fun `删除实例会删目录并从清单移除`() {
+        val instance = service.create("26.3")
+        val directory = service.directoryOf(instance)
+
+        assertTrue(service.delete(instance.id))
+
+        assertFalse(Files.exists(directory))
+        assertTrue(service.list().isEmpty())
+        assertFalse(service.delete("missing"))
+    }
+
+    @Test
+    fun `清单损坏时按空列表处理`() {
+        Files.writeString(root.resolve("instances.json"), "{ broken")
+
+        assertTrue(service.list().isEmpty())
+        // 仍然可以继续创建
+        assertEquals("26.3", service.create("26.3").name)
+        assertEquals(1, service.list().size)
+    }
+
+    @Test
+    fun `列表按创建时间排序`() {
+        service.create("26.3")
+        service.create("26.2")
+
+        assertEquals(listOf("26.3", "26.2"), service.list().map { it.versionId })
+    }
+}

@@ -15,7 +15,8 @@ import kotlinx.serialization.json.Json
 
 class LaunchCommandBuilderTest {
     private val json = Json { ignoreUnknownKeys = true }
-    private val gameDir: Path = Path.of("/tmp/mmcl-launch-test")
+    private val sharedRoot: Path = Path.of("/tmp/mmcl-launch-test")
+    private val instanceDir: Path = sharedRoot.resolve("instances/26.3")
     private val javaPath: Path = Path.of("/usr/bin/java")
 
     private fun detail(jsonText: String = SAMPLE): VersionDetail =
@@ -24,7 +25,8 @@ class LaunchCommandBuilderTest {
     private fun request(detail: VersionDetail = detail(), playerName: String = "Player") =
         LaunchRequest(
             detail = detail,
-            gameDir = gameDir,
+            sharedRoot = sharedRoot,
+            instanceDir = instanceDir,
             javaExecutable = javaPath,
             launcherVersion = "0.0.1",
             os = OperatingSystem.MACOS,
@@ -39,8 +41,8 @@ class LaunchCommandBuilderTest {
         assertEquals(javaPath, command.executable)
         assertTrue(command.arguments.contains("-Xmx2048M"))
         assertTrue(command.arguments.contains(detail().mainClass))
-        assertTrue(command.arguments.contains("-Djava.library.path=${gameDir.resolve("versions/1.21.8/natives")}"))
-        assertTrue(command.arguments.contains("-Dlog4j.configurationFile=${gameDir.resolve("assets/log_configs/client-1.21.8.xml")}"))
+        assertTrue(command.arguments.contains("-Djava.library.path=${sharedRoot.resolve("versions/1.21.8/natives")}"))
+        assertTrue(command.arguments.contains("-Dlog4j.configurationFile=${sharedRoot.resolve("assets/log_configs/client-1.21.8.xml")}"))
     }
 
     @Test
@@ -53,7 +55,7 @@ class LaunchCommandBuilderTest {
         assertEquals("0", args[args.indexOf("--accessToken") + 1])
         assertEquals("1.21.8", args[args.indexOf("--version") + 1])
         assertEquals("17", args[args.indexOf("--assetIndex") + 1])
-        assertEquals(gameDir.toString(), args[args.indexOf("--gameDir") + 1])
+        assertEquals(instanceDir.toString(), args[args.indexOf("--gameDir") + 1])
     }
 
     @Test

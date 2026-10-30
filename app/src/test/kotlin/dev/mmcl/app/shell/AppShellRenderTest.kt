@@ -15,6 +15,7 @@ import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.GamePrepCard
+import dev.mmcl.app.pages.InstanceCard
 import dev.mmcl.app.pages.InstancesPage
 import dev.mmcl.app.pages.ManifestSummary
 import dev.mmcl.app.pages.PluginsPage
@@ -25,6 +26,7 @@ import dev.mmcl.core.download.DownloadProgress
 import dev.mmcl.core.download.FileDownloader
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.InstallPlan
+import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.download.PlannedFile
 import dev.mmcl.core.net.HttpTransport
 import dev.mmcl.core.plugin.LoadedPlugin
@@ -262,8 +264,41 @@ class AppShellRenderTest {
     }
 
     @Test
+    fun `渲染实例卡片`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        render("instance-card", controller, listOf(InstanceDemoPage(), InstancesPage(manifestStub, installerStub)))
+    }
+
+    @Test
     fun `内置主题 id 固定不变`() {
         assertTrue(BuiltinThemes.DARK_ID == "builtin.dark")
+    }
+
+    /** 渲染测试专用的"实例列表"页面。 */
+    private class InstanceDemoPage : UiPage {
+        override val id: String = "dev.mmcl.page.render-instance"
+        override val title: String = "实例"
+        override val icon: UiIcon = UiIcon.GAME
+        override val group: UiGroup = UiGroup.MAIN
+        override val order: Int = 1
+
+        @Composable
+        override fun Content(navigator: AppNavigator) {
+            PageScaffold(title = "游戏", subtitle = "实例与共享文件") {
+                InstanceCard(
+                    instance = Instance(id = "26.3", name = "26.3", versionId = "26.3", createdAtEpochMillis = 0),
+                    running = false,
+                    onLaunch = {},
+                    onDelete = {},
+                )
+                InstanceCard(
+                    instance = Instance(id = "26.3-2", name = "26.3 2", versionId = "26.3", createdAtEpochMillis = 1),
+                    running = true,
+                    onLaunch = {},
+                    onDelete = {},
+                )
+            }
+        }
     }
 
     /** 渲染测试专用的"安装卡片"页面。 */
@@ -288,10 +323,6 @@ class AppShellRenderTest {
                     report = null,
                     failure = null,
                     javaStatus = "Java 21（系统 JDK）",
-                    onLaunch = if (busy) null else ({ }),
-                    launchStatus = if (busy) null else "已启动（pid 4242）",
-                    running = busy,
-                    onStop = {},
                     busy = busy,
                     onCheck = {},
                     onDownload = {},

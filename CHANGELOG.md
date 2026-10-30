@@ -56,6 +56,12 @@
 - natives 按库名架构标识过滤（`natives-macos` vs `natives-macos-arm64`），规划与 classpath 共用同一份过滤结果
 - 游戏页：下载完成后出现「启动游戏 / 停止游戏」与运行状态
 - 冒烟门槛改用 Gradle 属性：`-Pmmcl.netTests=1`（真实清单）、`-Pmmcl.realLaunch=1`（真实下载并启动）
+- 实例管理：`Instance` / `InstanceStore`（JSON 原子读写、坏文件自愈）/ `InstanceService`
+  （创建、删除、自动重名后缀；实例目录含 saves/mods/config）
+- 游戏页改为实例列表：新建（用最新正式版）、启动、删除（二次确认，说明会删存档）；
+  libraries / assets / versions 在所有实例间共享，只有存档与配置在实例目录里
+- 启动参数拆分 `sharedRoot`（共享文件）与 `instanceDir`（`game_directory`），
+  同一份文件可以被多个实例复用
 
 ### 变更
 
@@ -66,6 +72,10 @@
 - **应用内移除全部下载地址**：删除内置清单 URL 与 `JdkHttpFetcher`，HTTP 实现归插件所有
 - 核心边界收窄为"启动已安装的游戏"：获取游戏文件的一切来源都是插件
 - **支持范围收缩**：macOS 只做 arm64；Windows 默认 Win11；游戏与加载器只维护最新正式版系列
+
+### 变更
+
+- `LaunchRequest` 的 `gameDir` 拆成 `sharedRoot` + `instanceDir`（core 内部类型，不影响插件 API）
 
 ### 修复
 
@@ -83,12 +93,12 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew build` 通过；133 个单元测试全绿（core 110 / app 16 / 插件 7）
+- `./gradlew build` 通过；139 个单元测试全绿（core 115 / app 17 / 插件 7）
 - **真实启动成功**（过版本闸门）：`26.3` 下载 70 个文件 / 124 MB、0 失败，用 Zulu 25 拉起，
   日志出现 `Setting user: SmokeTest` 与 `Backend library: LWJGL version 3.4.3+4`，发出 `GameLaunching`
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
-- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 八张截图
+- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 / 实例卡片 九张截图
 - 本机实跑截图确认：导航含插件页「关于」，设置页显示三个主题与下载源（mojang）
 - Java 检测新增 10 个用例：来源优先级、版本不够跳过、缺 `release` 不误认、macOS 兜底、版本归一
 - 真实冒烟：最新正式版 26.3 解析出 83 个待下载文件、约 127 MB、0 条告警

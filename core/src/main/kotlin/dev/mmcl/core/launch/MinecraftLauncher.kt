@@ -43,7 +43,7 @@ class MinecraftLauncher(
         )
         val process =
             try {
-                processStarter(command.asProcessCommand(), request.gameDir)
+                processStarter(command.asProcessCommand(), request.instanceDir)
             } catch (t: Throwable) {
                 throw LaunchException("启动游戏进程失败：${request.detail.id}", t)
             }

@@ -25,7 +25,8 @@ class MinecraftLauncherTest {
     private fun request() =
         LaunchRequest(
             detail = detail,
-            gameDir = Path.of("/tmp/mmcl-launcher-test"),
+            sharedRoot = Path.of("/tmp/mmcl-launcher-test"),
+            instanceDir = Path.of("/tmp/mmcl-launcher-test/instances/default"),
             javaExecutable = Path.of("/bin/sh"),
             launcherVersion = "0.0.1",
             os = OperatingSystem.MACOS,

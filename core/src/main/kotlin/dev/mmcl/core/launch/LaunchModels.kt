@@ -18,12 +18,14 @@ class LaunchException(
  * 账户目前是**离线占位**：名字来自设置（默认 `Player`），UUID 用官方离线算法生成，
  * accessToken 固定 `0`。等 `auth-*` 插件落地后替换 [playerName] 这段即可。
  *
- * @param gameDir 游戏根目录（`<dataDir>`）
+ * @param sharedRoot 共享根（`<dataDir>`）：libraries / assets / versions 都放这里
+ * @param instanceDir 实例的游戏目录（`game_directory`，存档/配置在实例里）
  * @param javaExecutable 由 `JavaRuntimeDetector` 挑出的 java
  */
 data class LaunchRequest(
     val detail: VersionDetail,
-    val gameDir: Path,
+    val sharedRoot: Path,
+    val instanceDir: Path,
     val javaExecutable: Path,
     val launcherVersion: String,
     val os: OperatingSystem,

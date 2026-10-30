@@ -75,7 +75,8 @@ class RealMojangSmokeTest {
             val request =
                 LaunchRequest(
                     detail = result.plan.detail,
-                    gameDir = dir,
+                    sharedRoot = dir,
+                    instanceDir = dir.resolve("instances/smoke"),
                     javaExecutable = runtime!!.executable,
                     launcherVersion = "0.0.1",
                     os = OperatingSystem.MACOS,
