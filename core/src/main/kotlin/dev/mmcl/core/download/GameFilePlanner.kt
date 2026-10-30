@@ -1,6 +1,8 @@
 package dev.mmcl.core.download
 
+import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
+import dev.mmcl.core.version.Library
 import dev.mmcl.core.version.LibraryRule
 import dev.mmcl.core.version.VersionDetail
 
@@ -9,10 +11,10 @@ import dev.mmcl.core.version.VersionDetail
  *
  * 纯函数，不做 IO：
  * - 客户端 JAR、资源索引、日志配置：详情里自带 URL；
- * - 库文件：按 `rules` 过滤当前平台后取 `downloads.artifact`；
+ * - 库文件：按 `rules` 过滤平台，再按库名里的架构标识过滤（`natives-macos` vs `natives-macos-arm64`）；
+ * - 同一 base 存在架构专用变体时，丢弃没有架构标识的通用变体（避免 classpath 先命中错架构）；
  * - `natives` / `classifiers`（1.19 之前的老版本）暂不下载，只记录警告；
- * - 资源对象（`assets/objects/<hash>`）不在本步处理 —— 它们的地址基址需要由来源插件提供，
- *   等下载源扩展点落地后再补。
+ * - 资源对象（`assets/objects/<hash>`）不在本步处理 —— 地址基址需要由来源插件提供。
  */
 object GameFilePlanner {
     /** 规划结果：要下载的文件 + 被跳过的说明。 */
@@ -24,10 +26,10 @@ object GameFilePlanner {
     /**
      * 规划单个版本需要下载的文件。
      *
-     * @param detail 版本详情
      * @param os 目标平台，用于解析库的 `rules`
+     * @param arch 目标架构，用于剔除 `natives-*-arm64` / `natives-*-x86_64` 里不匹配的变体
      */
-    fun plan(detail: VersionDetail, os: OperatingSystem): Plan {
+    fun plan(detail: VersionDetail, os: OperatingSystem, arch: Architecture): Plan {
         val files = mutableListOf<PlannedFile>()
         val warnings = mutableListOf<String>()
 
@@ -66,8 +68,7 @@ object GameFilePlanner {
                 )
         }
 
-        for (library in detail.libraries) {
-            if (!allows(library.rules, os)) continue
+        for (library in allowedLibraries(detail, os, arch)) {
             val artifact = library.downloads.artifact
             if (artifact == null) {
                 if (library.natives.isNotEmpty() || library.downloads.classifiers.isNotEmpty()) {
@@ -87,6 +88,25 @@ object GameFilePlanner {
         }
 
         return Plan(files.sortedBy { it.relativePath }, warnings)
+    }
+
+    /**
+     * 过滤出当前平台/架构需要的库（下载与 classpath 共用同一份结果）。
+     */
+    fun allowedLibraries(detail: VersionDetail, os: OperatingSystem, arch: Architecture): List<Library> {
+        val candidates = detail.libraries.filter { allows(it.rules, os) && archMatches(it.name, arch) }
+
+        // 同一个 base 若有架构专用 natives 变体，就丢掉无架构标识的通用变体
+        val natives = candidates.filter { classifierOf(it.name)?.contains("natives") == true }
+        val dropNames =
+            natives
+                .groupBy { baseOf(it.name) }
+                .values
+                .filter { group -> group.any { archTokenOf(it.name) != null } }
+                .flatMap { group -> group.filter { archTokenOf(it.name) == null }.map { it.name } }
+                .toSet()
+
+        return candidates.filterNot { it.name in dropNames }
     }
 
     /**
@@ -113,6 +133,26 @@ object GameFilePlanner {
             else -> false
         }
     }
+
+    private fun archMatches(libraryName: String, arch: Architecture): Boolean {
+        val token = archTokenOf(libraryName) ?: return true
+        return token == arch
+    }
+
+    /** 从库名里的 classifier 推断架构，例如 `natives-macos-arm64` → [Architecture.ARM64]。 */
+    internal fun archTokenOf(libraryName: String): Architecture? {
+        val classifier = classifierOf(libraryName) ?: return null
+        return when {
+            classifier.contains("arm64") -> Architecture.ARM64
+            classifier.contains("x86_64") || classifier.contains("amd64") -> Architecture.X86_64
+            else -> null
+        }
+    }
+
+    private fun classifierOf(libraryName: String): String? =
+        libraryName.split(':').getOrNull(3)?.takeIf { it.isNotBlank() }
+
+    private fun baseOf(libraryName: String): String = libraryName.split(':').take(3).joinToString(":")
 
     /** `group:artifact:version[:classifier]` → Maven 相对路径。 */
     private fun guessMavenPath(coordinates: String): String {

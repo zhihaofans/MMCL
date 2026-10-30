@@ -5,16 +5,16 @@
 
 ## 进行中
 
-- [ ] 启动执行链：组装 classpath（客户端 JAR + libraries）+ JVM 参数 + `mainClass`，真实拉起 Minecraft
-      验收：`26.3` 在 macOS 上能进主菜单；发 `GameLaunching` / `GameExited` 事件
+- [ ] 实例目录与实例配置管理：创建/删除实例、每个实例独立 `gameDir` 与版本选择
+      验收：能建两个实例分别指向不同版本目录，启动参数里的 `gameDir` 各自正确
 
 ## 待办
 
 ### 0.1.x — 能启动游戏
 
-- [ ] 游戏进程日志捕获与退出码上报（`GameExited`）
-- [ ] 实例目录与实例配置管理
-- [ ] 离线账户（`auth-offline` 插件）
+- [ ] 游戏日志面板：把游戏输出流到 UI（目前只写日志与回调）
+- [ ] 离线账户插件（`auth-offline`，正式替代内置占位）
+- [ ] 正版账户（`auth-microsoft`，见 0.3.x）
 - [ ] 下载失败重试与限速
 - [ ] 老版本 natives / classifiers 下载（1.19 之前）
 - [ ] `source-bmclapi` 等镜像源插件

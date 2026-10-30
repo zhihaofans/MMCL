@@ -1,5 +1,6 @@
 package dev.mmcl.core.download
 
+import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.core.version.VersionDetail
 import dev.mmcl.core.version.VersionDetailService
@@ -49,12 +50,13 @@ class GameInstaller(
     private val downloader: FileDownloader,
     private val root: Path,
     private val os: OperatingSystem,
+    private val arch: Architecture,
     private val logger: Logger,
 ) {
     /** 只做规划，不下载（界面用于"检查文件"）。 */
     suspend fun plan(entry: VersionManifestEntry, forceRefresh: Boolean = false): InstallPlan {
         val detail = detailService.load(entry, forceRefresh)
-        val planned = GameFilePlanner.plan(detail, os)
+        val planned = GameFilePlanner.plan(detail, os, arch)
         planned.warnings.forEach { logger.warn("版本 {}：{}", detail.id, it) }
         return InstallPlan(detail = detail, files = planned.files, warnings = planned.warnings)
     }

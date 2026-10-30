@@ -1,5 +1,6 @@
 package dev.mmcl.core.download
 
+import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.core.version.AssetIndexRef
 import dev.mmcl.core.version.DownloadEntry
@@ -56,7 +57,7 @@ class GameFilePlannerTest {
 
     @Test
     fun `基础文件包含客户端 资源索引 日志配置`() {
-        val plan = GameFilePlanner.plan(detail(), OperatingSystem.MACOS)
+        val plan = GameFilePlanner.plan(detail(), OperatingSystem.MACOS, Architecture.ARM64)
 
         assertEquals(
             listOf(
@@ -73,7 +74,7 @@ class GameFilePlannerTest {
 
     @Test
     fun `没有规则的库会下载`() {
-        val plan = GameFilePlanner.plan(detail(library("com.example:always:1.0")), OperatingSystem.LINUX)
+        val plan = GameFilePlanner.plan(detail(library("com.example:always:1.0")), OperatingSystem.LINUX, Architecture.ARM64)
 
         assertTrue(plan.files.any { it.relativePath.startsWith("libraries/") })
         assertTrue(plan.warnings.isEmpty())
@@ -87,8 +88,8 @@ class GameFilePlannerTest {
                 rules = listOf(LibraryRule(action = "allow", os = OsRule(name = "osx"))),
             )
 
-        val onMac = GameFilePlanner.plan(detail(macOnly), OperatingSystem.MACOS)
-        val onWindows = GameFilePlanner.plan(detail(macOnly), OperatingSystem.WINDOWS)
+        val onMac = GameFilePlanner.plan(detail(macOnly), OperatingSystem.MACOS, Architecture.ARM64)
+        val onWindows = GameFilePlanner.plan(detail(macOnly), OperatingSystem.WINDOWS, Architecture.ARM64)
 
         assertTrue(onMac.files.any { it.relativePath.contains("lwjgl") })
         assertFalse(onWindows.files.any { it.relativePath.contains("lwjgl") })
@@ -102,7 +103,7 @@ class GameFilePlannerTest {
                 downloads = LibraryDownloads(classifiers = mapOf("natives-macos" to DownloadEntry(url = "https://example.invalid/native.jar"))),
             )
 
-        val plan = GameFilePlanner.plan(detail(nativesOnly), OperatingSystem.MACOS)
+        val plan = GameFilePlanner.plan(detail(nativesOnly), OperatingSystem.MACOS, Architecture.ARM64)
 
         assertTrue(plan.files.none { it.relativePath.contains("natives") })
         assertEquals(1, plan.warnings.size)
@@ -112,11 +113,33 @@ class GameFilePlannerTest {
     @Test
     fun `artifact 缺少 path 时按 Maven 坐标推导`() {
         val lib = library("com.mojang:brigadier:1.3.10", path = null)
-        val plan = GameFilePlanner.plan(detail(lib), OperatingSystem.MACOS)
+        val plan = GameFilePlanner.plan(detail(lib), OperatingSystem.MACOS, Architecture.ARM64)
 
         assertTrue(
             plan.files.any { it.relativePath == "libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar" },
         )
+    }
+
+    @Test
+    fun `natives 只保留匹配当前架构的变体`() {
+        val arm64 =
+            Library(
+                name = "org.lwjgl:lwjgl:3.4.3:natives-macos-arm64",
+                downloads = LibraryDownloads(artifact = DownloadEntry(url = "u", path = "org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3-natives-macos-arm64.jar")),
+                rules = listOf(LibraryRule(action = "allow", os = OsRule(name = "osx"))),
+            )
+        val x86 =
+            Library(
+                name = "org.lwjgl:lwjgl:3.4.3:natives-macos",
+                downloads = LibraryDownloads(artifact = DownloadEntry(url = "u", path = "org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3-natives-macos.jar")),
+                rules = listOf(LibraryRule(action = "allow", os = OsRule(name = "osx"))),
+            )
+
+        val onArm = GameFilePlanner.allowedLibraries(detail(arm64, x86), OperatingSystem.MACOS, Architecture.ARM64)
+        val onIntel = GameFilePlanner.allowedLibraries(detail(arm64, x86), OperatingSystem.MACOS, Architecture.X86_64)
+
+        assertEquals(listOf("org.lwjgl:lwjgl:3.4.3:natives-macos-arm64"), onArm.map { it.name })
+        assertEquals(listOf("org.lwjgl:lwjgl:3.4.3:natives-macos"), onIntel.map { it.name })
     }
 
     @Test

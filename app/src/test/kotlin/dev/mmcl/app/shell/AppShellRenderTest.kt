@@ -113,6 +113,7 @@ class AppShellRenderTest {
             downloader = FileDownloader(transportStub, org.slf4j.LoggerFactory.getLogger("test.render"), concurrency = 1),
             root = Path.of("build", "tmp", "render-root"),
             os = OperatingSystem.MACOS,
+            arch = Architecture.ARM64,
             logger = org.slf4j.LoggerFactory.getLogger("test.render"),
         )
 
@@ -287,6 +288,10 @@ class AppShellRenderTest {
                     report = null,
                     failure = null,
                     javaStatus = "Java 21（系统 JDK）",
+                    onLaunch = if (busy) null else ({ }),
+                    launchStatus = if (busy) null else "已启动（pid 4242）",
+                    running = busy,
+                    onStop = {},
                     busy = busy,
                     onCheck = {},
                     onDownload = {},

@@ -22,7 +22,9 @@ import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.core.settings.FileSettingsService
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.core.version.VersionDetailService
+import dev.mmcl.app.pages.LaunchContext
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.net.JdkHttpTransport
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.FileDownloader
@@ -82,6 +84,7 @@ fun main(args: Array<String>) {
             downloader = FileDownloader(transport, logger),
             root = launcher.dataDir,
             os = launcher.os,
+            arch = launcher.arch,
             logger = logger,
         )
 
@@ -90,10 +93,19 @@ fun main(args: Array<String>) {
     val themeController = ThemeController(settings, pluginThemes)
 
     val javaDetector = JavaRuntimeDetector(launcher.dataDir, launcher.os, launcher.arch, settings, logger)
+    val gameLauncher = MinecraftLauncher(manager.events, logger)
+    val launchContext =
+        LaunchContext(
+            gameDir = launcher.dataDir,
+            launcherVersion = launcher.version,
+            os = launcher.os,
+            arch = launcher.arch,
+            playerName = settings.getString("player.name") ?: "Player",
+        )
 
     val builtinPages: List<UiPage> =
         listOf(
-            InstancesPage(manifestService, installer, javaDetector, autoLoad = true),
+            InstancesPage(manifestService, installer, javaDetector, gameLauncher, launchContext, autoLoad = true),
             DownloadsPage(),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode, manifestService),

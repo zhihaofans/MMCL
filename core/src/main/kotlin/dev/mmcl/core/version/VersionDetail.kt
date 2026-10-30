@@ -1,6 +1,7 @@
 package dev.mmcl.core.version
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * 单个版本的详情 JSON（`versions/<id>/<id>.json`）子集。
@@ -20,6 +21,7 @@ data class VersionDetail(
     val libraries: List<Library> = emptyList(),
     val logging: Logging? = null,
     val javaVersion: JavaVersion? = null,
+    val arguments: VersionArguments = VersionArguments(),
 ) {
     /** 客户端主 JAR 的下载信息。 */
     val client: DownloadEntry? get() = downloads["client"]
@@ -105,4 +107,15 @@ data class LoggingClient(
 data class JavaVersion(
     val component: String = "",
     val majorVersion: Int = 0,
+)
+
+
+/**
+ * 启动参数模板（1.13+）。元素可能是纯字符串，也可能是带 `rules` 的对象；
+ * 这里保留原始 JSON，由 `core.launch.Arguments` 负责按平台求值。
+ */
+@Serializable
+data class VersionArguments(
+    val game: List<JsonElement> = emptyList(),
+    val jvm: List<JsonElement> = emptyList(),
 )

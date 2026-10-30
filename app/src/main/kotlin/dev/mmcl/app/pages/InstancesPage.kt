@@ -32,15 +32,21 @@ import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.core.download.DownloadProgress
 import dev.mmcl.core.download.DownloadReport
+import dev.mmcl.core.download.InstallResult
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.InstallPlan
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.launch.LaunchRequest
+import dev.mmcl.core.launch.LaunchSession
+import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.java.JavaRuntimeSource
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionManifest
 import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.core.version.VersionSupport
+import java.nio.file.Path
+import kotlinx.coroutines.delay
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
@@ -55,10 +61,25 @@ import kotlinx.coroutines.launch
  * @param installer 安装编排；为 `null` 时不显示准备卡片
  * @param autoLoad 首次进入是否自动拉取清单（有缓存会直接命中缓存）
  */
+/**
+ * 启动所需的环境信息，由 `Main` 组装。
+ *
+ * @property playerName 离线占位玩家名（等 `auth-*` 插件落地后替换）
+ */
+data class LaunchContext(
+    val gameDir: Path,
+    val launcherVersion: String,
+    val os: dev.mmcl.api.OperatingSystem,
+    val arch: dev.mmcl.api.Architecture,
+    val playerName: String = "Player",
+)
+
 class InstancesPage(
     private val manifests: VersionManifestService? = null,
     private val installer: GameInstaller? = null,
     private val javaDetector: JavaRuntimeDetector? = null,
+    private val launcher: MinecraftLauncher? = null,
+    private val launchContext: LaunchContext? = null,
     private val autoLoad: Boolean = false,
 ) : UiPage {
     override val id: String = "dev.mmcl.page.instances"
@@ -72,6 +93,8 @@ class InstancesPage(
         var state by remember { mutableStateOf<ManifestUiState>(ManifestUiState.Idle) }
         var prep by remember { mutableStateOf<PrepUiState>(PrepUiState.Idle) }
         var javaStatus by remember { mutableStateOf<String?>(null) }
+        var launchStatus by remember { mutableStateOf<String?>(null) }
+        var runningSession by remember { mutableStateOf<LaunchSession?>(null) }
         // 自动加载只触发一次：LaunchedEffect 在重组时可能重跑，用标记兜底避免重复请求
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
@@ -130,11 +153,53 @@ class InstancesPage(
                             prep = PrepUiState.Downloading(progress)
                         }
                     javaStatus = describeJava(result.plan)
-                    prep = PrepUiState.Done(result.report)
+                    prep = PrepUiState.Done(result)
                 } catch (t: Throwable) {
                     prep = PrepUiState.Failed(t.message ?: "下载失败")
                 }
             }
+        }
+
+        fun startGame(plan: InstallPlan) {
+            val detector = javaDetector
+            val instance = launcher
+            val context = launchContext
+            if (detector == null || instance == null || context == null) {
+                launchStatus = "启动器未接线，无法启动游戏"
+                return
+            }
+            val required = plan.detail.javaVersion?.majorVersion ?: 0
+            val runtime = detector.detect(required)
+            if (runtime == null) {
+                launchStatus = "缺少 Java ≥$required，无法启动"
+                return
+            }
+            try {
+                val session =
+                    instance.launch(
+                        LaunchRequest(
+                            detail = plan.detail,
+                            gameDir = context.gameDir,
+                            javaExecutable = runtime.executable,
+                            launcherVersion = context.launcherVersion,
+                            os = context.os,
+                            arch = context.arch,
+                            playerName = context.playerName,
+                        ),
+                    )
+                runningSession = session
+                launchStatus = "已启动（pid ${session.pid}）"
+            } catch (t: Throwable) {
+                launchStatus = "启动失败：${t.message ?: t::class.simpleName}"
+                runningSession = null
+            }
+        }
+
+        LaunchedEffect(runningSession) {
+            val session = runningSession ?: return@LaunchedEffect
+            while (session.isRunning) delay(1_000)
+            launchStatus = "游戏已退出（code ${session.process.exitValue()}）"
+            runningSession = null
         }
 
         LaunchedEffect(Unit) {
@@ -195,9 +260,16 @@ class InstancesPage(
                                 versionId = latest.id,
                                 plan = (prep as? PrepUiState.Ready)?.plan,
                                 progress = (prep as? PrepUiState.Downloading)?.progress,
-                                report = (prep as? PrepUiState.Done)?.report,
+                                report = (prep as? PrepUiState.Done)?.result?.report,
                                 failure = (prep as? PrepUiState.Failed)?.message,
                                 javaStatus = javaStatus,
+                                onLaunch =
+                                    (prep as? PrepUiState.Done)?.let { done ->
+                                        { startGame(done.result.plan) }
+                                    },
+                                launchStatus = launchStatus,
+                                running = runningSession != null,
+                                onStop = { runningSession?.stop()?.also { launchStatus = "正在停止游戏…" } },
                                 busy = prep is PrepUiState.Planning || prep is PrepUiState.Downloading,
                                 onCheck = { checkFiles(latest) },
                                 onDownload = { downloadFiles(latest) },
@@ -286,6 +358,6 @@ private sealed interface PrepUiState {
     data object Planning : PrepUiState
     data class Ready(val plan: InstallPlan) : PrepUiState
     data class Downloading(val progress: DownloadProgress?) : PrepUiState
-    data class Done(val report: DownloadReport) : PrepUiState
+    data class Done(val result: InstallResult) : PrepUiState
     data class Failed(val message: String) : PrepUiState
 }

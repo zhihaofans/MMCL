@@ -5,8 +5,8 @@
 
 ## [Unreleased]
 
-> **版本闸门**：启动器能实际启动 Minecraft 之前，版本号固定 `0.0.1`，不升版。
-> 下面的条目在过闸门后整段归档为 `[0.0.1]`；改版本号、发版、打 tag 都要先经用户同意。
+> **版本闸门**：能实际启动 Minecraft 之前固定 `0.0.1` —— **闸门已于 2026-10-31 达成**（真实启动 `26.3`）。
+> 当前仍保持 `0.0.1`，这些条目未归档；改版本号、发版、打 tag 都要先经用户同意。
 
 能构建、能跑、能加载插件、界面可换肤、能下载并校验游戏文件，但**还不能启动游戏**。
 
@@ -50,6 +50,12 @@
 - 版本支持策略：`VersionSupport` 按「最新正式版 + 同主版本系列」判定；版本清单里标注
   `支持 / 不受支持`，快照与旧大版本只展示、不可下载或启动
 - 平台策略：macOS 仅 Apple Silicon（Intel Mac 启动时告警但不拦），Windows 默认目标 Win11
+- 启动执行链：`LaunchRequest` / `LaunchCommandBuilder`（`arguments` 按 rules/features 求值、
+  占位符替换、classpath 拼接、log4j 配置、离线 UUID）/ `MinecraftLauncher`（起进程、逐行日志、
+  `GameLaunching` / `GameExited` 事件、停止游戏）
+- natives 按库名架构标识过滤（`natives-macos` vs `natives-macos-arm64`），规划与 classpath 共用同一份过滤结果
+- 游戏页：下载完成后出现「启动游戏 / 停止游戏」与运行状态
+- 冒烟门槛改用 Gradle 属性：`-Pmmcl.netTests=1`（真实清单）、`-Pmmcl.realLaunch=1`（真实下载并启动）
 
 ### 变更
 
@@ -67,7 +73,9 @@
 
 ### 已知限制
 
-- 尚未实现游戏启动（`LaunchService` 只有契约，没有执行链）
+- 资源对象（`assets/objects`）未下载：贴图/音效可能缺失（能进渲染线程，但画面不完整）
+- 账户是离线占位（`Player`/自定义名 + 离线 UUID + token `0`）：不能登录正版服务器
+- 游戏启动后没有把输出流到界面（只写日志与内部回调）
 - 首页/实例页还是空状态，等 `core` 的实例与账户服务
 - 尚未做账户认证、下载源、加载器安装等实际插件
 - 尚未产出 Windows / Linux 安装包；macOS 产物未签名/未公证
@@ -75,7 +83,9 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew build` 通过；118 个单元测试全绿（core 95 / app 16 / 插件 7）
+- `./gradlew build` 通过；133 个单元测试全绿（core 110 / app 16 / 插件 7）
+- **真实启动成功**（过版本闸门）：`26.3` 下载 70 个文件 / 124 MB、0 失败，用 Zulu 25 拉起，
+  日志出现 `Setting user: SmokeTest` 与 `Backend library: LWJGL version 3.4.3+4`，发出 `GameLaunching`
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
 - 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 八张截图

@@ -36,6 +36,10 @@ internal fun GamePrepCard(
     report: DownloadReport?,
     failure: String?,
     javaStatus: String? = null,
+    onLaunch: (() -> Unit)? = null,
+    launchStatus: String? = null,
+    running: Boolean = false,
+    onStop: () -> Unit = {},
     busy: Boolean,
     onCheck: () -> Unit,
     onDownload: () -> Unit,
@@ -95,6 +99,25 @@ internal fun GamePrepCard(
         ) {
             OutlinedButton(onClick = onCheck, enabled = !busy) { Text("检查文件") }
             Button(onClick = onDownload, enabled = !busy) { Text("下载游戏文件") }
+        }
+
+        if (onLaunch != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = MmclSpacing.s),
+                horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+            ) {
+                Button(onClick = onLaunch, enabled = !running) { Text(if (running) "运行中" else "启动游戏") }
+                if (running) {
+                    OutlinedButton(onClick = onStop) { Text("停止游戏") }
+                }
+            }
+            if (launchStatus != null) {
+                Text(
+                    text = launchStatus,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         if (report != null && report.failures.isNotEmpty()) {

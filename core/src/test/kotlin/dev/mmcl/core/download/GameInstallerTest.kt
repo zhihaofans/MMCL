@@ -1,6 +1,7 @@
 package dev.mmcl.core.download
 
 import com.sun.net.httpserver.HttpServer
+import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.core.net.JdkHttpTransport
 import dev.mmcl.core.version.VersionDetailService
@@ -99,6 +100,7 @@ class GameInstallerTest {
             downloader = FileDownloader(transport, logger, concurrency = 2),
             root = dir,
             os = OperatingSystem.MACOS,
+            arch = Architecture.ARM64,
             logger = logger,
         )
 
