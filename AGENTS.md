@@ -26,7 +26,7 @@
   - `ARCHITECTURE.md`：架构与边界，冲突时以它为准
   - `UI_DESIGN.md`：界面外壳与主题化方案（含分期与安全阀）
   - `PLUGIN_DEV.md`：插件开发指南
-  - `TODO.md`：里程碑任务清单，勾选状态必须反映真实进度，**不得提前打勾**
+  - `TODO.md`：**唯一未完成清单**，分「进行中 / 待办 / 阻塞」；完成一项就**从 TODO 删除**并在 CHANGELOG 记一条，不留已完成的勾选
   - `CHANGELOG.md`：Keep a Changelog 格式，每次改动先写进 `[Unreleased]`，发版时归档
 
 ---
@@ -159,7 +159,7 @@
 - [ ] 在 macOS 27 本机运行 `./gradlew :app:run` 无异常
 - [ ] 版本号已按第 4 节规则处理（改动即说明是否升版）
 - [ ] `CHANGELOG.md` 的 `[Unreleased]` 已记录本次改动（用户可见的行为变化必须写）
-- [ ] `TODO.md` 已同步勾选状态与新增任务
+- [ ] `TODO.md` 已完成项已删除、新任务已登记（未完成的只在 TODO，已完成的只在 CHANGELOG）
 - [ ] 文档（本文件 / `ARCHITECTURE.md` / `PLUGIN_DEV.md`）已同步
 
 ### 6.1 API 兼容规则
@@ -200,3 +200,23 @@
 - 是否更新了对应文档？
 - 是否考虑了 Apple Silicon 与 Intel 双架构？
 - 是否已就本次 git 操作征求用户同意？
+
+---
+
+## 9. 已知坑（都真踩过）
+
+- **Compose 访问器已弃用**：`compose.runtime` / `compose.foundation` / `compose.material3` 在 1.12.2 会报 deprecated，
+  但仍可用；`material3` 在 Maven Central 没有 1.12.2 稳定制品，别手写坐标，走插件访问器
+- **图标集冻结**：`org.jetbrains.compose.material:material-icons-core` 停在 1.7.3，
+  `Icons.Filled.Folder/Download` 等不在 core 集合里；加图标先在 `UiIcon` 枚举里定义，再确认 core 有对应图
+- **插件禁止打包 Compose**：`:app:verifyPluginJars` 会扫 `androidx/compose/**` 并让构建失败；
+  插件用 `compileOnly(project(":ui-kit"))`
+- **内置插件必须用 Sync**：`prepareBuiltinPlugins` 若用 `Copy`，旧版本 JAR 会残留在 `builtin-plugins/`，
+  出现同一插件多版本同时打包
+- **测试缓存会跳过截图生成**：`clean build` 后 `app/build/screenshots/` 可能是空的（test 结果走了 build cache），
+  用 `./gradlew :app:test --tests "*AppShellRenderTest*" --rerun-tasks` 重新出图
+- **锁屏时无法实拍**：macOS 锁屏时 `screencapture` 只能拿到登录界面；用 `ImageComposeScene` 的无头渲染出图，
+  或等解锁后再截
+- **Gradle 要写 `~/.gradle`**：沙箱里构建需要放开到工作区外；离线时用 `--offline`（依赖须已在缓存里）
+- **插件版本双写**：`build.gradle.kts` 的 `version` 与 `Plugin.version` 必须一致，否则 JAR 名和界面显示会对不上
+- **`:app:run` 是长驻进程**：窗口关闭前任务不结束，本机验证时别用阻塞写法等它返回

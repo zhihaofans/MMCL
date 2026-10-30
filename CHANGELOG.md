@@ -3,22 +3,14 @@
 本文件的格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-> **版本闸门**：启动器真正能启动 Minecraft 之前，版本号固定 `0.0.1`，不升版。
-> 这一阶段的改动全部累积在 `[0.0.1]` 之下，发版时再整理。
-
 ## [Unreleased]
 
-### 计划中
+> **版本闸门**：启动器能实际启动 Minecraft 之前，版本号固定 `0.0.1`，不升版。
+> 下面的条目在过闸门后整段归档为 `[0.0.1]`；改版本号、发版、打 tag 都要先经用户同意。
 
-- 插件加载测试覆盖循环依赖、缺失依赖、异常隔离的完整矩阵
-- `core` 的启动执行链（JVM 参数组装、主类调用）
-- Java 运行时检测与下载
+能构建、能跑、能加载插件、界面可换肤、能下载并校验游戏文件，但**还不能启动游戏**。
 
-## [0.0.1] - 进行中
-
-能构建、能跑、能加载插件、界面可换肤，但**还不能启动游戏**。
-
-### 骨架
+### 新增
 
 - 仓库文档：`AGENTS.md`、`ARCHITECTURE.md`、`PLUGIN_DEV.md`、`UI_DESIGN.md`、`TODO.md`、`CHANGELOG.md`
 - Gradle 多模块：`api` / `api-ui` / `ui-kit` / `core` / `app` / `plugins:hello|ui-about|theme-sakura`；
@@ -76,7 +68,7 @@
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
 - `./gradlew build` 通过；114 个单元测试全绿（core 91 / app 16 / 插件 7）
-- `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，三个内置插件均 `ENABLED`
+- `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
 - 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 八张截图
 - 本机实跑截图确认：导航含插件页「关于」，设置页显示三个主题与下载源（mojang）
