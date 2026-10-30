@@ -30,8 +30,13 @@ import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.core.download.DownloadProgress
+import dev.mmcl.core.download.DownloadReport
+import dev.mmcl.core.download.GameInstaller
+import dev.mmcl.core.download.InstallPlan
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionManifest
+import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
@@ -39,13 +44,17 @@ import dev.mmcl.ui.kit.PageScaffold
 import kotlinx.coroutines.launch
 
 /**
- * 游戏页：0.1.x 先接入版本清单，证明启动链第一步（拿清单）通了；实例列表等执行链落地后再填。
+ * 游戏页：版本清单 + 最新正式版的"检查文件 / 下载游戏文件"。
+ *
+ * 启动执行链还没落地，所以这里不提供"启动"按钮；下载完成只代表文件齐了。
  *
  * @param manifests 版本清单服务；为 `null` 时不显示刷新入口（渲染测试用）
- * @param autoLoad 首次进入是否自动拉取（有缓存会直接命中缓存）
+ * @param installer 安装编排；为 `null` 时不显示准备卡片
+ * @param autoLoad 首次进入是否自动拉取清单（有缓存会直接命中缓存）
  */
 class InstancesPage(
     private val manifests: VersionManifestService? = null,
+    private val installer: GameInstaller? = null,
     private val autoLoad: Boolean = false,
 ) : UiPage {
     override val id: String = "dev.mmcl.page.instances"
@@ -57,12 +66,15 @@ class InstancesPage(
     @Composable
     override fun Content(navigator: AppNavigator) {
         var state by remember { mutableStateOf<ManifestUiState>(ManifestUiState.Idle) }
+        var prep by remember { mutableStateOf<PrepUiState>(PrepUiState.Idle) }
         // 自动加载只触发一次：LaunchedEffect 在重组时可能重跑，用标记兜底避免重复请求
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
+        val hasSource = manifests?.hasSource() == true
 
         fun refresh(force: Boolean) {
             val service = manifests ?: return
+            prep = PrepUiState.Idle
             state = ManifestUiState.Loading
             scope.launch {
                 state =
@@ -76,7 +88,34 @@ class InstancesPage(
             }
         }
 
-        val hasSource = manifests?.hasSource() == true
+        fun checkFiles(entry: VersionManifestEntry) {
+            val inst = installer ?: return
+            prep = PrepUiState.Planning
+            scope.launch {
+                prep =
+                    try {
+                        PrepUiState.Ready(inst.plan(entry, forceRefresh = true))
+                    } catch (t: Throwable) {
+                        PrepUiState.Failed(t.message ?: "检查文件失败")
+                    }
+            }
+        }
+
+        fun downloadFiles(entry: VersionManifestEntry) {
+            val inst = installer ?: return
+            prep = PrepUiState.Downloading(null)
+            scope.launch {
+                try {
+                    val result =
+                        inst.install(entry, forceRefresh = true) { progress ->
+                            prep = PrepUiState.Downloading(progress)
+                        }
+                    prep = PrepUiState.Done(result.report)
+                } catch (t: Throwable) {
+                    prep = PrepUiState.Failed(t.message ?: "下载失败")
+                }
+            }
+        }
 
         LaunchedEffect(Unit) {
             if (autoLoad && !autoLoadTriggered && hasSource) {
@@ -127,7 +166,24 @@ class InstancesPage(
                         color = MaterialTheme.colorScheme.error,
                     )
 
-                is ManifestUiState.Loaded -> ManifestSummary(current.manifest)
+                is ManifestUiState.Loaded -> {
+                    val latest = current.manifest.latestRelease()
+                    Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
+                        ManifestSummary(current.manifest)
+                        if (installer != null && latest != null) {
+                            GamePrepCard(
+                                versionId = latest.id,
+                                plan = (prep as? PrepUiState.Ready)?.plan,
+                                progress = (prep as? PrepUiState.Downloading)?.progress,
+                                report = (prep as? PrepUiState.Done)?.report,
+                                failure = (prep as? PrepUiState.Failed)?.message,
+                                busy = prep is PrepUiState.Planning || prep is PrepUiState.Downloading,
+                                onCheck = { checkFiles(latest) },
+                                onDownload = { downloadFiles(latest) },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -181,4 +237,13 @@ private sealed interface ManifestUiState {
     data object Loading : ManifestUiState
     data class Loaded(val manifest: VersionManifest) : ManifestUiState
     data class Failed(val message: String) : ManifestUiState
+}
+
+private sealed interface PrepUiState {
+    data object Idle : PrepUiState
+    data object Planning : PrepUiState
+    data class Ready(val plan: InstallPlan) : PrepUiState
+    data class Downloading(val progress: DownloadProgress?) : PrepUiState
+    data class Done(val report: DownloadReport) : PrepUiState
+    data class Failed(val message: String) : PrepUiState
 }

@@ -14,12 +14,19 @@ import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.pages.DownloadsPage
+import dev.mmcl.app.pages.GamePrepCard
 import dev.mmcl.app.pages.InstancesPage
 import dev.mmcl.app.pages.ManifestSummary
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
 import dev.mmcl.app.theme.BuiltinThemes
 import dev.mmcl.app.theme.ThemeController
+import dev.mmcl.core.download.DownloadProgress
+import dev.mmcl.core.download.FileDownloader
+import dev.mmcl.core.download.GameInstaller
+import dev.mmcl.core.download.InstallPlan
+import dev.mmcl.core.download.PlannedFile
+import dev.mmcl.core.net.HttpTransport
 import dev.mmcl.core.plugin.LoadedPlugin
 import dev.mmcl.core.plugin.PluginDescriptor
 import dev.mmcl.core.plugin.PluginState
@@ -27,6 +34,8 @@ import dev.mmcl.core.settings.InMemorySettingsService
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.core.version.LatestVersions
 import dev.mmcl.core.version.VersionManifest
+import dev.mmcl.core.version.VersionDetail
+import dev.mmcl.core.version.VersionDetailService
 import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclPalettes
@@ -91,6 +100,33 @@ class AppShellRenderTest {
             sources = { listOf(stubSource) },
         )
 
+    private val transportStub =
+        object : HttpTransport {
+            override suspend fun getText(url: String): String = "{}"
+
+            override suspend fun downloadTo(url: String, target: Path) = Unit
+        }
+
+    private val installerStub =
+        GameInstaller(
+            detailService = VersionDetailService(Path.of("build", "tmp", "render-versions"), transportStub, org.slf4j.LoggerFactory.getLogger("test.render")),
+            downloader = FileDownloader(transportStub, org.slf4j.LoggerFactory.getLogger("test.render"), concurrency = 1),
+            root = Path.of("build", "tmp", "render-root"),
+            os = OperatingSystem.MACOS,
+            logger = org.slf4j.LoggerFactory.getLogger("test.render"),
+        )
+
+    private val samplePlan =
+        InstallPlan(
+            detail = VersionDetail(id = "1.21.8", mainClass = "net.minecraft.client.main.Main"),
+            files =
+                listOf(
+                    PlannedFile("versions/1.21.8/1.21.8.jar", "https://example.invalid/client.jar", "a", 26_000_000),
+                    PlannedFile("libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar", "https://example.invalid/lib.jar", "b", 90_000),
+                ),
+            warnings = emptyList(),
+        )
+
     private val noSourceService =
         VersionManifestService(
             cacheFile = Path.of("build", "tmp", "render-manifest-empty.json"),
@@ -111,7 +147,7 @@ class AppShellRenderTest {
 
     private fun pages(themeController: ThemeController): List<UiPage> =
         listOf(
-            InstancesPage(manifestStub),
+            InstancesPage(manifestStub, installerStub),
             DownloadsPage(),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode = false, manifests = manifestStub),
@@ -202,8 +238,60 @@ class AppShellRenderTest {
     }
 
     @Test
+    fun `渲染安装卡片`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+
+        render(
+            "install-ready",
+            controller,
+            listOf(InstallDemoPage(samplePlan, progress = null, busy = false), InstancesPage(manifestStub, installerStub)),
+        )
+        render(
+            "install-progress",
+            controller,
+            listOf(
+                InstallDemoPage(
+                    samplePlan,
+                    progress = DownloadProgress(completed = 1, total = 2, current = "libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar"),
+                    busy = true,
+                ),
+                InstancesPage(manifestStub, installerStub),
+            ),
+        )
+    }
+
+    @Test
     fun `内置主题 id 固定不变`() {
         assertTrue(BuiltinThemes.DARK_ID == "builtin.dark")
+    }
+
+    /** 渲染测试专用的"安装卡片"页面。 */
+    private class InstallDemoPage(
+        private val plan: InstallPlan,
+        private val progress: DownloadProgress?,
+        private val busy: Boolean,
+    ) : UiPage {
+        override val id: String = "dev.mmcl.page.render-install"
+        override val title: String = "安装"
+        override val icon: UiIcon = UiIcon.DOWNLOAD
+        override val group: UiGroup = UiGroup.MAIN
+        override val order: Int = 2
+
+        @Composable
+        override fun Content(navigator: AppNavigator) {
+            PageScaffold(title = "准备版本", subtitle = "下载器接线演示") {
+                GamePrepCard(
+                    versionId = plan.versionId,
+                    plan = plan,
+                    progress = progress,
+                    report = null,
+                    failure = null,
+                    busy = busy,
+                    onCheck = {},
+                    onDownload = {},
+                )
+            }
+        }
     }
 
     /** 渲染测试专用的"版本清单"页面，用来给摘要卡片出图。 */

@@ -19,6 +19,10 @@ import dev.mmcl.core.plugin.PluginManager
 import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.core.settings.FileSettingsService
 import dev.mmcl.core.version.VersionManifestService
+import dev.mmcl.core.version.VersionDetailService
+import dev.mmcl.core.net.JdkHttpTransport
+import dev.mmcl.core.download.GameInstaller
+import dev.mmcl.core.download.FileDownloader
 import java.nio.file.Files
 import org.slf4j.LoggerFactory
 
@@ -65,13 +69,23 @@ fun main(args: Array<String>) {
         logger.warn("未安装版本源插件：本应用不内置下载源，无法获取游戏版本；把 source-mojang 等插件放进 {} 后重启", pluginsDir)
     }
 
+    val transport = JdkHttpTransport(userAgent = "MMCL/${launcher.version}")
+    val installer =
+        GameInstaller(
+            detailService = VersionDetailService(launcher.dataDir.resolve("versions"), transport, logger),
+            downloader = FileDownloader(transport, logger),
+            root = launcher.dataDir,
+            os = launcher.os,
+            logger = logger,
+        )
+
     val pluginThemes: List<LauncherTheme> =
         if (safeMode) emptyList() else manager.services.getAll(LauncherTheme::class)
     val themeController = ThemeController(settings, pluginThemes)
 
     val builtinPages: List<UiPage> =
         listOf(
-            InstancesPage(manifestService, autoLoad = true),
+            InstancesPage(manifestService, installer, autoLoad = true),
             DownloadsPage(),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode, manifestService),

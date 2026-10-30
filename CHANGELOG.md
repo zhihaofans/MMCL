@@ -47,6 +47,8 @@
 - 文件规划：`GameFilePlanner`（客户端 JAR、按平台 `rules` 过滤的库、资源索引、日志配置；
   natives/classifiers 只告警不下载）
 - 编排：`GameInstaller`（`plan` 只规划，`install` 规划 + 下载）
+- 游戏页 UI 接线：最新正式版卡片提供「检查文件」「下载游戏文件」，带确定性进度条、
+  失败原因与跳过项提示；字节数按 MB/KB 格式化
 - 测试：用 JDK 内置 `HttpServer` 跑通"详情 → 规划 → 下载 → 校验"全链路；
   `MMCL_NET_TESTS=1` 可跑真实 Mojang 冒烟
 
@@ -69,10 +71,11 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew clean build` 通过；103 个单元测试全绿（core 81 / app 15 / 插件 7）
+- `./gradlew build` 通过；105 个单元测试全绿（core 82 / app 16 / 插件 7）
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，三个内置插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
-- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 六张截图
+- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 八张截图
+- 本机实跑截图确认：导航含插件页「关于」，设置页显示三个主题与下载源（mojang）
 - 真实冒烟：最新正式版 26.3 解析出 83 个待下载文件、约 127 MB、0 条告警
 - 实跑：未装源插件时日志告警且不发起请求；把 `source-mojang` 放进 `plugins/` 后重启，
   成功拉取清单（最新正式版 26.3，921 个版本）并写入缓存
