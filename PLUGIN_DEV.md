@@ -170,13 +170,15 @@ interface ServiceRegistry {
 }
 ```
 
-注册能力：
+注册能力（`Account` 自带启动凭据：`uuid`、`accessToken`、`userType`）：
 
 ```kotlin
 override fun onLoad(context: PluginContext) {
     context.services.register(AuthProvider::class, MicrosoftAuthProvider())
 }
 ```
+
+> 示例插件（`hello`）**不要注册真实能力**：能力会参与选择，示例插件抢到后会让真实插件失效。
 
 消费能力：
 
@@ -193,7 +195,7 @@ sources.forEach { it.search("sodium") }
 
 | 接口 | 作用 |
 |---|---|
-| `AuthProvider` | 账户认证方式 |
+| `AuthProvider` | 账户认证方式（`displayName` / `priority` / `createSession`；内置 `auth-offline` 可删除或禁用） |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
 | `UiContribution` | UI 面板/标签页（占位契约；P1 起为 `UiPage`，见 `UI_DESIGN.md`） |
@@ -204,7 +206,10 @@ sources.forEach { it.search("sodium") }
 ```kotlin
 interface AuthProvider {
     val id: String
+    val displayName: String get() = id
+    val priority: Int get() = 100        // 越小越优先；内置离线账户为 1000
     suspend fun login(): Account
+    suspend fun createSession(username: String): Account = login()
 }
 
 interface DownloadSource {

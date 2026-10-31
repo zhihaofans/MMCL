@@ -4,6 +4,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
+import dev.mmcl.api.capability.AuthProvider
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
@@ -83,6 +84,11 @@ fun main(args: Array<String>) {
         logger.warn("未安装版本源插件：本应用不内置下载源，无法获取游戏版本；把 source-mojang 等插件放进 {} 后重启", pluginsDir)
     }
 
+    val authProviders = manager.services.getAll(AuthProvider::class)
+    if (authProviders.isEmpty()) {
+        logger.warn("未安装认证插件：无法启动游戏（内置的 auth-offline 可被删除或禁用）")
+    }
+
     val transport = JdkHttpTransport(userAgent = "MMCL/${launcher.version}")
     val detailService = VersionDetailService(launcher.dataDir.resolve("versions"), transport, logger)
     val instanceService =
@@ -130,6 +136,7 @@ fun main(args: Array<String>) {
                 javaDetector = javaDetector,
                 launcher = gameLauncher,
                 launchContext = launchContext,
+                authProviders = authProviders,
                 intent = intent,
                 autoLoad = true,
             ),

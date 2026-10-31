@@ -35,6 +35,7 @@ class MinecraftLauncherTest {
             launcherVersion = "0.0.1",
             os = OperatingSystem.MACOS,
             arch = Architecture.ARM64,
+            auth = dev.mmcl.api.capability.Account(uuid = "00000000-0000-0000-0000-000000000000", name = "Player"),
         )
 
     @Test

@@ -195,7 +195,7 @@ app ──► core ──► api
 
 | 服务 | 作用 |
 |---|---|
-| `AuthProvider` | 账户认证方式 |
+| `AuthProvider` | 账户认证方式（`priority` 选择，内置 `auth-offline`） |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
 | `UiContribution` | UI 面板/标签页（占位契约，P1 替换为 `UiPage`，见 `UI_DESIGN.md`） |

@@ -5,12 +5,16 @@ import java.nio.file.Path
 /**
  * 一次成功认证得到的账户信息。
  *
- * @property uuid 账户 UUID（离线账户为离线 UUID）
+ * @property uuid 账户 UUID（32 位十六进制，无连字符；离线账户为离线 UUID）
  * @property name 游戏内名称
+ * @property accessToken 启动时注入 `${auth_access_token}`；离线为 `0`
+ * @property userType 启动时注入 `${user_type}`（`legacy` / `msa`）
  */
 data class Account(
     val uuid: String,
     val name: String,
+    val accessToken: String = "0",
+    val userType: String = "legacy",
 )
 
 /**
@@ -20,8 +24,23 @@ interface AuthProvider {
     /** 全局唯一标识，例如 `microsoft`、`offline`。 */
     val id: String
 
+    /** 展示名，默认与 [id] 相同。 */
+    val displayName: String get() = id
+
+    /** 选择优先级，数值越小越优先。 */
+    val priority: Int get() = 100
+
     /** 执行登录并返回账户；实现方必须自行处理刷新与持久化。 */
     suspend fun login(): Account
+
+    /**
+     * 为指定用户名创建一次启动用的账户。
+     *
+     * 默认直接走 [login]（正版登录不关心用户名）；离线实现覆盖它，用用户名生成离线 UUID。
+     *
+     * @param username 用户希望使用的游戏内名称
+     */
+    suspend fun createSession(username: String): Account = login()
 }
 
 /**

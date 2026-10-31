@@ -24,6 +24,7 @@ include(
     ":ui-kit",
     ":core",
     ":app",
+    ":plugins:auth-offline",
     ":plugins:hello",
     ":plugins:ui-about",
     ":plugins:theme-sakura",

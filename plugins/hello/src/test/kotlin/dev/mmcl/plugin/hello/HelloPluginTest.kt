@@ -13,19 +13,16 @@ import java.nio.file.Path
 import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class HelloPluginTest {
     @Test
-    fun `onLoad 向服务注册表登记 AuthProvider`() {
+    fun `onLoad 不注册任何会参与真实选择的能力`() {
         val context = FakePluginContext()
         val plugin = HelloPlugin()
 
         plugin.onLoad(context)
 
-        val providers = context.services.getAll(AuthProvider::class)
-        assertEquals(1, providers.size)
-        assertNotNull(context.services.get(AuthProvider::class))
+        assertEquals(0, context.services.getAll(AuthProvider::class).size)
     }
 
     @Test

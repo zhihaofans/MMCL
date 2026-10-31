@@ -31,7 +31,13 @@ class LaunchCommandBuilderTest {
             launcherVersion = "0.0.1",
             os = OperatingSystem.MACOS,
             arch = Architecture.ARM64,
-            playerName = playerName,
+            auth =
+                dev.mmcl.api.capability.Account(
+                    uuid = java.util.UUID.nameUUIDFromBytes("OfflinePlayer:$playerName".toByteArray()).toString(),
+                    name = playerName,
+                    accessToken = "token-$playerName",
+                    userType = "legacy",
+                ),
         )
 
     @Test
@@ -46,13 +52,16 @@ class LaunchCommandBuilderTest {
     }
 
     @Test
-    fun `离线账户参数正确`() {
+    fun `账户参数来自 AuthProvider 会话`() {
         val command = LaunchCommandBuilder.build(request(playerName = "Steve"))
         val args = command.arguments
 
         assertEquals("Steve", args[args.indexOf("--username") + 1])
-        assertEquals(offlineUuid("Steve"), args[args.indexOf("--uuid") + 1])
-        assertEquals("0", args[args.indexOf("--accessToken") + 1])
+        assertEquals(
+            java.util.UUID.nameUUIDFromBytes("OfflinePlayer:Steve".toByteArray()).toString(),
+            args[args.indexOf("--uuid") + 1],
+        )
+        assertEquals("token-Steve", args[args.indexOf("--accessToken") + 1])
         assertEquals("1.21.8", args[args.indexOf("--version") + 1])
         assertEquals("17", args[args.indexOf("--assetIndex") + 1])
         assertEquals(instanceDir.toString(), args[args.indexOf("--gameDir") + 1])
@@ -84,13 +93,6 @@ class LaunchCommandBuilderTest {
         assertFailsWith<LaunchException> { LaunchCommandBuilder.build(request(broken)) }
     }
 
-    @Test
-    fun `离线 UUID 是 v3 且稳定`() {
-        val uuid = UUID.fromString(offlineUuid("Player"))
-
-        assertEquals(3, uuid.version())
-        assertEquals(offlineUuid("Player"), offlineUuid("Player"))
-    }
 
     private companion object {
         const val SAMPLE: String =

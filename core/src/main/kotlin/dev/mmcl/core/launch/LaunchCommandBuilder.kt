@@ -44,9 +44,9 @@ object LaunchCommandBuilder {
 
         val values =
             mapOf(
-                "auth_player_name" to request.playerName,
-                "auth_uuid" to offlineUuid(request.playerName),
-                "auth_access_token" to "0",
+                "auth_player_name" to request.auth.name,
+                "auth_uuid" to request.auth.uuid,
+                "auth_access_token" to request.auth.accessToken,
                 "auth_xuid" to "",
                 "clientid" to "",
                 "version_name" to detail.id,
@@ -54,7 +54,7 @@ object LaunchCommandBuilder {
                 "game_directory" to request.instanceDir.toString(),
                 "assets_root" to assetsDir.toString(),
                 "assets_index_name" to (detail.assetIndex?.id ?: detail.assets),
-                "user_type" to "legacy",
+                "user_type" to request.auth.userType,
                 "natives_directory" to nativesDir.toString(),
                 "launcher_name" to request.launcherName,
                 "launcher_version" to request.launcherVersion,

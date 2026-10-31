@@ -56,6 +56,13 @@
 - natives 按库名架构标识过滤（`natives-macos` vs `natives-macos-arm64`），规划与 classpath 共用同一份过滤结果
 - 游戏页：下载完成后出现「启动游戏 / 停止游戏」与运行状态
 - 冒烟门槛改用 Gradle 属性：`-Pmmcl.netTests=1`（真实清单）、`-Pmmcl.realLaunch=1`（真实下载并启动）
+- 离线账户改为内置插件 `plugins/auth-offline`：读设置 `player.name` 生成离线 UUID、token `0`、
+  `userType=legacy`；随应用分发（`builtin-plugins/`），可删除或禁用
+- `api`：`AuthProvider` 增加 `displayName` / `priority` / `createSession`，
+  `Account` 增加 `accessToken` / `userType`（都有默认值）
+- core 启动链不再内置离线占位：`LaunchRequest` 改收 `Account`，删除 `offlineUuid()`；
+  没有认证插件时启动被拦下并提示
+- `hello` 示例插件不再注册 `AuthProvider`，避免示例抢占真实能力
 - 下载页接通：版本清单 + 安装/修复共享文件（自动建实例开关），版本列表可滚动、
   支持「正式版 / 快照 / 全部」筛选，无源时引导去设置装插件；
   游戏页只保留实例、启动与日志，缺文件时显示徽标/横幅并跳转下载页
@@ -102,7 +109,7 @@
 
 ### 已知限制
 
-- 账户是离线占位（`Player`/自定义名 + 离线 UUID + token `0`）：不能登录正版服务器
+- 默认账户来自内置 `auth-offline`：仍是离线账户，不能登录正版服务器（`auth-microsoft` 未实现）
 - 游戏启动后没有把输出流到界面（只写日志与内部回调）
 - 首页/实例页还是空状态，等 `core` 的实例与账户服务
 - 尚未做账户认证、下载源、加载器安装等实际插件
@@ -111,7 +118,7 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew build` 通过；159 个单元测试全绿（core 132 / app 19 / 插件 8）
+- `./gradlew build` 通过；161 个单元测试全绿（core 131 / app 19 / 插件 11）
 - **真实启动成功**（过版本闸门）：`26.3` 下载 70 个文件 / 124 MB、0 失败，用 Zulu 25 拉起，
   日志出现 `Setting user: SmokeTest` 与 `Backend library: LWJGL version 3.4.3+4`，发出 `GameLaunching`
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，插件均 `ENABLED`

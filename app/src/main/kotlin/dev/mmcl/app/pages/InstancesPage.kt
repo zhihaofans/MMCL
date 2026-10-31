@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
+import dev.mmcl.api.capability.AuthProvider
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
@@ -78,6 +79,7 @@ class InstancesPage(
     private val javaDetector: JavaRuntimeDetector? = null,
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
+    private val authProviders: List<AuthProvider> = emptyList(),
     private val intent: NavigationIntent? = null,
     private val autoLoad: Boolean = false,
 ) : UiPage {
@@ -146,6 +148,11 @@ class InstancesPage(
                 launchStatus = "共享文件缺失：去「下载」页安装或修复 ${instance.versionId} 后再启动"
                 return
             }
+            val provider = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
+            if (provider == null) {
+                launchStatus = "缺少账户插件：安装 auth-offline（内置）后重启启动器"
+                return
+            }
             val entry = manifest?.find(instance.versionId)
             if (entry == null) {
                 launchStatus = "版本清单里找不到 ${instance.versionId}，先刷新版本清单"
@@ -161,6 +168,7 @@ class InstancesPage(
                         launchStatus = "缺少 Java ≥$required，无法启动 ${instance.name}"
                         return@launch
                     }
+                    val auth = provider.createSession(context.playerName)
                     val session =
                         process.launch(
                             LaunchRequest(
@@ -171,7 +179,7 @@ class InstancesPage(
                                 launcherVersion = context.launcherVersion,
                                 os = context.os,
                                 arch = context.arch,
-                                playerName = context.playerName,
+                                auth = auth,
                             ),
                         )
                     logLines = session.snapshot()
@@ -263,8 +271,18 @@ class InstancesPage(
                 }
 
                 is ManifestUiState.Loaded -> {
+                    val account = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
                     val missing = instances.filter { !hasFiles(it) }
                     Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
+                        Text(
+                            text = if (account == null) {
+                                "账户：未安装认证插件（游戏无法启动）"
+                            } else {
+                                "账户：${account.displayName} · ${launchContext?.playerName ?: "Player"}"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         if (missing.isNotEmpty()) {
                             Row(
                                 modifier = Modifier

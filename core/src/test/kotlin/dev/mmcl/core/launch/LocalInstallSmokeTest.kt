@@ -106,7 +106,7 @@ class LocalInstallSmokeTest {
                 launcherVersion = "0.0.1",
                 os = OperatingSystem.MACOS,
                 arch = Architecture.ARM64,
-                playerName = "SmokeTest",
+                auth = dev.mmcl.api.capability.Account(uuid = java.util.UUID.nameUUIDFromBytes("OfflinePlayer:SmokeTest".toByteArray()).toString(), name = "SmokeTest"),
                 maxMemoryMb = 1024,
             )
 

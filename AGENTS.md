@@ -237,6 +237,8 @@
   只能打包后改 plist 再签名，顺序是「改 plist → codesign → notarize」
 - **26.x 的游戏控制台是 log4j2 XML**：一个事件占 4~6 行，别直接展示；用 `GameLogFormatter`
   转成 `[时间] [线程/级别] [类] 消息`。`logs/latest.log` 保留原始 XML，便于上报排查
+- **示例插件不要注册真实能力**：能力按 `priority` 选择，`hello` 曾注册 `AuthProvider` 抢在真实认证插件前面；
+  示例只订阅事件、不打日志以外的副作用
 - **下载任务状态不能放 Compose 页面里**：`remember` + 页面协程会在切页时取消下载；用 core 的
   `DownloadsService`（应用级作用域 + `StateFlow`），页面只订阅
 - **游戏崩溃先看崩溃报告**：`<instance>/crash-reports/crash-*.txt`；常见根因是 `assets/objects` 没下全

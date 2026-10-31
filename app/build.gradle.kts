@@ -59,6 +59,7 @@ val builtinPlugins: Configuration = configurations.create("builtinPlugins") {
 }
 
 dependencies {
+    builtinPlugins(project(":plugins:auth-offline"))
     builtinPlugins(project(":plugins:hello"))
     builtinPlugins(project(":plugins:ui-about"))
     builtinPlugins(project(":plugins:theme-sakura"))

@@ -81,7 +81,7 @@ class RealMojangSmokeTest {
                     launcherVersion = "0.0.1",
                     os = OperatingSystem.MACOS,
                     arch = Architecture.ARM64,
-                    playerName = "SmokeTest",
+                    auth = dev.mmcl.api.capability.Account(uuid = java.util.UUID.nameUUIDFromBytes("OfflinePlayer:SmokeTest".toByteArray()).toString(), name = "SmokeTest"),
                     maxMemoryMb = 1024,
                 )
             val session = launcher.launch(request) { line -> lines += line }
