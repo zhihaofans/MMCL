@@ -93,7 +93,17 @@ class AppShellRenderTest {
             override val id: String = "mojang"
             override val displayName: String = "Mojang 官方"
 
-            override suspend fun fetchManifestJson(): String = "{}"
+            override suspend fun fetchManifestJson(): String =
+                """
+                {
+                  "latest": {"release": "26.3", "snapshot": "26.4-snapshot"},
+                  "versions": [
+                    {"id": "26.3", "type": "release", "url": "https://example.invalid/26.3.json"},
+                    {"id": "26.2", "type": "release", "url": "https://example.invalid/26.2.json"},
+                    {"id": "26.1", "type": "release", "url": "https://example.invalid/26.1.json"}
+                  ]
+                }
+                """.trimIndent()
         }
 
     private val manifestStub =
@@ -151,8 +161,8 @@ class AppShellRenderTest {
 
     private fun pages(themeController: ThemeController): List<UiPage> =
         listOf(
-            InstancesPage(manifestStub, installerStub),
-            DownloadsPage(),
+            InstancesPage(manifestStub),
+            DownloadsPage(manifestStub),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode = false, manifests = manifestStub),
         )
@@ -238,7 +248,7 @@ class AppShellRenderTest {
     fun `渲染未安装版本源的状态`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
 
-        render("no-source", controller, listOf(InstancesPage(noSourceService), DownloadsPage()))
+        render("no-source", controller, listOf(InstancesPage(noSourceService), DownloadsPage(noSourceService)))
     }
 
     @Test
@@ -248,7 +258,7 @@ class AppShellRenderTest {
         render(
             "install-ready",
             controller,
-            listOf(InstallDemoPage(samplePlan, progress = null, busy = false), InstancesPage(manifestStub, installerStub)),
+            listOf(InstallDemoPage(samplePlan, progress = null, busy = false), InstancesPage(manifestStub)),
         )
         render(
             "install-progress",
@@ -259,21 +269,27 @@ class AppShellRenderTest {
                     progress = DownloadProgress(completed = 1, total = 2, current = "libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar"),
                     busy = true,
                 ),
-                InstancesPage(manifestStub, installerStub),
+                InstancesPage(manifestStub),
             ),
         )
     }
 
     @Test
+    fun `渲染下载页`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        render("downloads", controller, listOf(DownloadsPage(manifestStub, autoLoad = true), InstancesPage(manifestStub)))
+    }
+
+    @Test
     fun `渲染实例卡片`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
-        render("instance-card", controller, listOf(InstanceDemoPage(), InstancesPage(manifestStub, installerStub)))
+        render("instance-card", controller, listOf(InstanceDemoPage(), InstancesPage(manifestStub)))
     }
 
     @Test
     fun `渲染游戏日志面板`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
-        render("game-log", controller, listOf(GameLogDemoPage(), InstancesPage(manifestStub, installerStub)))
+        render("game-log", controller, listOf(GameLogDemoPage(), InstancesPage(manifestStub)))
     }
 
     @Test
@@ -291,7 +307,7 @@ class AppShellRenderTest {
 
         @Composable
         override fun Content(navigator: AppNavigator) {
-            PageScaffold(title = "游戏", subtitle = "实例与共享文件") {
+            PageScaffold(title = "游戏", subtitle = "实例、启动与日志") {
                 GameLogPanel(
                     title = "游戏日志 · 26.3",
                     lines = listOf(
@@ -321,7 +337,7 @@ class AppShellRenderTest {
 
         @Composable
         override fun Content(navigator: AppNavigator) {
-            PageScaffold(title = "游戏", subtitle = "实例与共享文件") {
+            PageScaffold(title = "游戏", subtitle = "实例、启动与日志") {
                 InstanceCard(
                     instance = Instance(id = "26.3", name = "26.3", versionId = "26.3", createdAtEpochMillis = 0),
                     running = false,
@@ -331,6 +347,13 @@ class AppShellRenderTest {
                 InstanceCard(
                     instance = Instance(id = "26.3-2", name = "26.3 2", versionId = "26.3", createdAtEpochMillis = 1),
                     running = true,
+                    onLaunch = {},
+                    onDelete = {},
+                )
+                InstanceCard(
+                    instance = Instance(id = "26.2", name = "26.2", versionId = "26.2", createdAtEpochMillis = 2),
+                    missingFiles = true,
+                    running = false,
                     onLaunch = {},
                     onDelete = {},
                 )

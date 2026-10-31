@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -35,27 +33,20 @@ import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
-import dev.mmcl.core.download.DownloadProgress
-import dev.mmcl.core.download.DownloadReport
-import dev.mmcl.core.download.GameInstaller
-import dev.mmcl.core.download.InstallPlan
-import dev.mmcl.core.download.InstallResult
+import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.java.JavaRuntimeDetector
-import dev.mmcl.core.java.JavaRuntimeSource
 import dev.mmcl.core.launch.LaunchRequest
 import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionDetailService
-import dev.mmcl.core.version.VersionManifest
-import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
-import dev.mmcl.core.version.VersionSupport
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -75,21 +66,19 @@ data class LaunchContext(
 )
 
 /**
- * 游戏页：实例列表 + 共享文件准备。
+ * 游戏页：实例列表 + 启动 + 日志。
  *
- * 结构：
- * - 实例卡片（启动 / 删除）；实例拥有独立游戏目录（存档、配置、mods）；
- * - 共享文件：libraries / assets / versions 只下一份，所有实例复用；
- * - 版本清单里只允许最新正式版系列，其余标"不受支持"。
+ * 共享文件（libraries / assets / versions）的安装与修复在「下载」页；
+ * 这里只显示缺文件状态，并给一个跳过去的入口。
  */
 class InstancesPage(
     private val manifests: VersionManifestService? = null,
-    private val installer: GameInstaller? = null,
     private val instanceService: InstanceService? = null,
     private val detailService: VersionDetailService? = null,
     private val javaDetector: JavaRuntimeDetector? = null,
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
+    private val intent: NavigationIntent? = null,
     private val autoLoad: Boolean = false,
 ) : UiPage {
     override val id: String = "dev.mmcl.page.instances"
@@ -101,8 +90,6 @@ class InstancesPage(
     @Composable
     override fun Content(navigator: AppNavigator) {
         var state by remember { mutableStateOf<ManifestUiState>(ManifestUiState.Idle) }
-        var prep by remember { mutableStateOf<PrepUiState>(PrepUiState.Idle) }
-        var javaStatus by remember { mutableStateOf<String?>(null) }
         var launchStatus by remember { mutableStateOf<String?>(null) }
         var instances by remember { mutableStateOf<List<Instance>>(emptyList()) }
         var pendingDelete by remember { mutableStateOf<Instance?>(null) }
@@ -121,8 +108,6 @@ class InstancesPage(
 
         fun refresh(force: Boolean) {
             val service = manifests ?: return
-            prep = PrepUiState.Idle
-            javaStatus = null
             state = ManifestUiState.Loading
             scope.launch {
                 state =
@@ -136,57 +121,14 @@ class InstancesPage(
             }
         }
 
-        fun describeJava(detail: dev.mmcl.core.version.VersionDetail): String {
-            val required = detail.javaVersion?.majorVersion ?: 0
-            if (required <= 0) return "该版本未声明 Java 要求"
-            val detector = javaDetector ?: return "需要 Java ≥$required（检测器未接入）"
-            val runtime = detector.detect(required)
-            return if (runtime == null) {
-                "缺少 Java ≥$required：安装 JDK，或在设置里填写 java.home"
-            } else {
-                "Java ${runtime.majorVersion}（${javaSourceLabel(runtime.source)}）"
-            }
-        }
+        fun clientJar(versionId: String): Path? =
+            launchContext?.sharedRoot?.resolve("versions")?.resolve(versionId)?.resolve("$versionId.jar")
 
-        fun checkFiles(entry: VersionManifestEntry) {
-            val inst = installer ?: return
-            prep = PrepUiState.Planning
-            scope.launch {
-                try {
-                    val plan = inst.plan(entry, forceRefresh = true)
-                    javaStatus = describeJava(plan.detail)
-                    prep = PrepUiState.Ready(plan)
-                } catch (t: Throwable) {
-                    prep = PrepUiState.Failed(t.message ?: "检查文件失败")
-                }
-            }
-        }
+        fun hasFiles(instance: Instance): Boolean = clientJar(instance.versionId)?.let { Files.isRegularFile(it) } ?: true
 
-        fun downloadFiles(entry: VersionManifestEntry) {
-            val inst = installer ?: return
-            prep = PrepUiState.Downloading(null)
-            scope.launch {
-                try {
-                    val result =
-                        inst.install(entry, forceRefresh = true) { progress ->
-                            prep = PrepUiState.Downloading(progress)
-                        }
-                    javaStatus = describeJava(result.plan.detail)
-                    prep = PrepUiState.Done(result)
-                } catch (t: Throwable) {
-                    prep = PrepUiState.Failed(t.message ?: "下载失败")
-                }
-            }
-        }
-
-        fun createInstance(versionId: String) {
-            val service = instanceService ?: return
-            runCatching { service.create(versionId) }
-                .onSuccess {
-                    refreshInstances()
-                    launchStatus = "已创建实例 ${it.name}"
-                }
-                .onFailure { launchStatus = "新建实例失败：${it.message ?: it::class.simpleName}" }
+        fun openDownloads(versionId: String? = null) {
+            if (versionId != null) intent?.requestDownload(versionId)
+            navigator.navigate(DownloadsPage.PAGE_ID)
         }
 
         fun launchInstance(instance: Instance) {
@@ -200,17 +142,15 @@ class InstancesPage(
                 launchStatus = "启动器未接线，无法启动"
                 return
             }
+            if (!hasFiles(instance)) {
+                launchStatus = "共享文件缺失：去「下载」页安装或修复 ${instance.versionId} 后再启动"
+                return
+            }
             val entry = manifest?.find(instance.versionId)
             if (entry == null) {
                 launchStatus = "版本清单里找不到 ${instance.versionId}，先刷新版本清单"
                 return
             }
-            val clientJar = context.sharedRoot.resolve("versions").resolve(instance.versionId).resolve("${instance.versionId}.jar")
-            if (!java.nio.file.Files.isRegularFile(clientJar)) {
-                launchStatus = "共享文件缺失：先点下方的「检查文件 / 下载游戏文件」再启动"
-                return
-            }
-            runCatching { java.nio.file.Files.createDirectories(service.directoryOf(instance)) }
             launchStatus = "正在启动 ${instance.name}…"
             scope.launch {
                 try {
@@ -272,11 +212,9 @@ class InstancesPage(
             runningInstanceId = null
         }
 
-        val latest = (state as? ManifestUiState.Loaded)?.manifest?.latestRelease()
-
         PageScaffold(
             title = "游戏",
-            subtitle = "实例与共享文件",
+            subtitle = "实例、启动与日志",
             actions = {
                 if (hasSource) {
                     OutlinedButton(
@@ -287,9 +225,7 @@ class InstancesPage(
                     }
                 }
                 if (instanceService != null) {
-                    Button(onClick = { latest?.let { createInstance(it.id) } }, enabled = latest != null) {
-                        Text("新建实例")
-                    }
+                    Button(onClick = { openDownloads() }) { Text("安装新版本") }
                 }
             },
         ) {
@@ -298,14 +234,14 @@ class InstancesPage(
                     if (hasSource) {
                         EmptyState(
                             icon = UiIcon.GAME,
-                            text = "还没有实例",
-                            hint = "点右上角「刷新版本清单」，再「新建实例」",
+                            text = if (instances.isEmpty()) "还没有实例" else "还没有载入版本清单",
+                            hint = "点右上角「安装新版本」，在下载页选版本安装",
                         )
                     } else {
                         EmptyState(
                             icon = UiIcon.DOWNLOAD,
                             text = "没有可用的版本源",
-                            hint = "本应用不内置任何下载地址：把 source-mojang 等版本源插件放进 <数据目录>/plugins/ 后重启",
+                            hint = "本应用不内置任何下载地址：去「设置」里安装 source-mojang 等版本源插件",
                         )
                     }
 
@@ -317,25 +253,47 @@ class InstancesPage(
                         CircularProgressIndicator(modifier = Modifier.size(MmclSpacing.xxl))
                     }
 
-                is ManifestUiState.Failed ->
+                is ManifestUiState.Failed -> Column {
                     Text(
                         text = "版本清单获取失败：${current.message}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
+                    TextButton(onClick = { refresh(force = true) }) { Text("重试") }
+                }
 
                 is ManifestUiState.Loaded -> {
+                    val missing = instances.filter { !hasFiles(it) }
                     Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
+                        if (missing.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
+                                    .padding(MmclSpacing.s),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "有 ${missing.size} 个实例缺少共享文件，启动会被拦下",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Button(onClick = { openDownloads(missing.first().versionId) }) { Text("去下载") }
+                            }
+                        }
+
                         if (instances.isEmpty()) {
                             EmptyState(
                                 icon = UiIcon.GAME,
                                 text = "还没有实例",
-                                hint = "点右上角「新建实例」，会用最新正式版 ${current.manifest.latest.release} 创建",
+                                hint = "去「下载」页安装版本，装完可以自动创建实例",
                             )
                         } else {
                             instances.forEach { instance ->
                                 InstanceCard(
                                     instance = instance,
+                                    missingFiles = !hasFiles(instance),
                                     running = runningInstanceId == instance.id,
                                     onLaunch = { launchInstance(instance) },
                                     onDelete = { pendingDelete = instance },
@@ -360,26 +318,6 @@ class InstancesPage(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-
-                        HorizontalDivider()
-                        Text(
-                            text = "共享文件（libraries / assets / versions，所有实例复用）",
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        latest?.let { entry ->
-                            GamePrepCard(
-                                versionId = entry.id,
-                                plan = (prep as? PrepUiState.Ready)?.plan,
-                                progress = (prep as? PrepUiState.Downloading)?.progress,
-                                report = (prep as? PrepUiState.Done)?.result?.report,
-                                failure = (prep as? PrepUiState.Failed)?.message,
-                                javaStatus = javaStatus,
-                                busy = prep is PrepUiState.Planning || prep is PrepUiState.Downloading,
-                                onCheck = { checkFiles(entry) },
-                                onDownload = { downloadFiles(entry) },
-                            )
-                        }
-                        ManifestSummary(current.manifest)
                     }
                 }
             }
@@ -410,6 +348,7 @@ class InstancesPage(
 @Composable
 internal fun InstanceCard(
     instance: Instance,
+    missingFiles: Boolean = false,
     running: Boolean,
     onLaunch: () -> Unit,
     onDelete: () -> Unit,
@@ -430,88 +369,15 @@ internal fun InstanceCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (missingFiles) {
+                Text(
+                    text = "缺共享文件 · 去下载页安装或修复",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
         Button(onClick = onLaunch, enabled = !running) { Text(if (running) "运行中" else "启动") }
         TextButton(onClick = onDelete, enabled = !running) { Text("删除") }
     }
-}
-
-/** 版本清单摘要卡片：最新正式版/快照 + 支持范围 + 前几个版本。 */
-@Composable
-internal fun ManifestSummary(manifest: VersionManifest) {
-    val supportedSeries = VersionSupport.latestSeries(manifest)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-            .padding(MmclSpacing.l),
-        verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
-    ) {
-        Text(text = "Mojang 版本清单", style = MaterialTheme.typography.titleSmall)
-        Text(
-            text = "只支持最新正式版系列（$supportedSeries）；其余仅展示，不可下载或启动",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        ManifestRow("最新正式版", manifest.latest.release)
-        ManifestRow("最新快照", manifest.latest.snapshot)
-        ManifestRow("版本总数", manifest.versions.size.toString())
-        HorizontalDivider(modifier = Modifier.padding(vertical = MmclSpacing.xs))
-        manifest.versions.take(6).forEach { entry ->
-            val supported = VersionSupport.isSupported(entry, supportedSeries)
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = entry.id,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (supported) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = if (supported) "${entry.type} · 支持" else "${entry.type} · 不受支持",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (supported) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ManifestRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Text(text = value, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-/** 运行时来源的中文说明。 */
-private fun javaSourceLabel(source: JavaRuntimeSource): String =
-    when (source) {
-        JavaRuntimeSource.CONFIGURED -> "设置指定"
-        JavaRuntimeSource.BUNDLED -> "自带运行时"
-        JavaRuntimeSource.JAVA_HOME -> "JAVA_HOME"
-        JavaRuntimeSource.PATH -> "PATH"
-        JavaRuntimeSource.SYSTEM_MACOS -> "系统 JDK"
-    }
-
-private sealed interface ManifestUiState {
-    data object Idle : ManifestUiState
-    data object Loading : ManifestUiState
-    data class Loaded(val manifest: VersionManifest) : ManifestUiState
-    data class Failed(val message: String) : ManifestUiState
-}
-
-private sealed interface PrepUiState {
-    data object Idle : PrepUiState
-    data object Planning : PrepUiState
-    data class Ready(val plan: InstallPlan) : PrepUiState
-    data class Downloading(val progress: DownloadProgress?) : PrepUiState
-    data class Done(val result: InstallResult) : PrepUiState
-    data class Failed(val message: String) : PrepUiState
 }

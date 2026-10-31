@@ -20,8 +20,8 @@
 
 ### 0.2.x — 界面
 
-- [ ] P3：首页 / 实例页接 core 数据服务（依赖 0.1.x 的实例与启动链）
-- [ ] P4：`UiWidget` / `UiSlot`（顶栏、状态栏、首页卡片）
+- [ ] P3：首页接 core 数据服务（实例页与下载页已完成）
+- [ ] P4：`UiWidget` / `UiSlot`（顶栏、首页卡片；状态栏下载进度已内置）
 
 ### 0.3.x — 插件生态
 
@@ -33,6 +33,9 @@
 
 ### 0.4.x — 打包发布
 
+- [ ] 应用图标：设计 1024px 源图并导出 `.icns` / `.ico` / PNG，接入
+      `nativeDistributions.macOS.iconFile`、Windows MSI、窗口/Dock 图标
+      （目前用的是 Compose 默认图标）
 - [ ] Windows 安装包（MSI/EXE，目标 Windows 11）与 Linux 发行包（deb/AppImage）
       —— 复用同一套 nativeDistributions；Windows/Linux 无 macOS 的 0.x 限制
 - [ ] macOS 签名 + 公证：Developer ID Application 证书、`notarytool` 提交与 stapling（未签名版已可本地运行）

@@ -59,7 +59,7 @@ class GameInstaller(
     private val logger: Logger,
     /** 资源对象地址提供者；由来源插件决定，默认不支持。 */
     private val assetUrl: (hash: String) -> String? = { null },
-) {
+) : Installer {
     private val json = Json { ignoreUnknownKeys = true }
 
     /** 只做规划，不下载（界面用于"检查文件"）。 */
@@ -104,10 +104,10 @@ class GameInstaller(
     }
 
     /** 规划并下载全部文件；已存在且校验通过的文件会被跳过。 */
-    suspend fun install(
+    override suspend fun install(
         entry: VersionManifestEntry,
-        forceRefresh: Boolean = false,
-        onProgress: suspend (DownloadProgress) -> Unit = {},
+        forceRefresh: Boolean,
+        onProgress: suspend (DownloadProgress) -> Unit,
     ): InstallResult {
         val plan = plan(entry, forceRefresh)
         logger.info("开始准备版本 {}：{} 个文件，共 {} 字节", plan.versionId, plan.fileCount, plan.totalBytes)
@@ -129,4 +129,13 @@ class GameInstaller(
         )
         return InstallResult(plan, merged, assetReport)
     }
+
+    /** 便利重载：不强制刷新、不需要进度。 */
+    suspend fun install(entry: VersionManifestEntry): InstallResult = install(entry, forceRefresh = false) {}
+
+    /** 便利重载：只关心进度。 */
+    suspend fun install(
+        entry: VersionManifestEntry,
+        onProgress: suspend (DownloadProgress) -> Unit,
+    ): InstallResult = install(entry, forceRefresh = false, onProgress = onProgress)
 }

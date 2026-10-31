@@ -28,6 +28,10 @@ import dev.mmcl.core.instance.InstanceStore
 import dev.mmcl.core.java.JavaRuntimeDetector
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.net.JdkHttpTransport
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.core.download.GameInstaller
 import dev.mmcl.core.download.FileDownloader
 import java.nio.file.Files
@@ -98,6 +102,10 @@ fun main(args: Array<String>) {
             assetUrl = { hash -> manifestService.currentSource()?.assetObjectUrl(hash) },
         )
 
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val downloads = DownloadsService(installer, appScope, logger)
+    val intent = dev.mmcl.app.NavigationIntent()
+
     val pluginThemes: List<LauncherTheme> =
         if (safeMode) emptyList() else manager.services.getAll(LauncherTheme::class)
     val themeController = ThemeController(settings, pluginThemes)
@@ -116,16 +124,22 @@ fun main(args: Array<String>) {
     val builtinPages: List<UiPage> =
         listOf(
             InstancesPage(
-                manifestService,
-                installer,
-                instanceService,
-                detailService,
-                javaDetector,
-                gameLauncher,
-                launchContext,
+                manifests = manifestService,
+                instanceService = instanceService,
+                detailService = detailService,
+                javaDetector = javaDetector,
+                launcher = gameLauncher,
+                launchContext = launchContext,
+                intent = intent,
                 autoLoad = true,
             ),
-            DownloadsPage(),
+            DownloadsPage(
+                manifests = manifestService,
+                downloads = downloads,
+                instanceService = instanceService,
+                intent = intent,
+                autoLoad = true,
+            ),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode, manifestService),
         )
@@ -157,6 +171,7 @@ fun main(args: Array<String>) {
                     launcher = launcher,
                     safeMode = safeMode,
                     pluginCount = plugins.size,
+                    downloads = downloads,
                 )
             }
         }

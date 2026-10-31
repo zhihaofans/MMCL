@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,8 @@ import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.core.download.DownloadTask
+import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.ui.kit.MmclIcons
 import dev.mmcl.ui.kit.MmclSpacing
 
@@ -47,6 +50,7 @@ fun AppShell(
     launcher: LauncherInfo,
     safeMode: Boolean,
     pluginCount: Int,
+    downloads: DownloadsService? = null,
 ) {
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
@@ -68,7 +72,13 @@ fun AppShell(
             }
         }
         HorizontalDivider()
-        StatusBar(launcher = launcher, pluginCount = pluginCount, pageCount = pages.size)
+        val downloadTasks: List<DownloadTask> = downloads?.tasks?.collectAsState()?.value.orEmpty()
+        StatusBar(
+            launcher = launcher,
+            pluginCount = pluginCount,
+            pageCount = pages.size,
+            downloadTasks = downloadTasks,
+        )
     }
 }
 
@@ -185,7 +195,12 @@ private fun Divider() {
 }
 
 @Composable
-private fun StatusBar(launcher: LauncherInfo, pluginCount: Int, pageCount: Int) {
+private fun StatusBar(
+    launcher: LauncherInfo,
+    pluginCount: Int,
+    pageCount: Int,
+    downloadTasks: List<DownloadTask> = emptyList(),
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -205,6 +220,19 @@ private fun StatusBar(launcher: LauncherInfo, pluginCount: Int, pageCount: Int) 
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        val active = downloadTasks.firstOrNull { it.state.isActive }
+        if (active != null) {
+            val progress = active.progress
+            Text(
+                text = if (progress != null) {
+                    "下载 ${progress.completed}/${progress.total}"
+                } else {
+                    "下载 ${active.state.name.lowercase()}"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = "MMCL v${launcher.version}",
