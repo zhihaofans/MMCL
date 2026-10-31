@@ -56,6 +56,10 @@
 - natives 按库名架构标识过滤（`natives-macos` vs `natives-macos-arm64`），规划与 classpath 共用同一份过滤结果
 - 游戏页：下载完成后出现「启动游戏 / 停止游戏」与运行状态
 - 冒烟门槛改用 Gradle 属性：`-Pmmcl.netTests=1`（真实清单）、`-Pmmcl.realLaunch=1`（真实下载并启动）
+- macOS 打包：`:app:packageDmg` / `:app:createDistributable`；`bundleID = dev.mmcl.launcher`、
+  dock 名；打包优先使用 JDK 27（jpackage 24~26 拒绝 `0.x` 版本，JDK-8380634 在 27 修复），
+  找不到 27 时才退回 `1.x` 映射；jlink 补齐
+  `java.naming` / `java.sql` / `java.net.http` / `jdk.crypto.ec` / `jdk.unsupported`
 - 实例管理：`Instance` / `InstanceStore`（JSON 原子读写、坏文件自愈）/ `InstanceService`
   （创建、删除、自动重名后缀；实例目录含 saves/mods/config）
 - 游戏页改为实例列表：新建（用最新正式版）、启动、删除（二次确认，说明会删存档）；

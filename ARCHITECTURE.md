@@ -329,9 +329,23 @@ app ──► core ──► api
 ./gradlew test
 ./gradlew :core:test --tests "*PluginLoaderTest*"
 
-# 打包 macOS 产物（示例）
-./gradlew :app:packageDmg
+# macOS 打包
+./gradlew :app:packageDmg          # → app/build/compose/binaries/main/dmg/MMCL-<bundleVersion>.dmg
+./gradlew :app:createDistributable # → app/build/compose/binaries/main/app/MMCL.app（未签名，可直接跑）
 ```
+
+macOS 打包要点：
+
+- **用 JDK 27 的 jpackage 打包**：JDK 24~26 拒绝首段为 0 的版本（JDK-8380634，27 已修），
+  所以 `0.0.1` 只有换 27 才能保持真实版本；构建会通过 Gradle toolchain 自动找 27，
+  也可用 `-PpackageJdk=<home>` 指定。找不到 27 时才退回 `0.0.1 → 1.0.1` 映射（仅临时可用）
+- `macOS { bundleID = "dev.mmcl.launcher"; dockName = "MMCL" }`
+- **必须显式声明 jlink 模块**：`java.naming`（logback）、`java.net.http`（下载器）、`jdk.crypto.ec`（TLS）、
+  `java.sql`、`jdk.unsupported`；否则打包后启动即 `NoClassDefFoundError`
+- 打完后核对 `Info.plist` 的 `CFBundleShortVersionString` 与 DMG 文件名都是真实版本（`0.0.1`）；
+  自带的 launcher 运行时来自打包 JDK（27），与应用字节码目标 17 无关
+- 未签名产物换机器打开会被 Gatekeeper 拦：右键「打开」或在系统设置里放行；正式分发需要
+  Developer ID 签名 + notarization，顺序是「改 plist → codesign → notarize → staple」
 
 必须存在的测试：
 

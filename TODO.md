@@ -35,7 +35,8 @@
 ### 0.4.x — 打包发布
 
 - [ ] Windows 安装包（MSI/EXE，目标 Windows 11）与 Linux 发行包（deb/AppImage）
-- [ ] macOS `.app` / `.dmg`（仅 arm64），Developer ID 签名 + 公证
+      —— 复用同一套 nativeDistributions；Windows/Linux 无 macOS 的 0.x 限制
+- [ ] macOS 签名 + 公证：Developer ID Application 证书、`notarytool` 提交与 stapling（未签名版已可本地运行）
 - [ ] 自动更新通道
 - [ ] 首次启动向导
 
@@ -57,6 +58,8 @@
 - [ ] 资源对象 `assets/objects/<hash>` 下载 —— 需要来源插件提供资源基址（等接口设计）
 - [ ] 运行时下载协议 —— 需要运行时来源插件（等协议设计，地址同样不能内置）
 - [ ] Windows 注册表 / Linux 常见目录的 JDK 探测 —— 等用户决定要不要做
+- [ ] Apple Developer 账号与 Developer ID 证书 —— 等用户提供，用于签名与公证
+- [ ] 独立 build number（CFBundleVersion）—— jpackage 不支持，需要打包后改 plist + 重签
 
 ## 想法（未承诺）
 

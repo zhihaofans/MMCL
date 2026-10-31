@@ -144,8 +144,9 @@
 ### 5.5 本机开发环境（已就绪，勿重复安装）
 
 1. 操作系统：macOS 27.x，Apple Silicon（`arm64`）
-2. JDK：**Temurin 21（arm64）** 作为 Gradle toolchain；机器上另有 Zulu 25，只用来启动 Gradle 本身
-3. 校验：`/usr/libexec/java_home -V` 应同时列出 21 与 25；`./gradlew -version` 应显示 wrapper 版本与 `Launcher JVM`
+2. JDK：**Temurin 21（arm64）** 作为 Gradle toolchain；另有 Zulu 25（启动 Gradle）与
+   **Temurin 27（只用于 jpackage 打包，见第 9 节）**
+3. 校验：`/usr/libexec/java_home -V` 应列出 8 / 21 / 25 / 27；`./gradlew -version` 应显示 wrapper 版本与 `Launcher JVM`
 4. Gradle：**只用 `./gradlew`**（版本以 `gradle/wrapper/gradle-wrapper.properties` 为准），不要 `brew install gradle`
 5. 首次构建会联网下载依赖；网络受限时用 `./gradlew build --offline`（依赖须已在 `~/.gradle/caches`）
 6. 三平台验证：`./gradlew build`（字节码跨平台一致）+ `./gradlew :app:run`（本机冒烟），打包见 `ARCHITECTURE.md` §13
@@ -228,3 +229,12 @@
 - **Gradle 要写 `~/.gradle`**：沙箱里构建需要放开到工作区外；离线时用 `--offline`（依赖须已在缓存里）
 - **插件版本双写**：`build.gradle.kts` 的 `version` 与 `Plugin.version` 必须一致，否则 JAR 名和界面显示会对不上
 - **`:app:run` 是长驻进程**：窗口关闭前任务不结束，本机验证时别用阻塞写法等它返回
+- **jpackage 24~26 拒绝首段为 0 的版本**（JDK-8380634，**JDK 27 已修**）：macOS 上直接打 `0.0.1`
+  会报 “app-version 中的第一个数字不能为零”。打包配置会用 Gradle toolchain 找 JDK 27
+  （也可 `-PpackageJdk=<jdk27 home>` 指定）；找不到才退回 `1.x` 映射。
+  打完后用 PlistBuddy 确认 `CFBundleShortVersionString` 是真实版本，别让 1.x 漏到用户手里
+- **jpackage 的 CFBundleVersion 与 ShortVersion 相同**：想要独立单调 build 号（自动更新需要）
+  只能打包后改 plist 再签名，顺序是「改 plist → codesign → notarize」
+- **jlink 会裁掉运行时要用的模块**：打包后必须显式 `modules("java.naming", "java.sql", "java.net.http",
+  "jdk.crypto.ec", "jdk.unsupported")`，否则 logback（javax.naming）或 HttpClient 会在启动时报
+  `NoClassDefFoundError` —— 这个坑只在打包产物里出现，`:app:run` 不会暴露

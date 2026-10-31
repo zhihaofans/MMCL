@@ -1,4 +1,6 @@
 import java.util.zip.ZipFile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -7,6 +9,28 @@ plugins {
 }
 
 val launcherVersion = providers.gradleProperty("version").getOrElse("0.0.0-dev")
+
+// jpackage 在 JDK 24~26 上拒绝首段为 0 的 app-version（JDK-8380634，JDK 27 已修复）。
+// 打包优先用本机装好的 JDK 27（Gradle 会自动发现 ~/Library/Java/JavaVirtualMachines 下的 JDK）；
+// 没有 27 时退回当前 JDK，并只在这条退路上把安装包版本映射成 1.x。
+val toolchains = extensions.getByType<JavaToolchainService>()
+val packagingJdkHome: String? =
+    providers.gradleProperty("packageJdk").orNull?.takeIf { it.isNotBlank() }
+        ?: toolchains
+            .launcherFor { languageVersion.set(JavaLanguageVersion.of(27)) }
+            .getOrNull()
+            ?.metadata
+            ?.installationPath
+            ?.asFile
+            ?.absolutePath
+
+// 兜底映射：0.0.1 -> 1.0.1（仅在找不到 JDK 27 时使用）
+val bundleVersion: String =
+    run {
+        val parts = launcherVersion.split(".")
+        val major = parts.firstOrNull()?.toIntOrNull() ?: 0
+        if (major == 0) "1." + parts.drop(1).joinToString(".").ifBlank { "0.0" } else launcherVersion
+    }
 
 dependencies {
     implementation(project(":api"))
@@ -100,11 +124,23 @@ compose.desktop {
     application {
         mainClass = "dev.mmcl.app.MainKt"
         jvmArgs += listOf("-Dapple.awt.application.name=MMCL")
+        if (packagingJdkHome != null) {
+            javaHome = packagingJdkHome
+        }
         nativeDistributions {
+            // 先只出 macOS（当前优先平台）；Windows/Linux 以后再按平台分支
+            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg)
             packageName = "MMCL"
-            packageVersion = launcherVersion
+            // 用 JDK 27 打包时可以保持真实版本；否则退回 1.x 映射
+            packageVersion = if (packagingJdkHome != null) launcherVersion else bundleVersion
             description = "插件化的 Minecraft Java 启动器"
             vendor = "MMCL"
+            macOS {
+                bundleID = "dev.mmcl.launcher"
+                dockName = "MMCL"
+            }
+            // jlink 默认会裁掉这些模块：logback 需要 java.naming，Compose/skiko 偶发需要 unsupported
+            modules("java.naming", "java.sql", "java.net.http", "jdk.crypto.ec", "jdk.unsupported")
         }
     }
 }
