@@ -58,6 +58,7 @@ class MinecraftLauncher(
         val logPath = runCatching { logFile(request.detail.id) }.getOrNull()
         val writer = openLogWriter(logPath)
         val outputFlow = MutableSharedFlow<String>(extraBufferCapacity = OUTPUT_BUFFER)
+        val formatter = GameLogFormatter()
         val session =
             LaunchSession(
                 process = process,
@@ -69,7 +70,7 @@ class MinecraftLauncher(
         events.publish(GameLaunching(instanceId = request.detail.id, versionId = request.detail.id))
         val startedAt = System.currentTimeMillis()
         Thread(
-            { watch(process, session, request.detail.id, startedAt, onLine, writer) },
+            { watch(process, session, request.detail.id, startedAt, onLine, writer, formatter) },
             "mmcl-game-watch-${request.detail.id}",
         ).apply {
             isDaemon = true
@@ -85,15 +86,19 @@ class MinecraftLauncher(
         startedAt: Long,
         onLine: ((String) -> Unit)?,
         writer: BufferedWriter?,
+        formatter: GameLogFormatter,
     ) {
         try {
             var flushed = 0
             process.inputStream.bufferedReader().useLines { lines ->
                 for (line in lines) {
                     logger.debug("[game] {}", line)
-                    session.append(line)
-                    session.emit(line)
-                    onLine?.invoke(line)
+                    // 界面与缓冲用可读行；文件保留原始 XML
+                    for (formatted in formatter.accept(line)) {
+                        session.append(formatted)
+                        session.emit(formatted)
+                        onLine?.invoke(formatted)
+                    }
                     if (writer != null) {
                         runCatching {
                             writer.append(line).append('\n')
@@ -101,6 +106,11 @@ class MinecraftLauncher(
                         }.onFailure { logger.warn("写游戏日志失败：{}", it.message) }
                     }
                 }
+            }
+            for (rest in formatter.finish()) {
+                session.append(rest)
+                session.emit(rest)
+                onLine?.invoke(rest)
             }
             val exitCode = process.waitFor()
             val duration = System.currentTimeMillis() - startedAt

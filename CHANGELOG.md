@@ -64,7 +64,9 @@
   （官方源返回资源 CDN 地址），补齐 `assets/objects` 后游戏不再因缺贴图崩溃（实测 5147 个对象 / 473MB）
 - 游戏日志面板：实例卡片下方展开，500 行环形缓冲、自动滚到底、显示运行中/退出码、可清空；
   日志来自 `LaunchSession.output`（`SharedFlow<String>`），同时保留 `snapshot()` 供补齐历史
-- 完整游戏日志落盘 `<dataDir>/logs/latest.log`（每次启动覆盖，退出前 flush）
+- 完整游戏日志落盘 `<dataDir>/logs/latest.log`（每次启动覆盖，退出前 flush，保留原始 log4j2 XML）
+- 日志格式化：`GameLogFormatter` 把 log4j2 XML 事件合并成
+  `[时间] [线程/级别] [类名] 消息`，异常堆栈缩进保留；解析失败退回原始内容，界面与缓冲用可读行
 - 启动前检查共享文件：客户端 JAR 缺失时直接提示「先检查/下载文件」，不再让游戏进程报错
 - 实例管理：`Instance` / `InstanceStore`（JSON 原子读写、坏文件自愈）/ `InstanceService`
   （创建、删除、自动重名后缀；实例目录含 saves/mods/config）
@@ -102,7 +104,7 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew build` 通过；146 个单元测试全绿（core 120 / app 18 / 插件 8）
+- `./gradlew build` 通过；152 个单元测试全绿（core 126 / app 18 / 插件 8）
 - **真实启动成功**（过版本闸门）：`26.3` 下载 70 个文件 / 124 MB、0 失败，用 Zulu 25 拉起，
   日志出现 `Setting user: SmokeTest` 与 `Backend library: LWJGL version 3.4.3+4`，发出 `GameLaunching`
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，插件均 `ENABLED`

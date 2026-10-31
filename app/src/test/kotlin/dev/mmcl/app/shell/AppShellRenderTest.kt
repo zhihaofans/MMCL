@@ -295,11 +295,13 @@ class AppShellRenderTest {
                 GameLogPanel(
                     title = "游戏日志 · 26.3",
                     lines = listOf(
-                        "[22:41:52] [main/INFO]: Setting user: Steve",
-                        "[22:41:52] [Render thread/INFO]: Backend library: LWJGL version 3.4.3+4",
-                        "[22:41:53] [Render thread/INFO]: OpenAL initialized on device MacBook Pro Speakers",
-                        "[22:41:54] [Render thread/WARN]: Missing asset: minecraft/textures/gui/title/background.png",
-                        "[22:41:56] [Render thread/INFO]: Stopping!",
+                        "[22:41:52] [main/INFO] [Minecraft] Setting user: Steve",
+                        "[22:41:52] [Render thread/INFO] [Minecraft] Backend library: LWJGL version 3.4.3+4",
+                        "[22:41:53] [Render thread/INFO] [SoundEngine] OpenAL initialized on device MacBook Pro Speakers",
+                        "[22:41:54] [Render thread/WARN] [TextureManager] Missing asset: minecraft/textures/gui/title/background.png",
+                        "[22:41:55] [Render thread/ERROR] [RealmsClient] Couldn't connect to realms",
+                        "  com.mojang.realmsclient.exception.RealmsServiceException: Realms authentication error",
+                        "[22:41:56] [Render thread/INFO] [Minecraft] Stopping!",
                     ),
                     running = false,
                     exitCode = 0,

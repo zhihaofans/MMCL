@@ -235,6 +235,8 @@
   打完后用 PlistBuddy 确认 `CFBundleShortVersionString` 是真实版本，别让 1.x 漏到用户手里
 - **jpackage 的 CFBundleVersion 与 ShortVersion 相同**：想要独立单调 build 号（自动更新需要）
   只能打包后改 plist 再签名，顺序是「改 plist → codesign → notarize」
+- **26.x 的游戏控制台是 log4j2 XML**：一个事件占 4~6 行，别直接展示；用 `GameLogFormatter`
+  转成 `[时间] [线程/级别] [类] 消息`。`logs/latest.log` 保留原始 XML，便于上报排查
 - **游戏崩溃先看崩溃报告**：`<instance>/crash-reports/crash-*.txt`；常见根因是 `assets/objects` 没下全
   （`NoSuchFileException …/assets/objects/xx/<hash>`，`CubeMapTexture`），不是启动参数问题
 - **jlink 会裁掉运行时要用的模块**：打包后必须显式 `modules("java.naming", "java.sql", "java.net.http",
