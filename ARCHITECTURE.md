@@ -139,7 +139,7 @@ app ──► core ──► api
 
 | 能力 | 示例插件 |
 |---|---|
-| 版本清单来源 | `source-mojang`、`source-bmclapi`、`source-local`（**均不内置**，需另装） |
+| 版本清单来源 + 资源对象地址 | `source-mojang`、`source-bmclapi`、`source-local`（**均不内置**，需另装） |
 | 账户认证 | `auth-microsoft`、`auth-offline`、`auth-authlib` |
 | 内容下载源 | `download-modrinth`、`download-curseforge`、`download-custom` |
 | 游戏加载器适配 | `loader-forge`、`loader-fabric`、`loader-neoforge`、`loader-quilt` |
@@ -295,9 +295,10 @@ app ──► core ──► api
 
 ```
 <dataDir>/
-├── libraries/ assets/ versions/   # 所有实例共享（下载一次）
+├── libraries/ assets/ versions/   # 所有实例共享（下载一次；assets/objects 约 470MB）
 ├── instances.json                 # 实例清单（原子写）
 ├── instances/<id>/                # 实例 game_directory：saves / mods / config
+├── logs/latest.log                # 最近一次游戏输出（每次启动覆盖）
 ├── plugins/ plugin-data/          # 插件
 ├── runtime/<os>-<arch>/           # 自带 Java 运行时
 ├── cache/                         # 版本清单缓存

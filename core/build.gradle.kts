@@ -17,7 +17,7 @@ dependencies {
 
 // 网络/真实启动冒烟默认关闭：用 -Pmmcl.netTests=1 / -Pmmcl.realLaunch=1 打开
 tasks.test {
-    listOf("mmcl.netTests", "mmcl.realLaunch").forEach { key ->
+    listOf("mmcl.netTests", "mmcl.realLaunch", "mmcl.localLaunch", "mmcl.downloadAssets").forEach { key ->
         systemProperty(key, (project.findProperty(key) as String?) ?: "0")
     }
 }

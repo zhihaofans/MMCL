@@ -60,7 +60,8 @@ internal fun GamePrepCard(
                         "完成但有问题：下载 ${report.downloaded} · 跳过 ${report.skipped} · 失败 ${report.failures.size}"
                     }
 
-                progress != null -> "下载中 ${progress.completed}/${progress.total}：${progress.current}"
+                progress != null ->
+                    "${if (progress.phase == "assets") "下载资源" else "下载文件"} ${progress.completed}/${progress.total}：${progress.current}"
                 plan != null -> "需要 ${plan.fileCount} 个文件，约 ${formatBytes(plan.totalBytes)}" +
                     if (plan.warnings.isEmpty()) "" else "（${plan.warnings.size} 项暂不支持）"
 

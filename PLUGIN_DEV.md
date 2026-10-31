@@ -244,6 +244,8 @@ class MojangSourcePlugin : Plugin {
 }
 ```
 
+- 源插件还可以提供资源对象地址：`override fun assetObjectUrl(hash: String): String?`，
+  返回 `null` 表示不支持（游戏会因缺贴图崩溃）；官方源返回 `https://resources.download.minecraft.net/<前两位>/<hash>`
 - 可以装多个源，core 按 `priority` 升序逐个尝试，全部失败才回退本地缓存
 - 设置项 `version.source` 可指定优先使用哪个源
 - 插件返回脏 JSON 只会让该源被跳过，不会写坏缓存

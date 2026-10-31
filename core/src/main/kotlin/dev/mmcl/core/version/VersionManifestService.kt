@@ -135,6 +135,19 @@ class VersionManifestService(
     /** 是否至少装了一个版本源插件；界面用它决定显示"请安装插件"还是"刷新"。 */
     fun hasSource(): Boolean = sources().isNotEmpty()
 
+    /**
+     * 当前版本清单来自哪个源。
+     *
+     * 优先用缓存里记录的源 id；没有缓存时退回优先级最高的源。
+     * 资源对象下载地址由这个源提供（见 `VersionManifestSource.assetObjectUrl`）。
+     */
+    fun currentSource(): VersionManifestSource? {
+        val all = sources()
+        val cachedId = cachedSourceId()
+        return (cachedId?.let { id -> all.firstOrNull { it.id == id } })
+            ?: all.minWithOrNull(compareBy({ it.priority }, { it.id }))
+    }
+
     /** 缓存的写入时间（epoch 毫秒）；没有缓存返回 `null`。 */
     fun cachedAt(): Long? = readCacheEntry()?.fetchedAt
 

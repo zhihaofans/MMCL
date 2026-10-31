@@ -60,6 +60,12 @@
   dock 名；打包优先使用 JDK 27（jpackage 24~26 拒绝 `0.x` 版本，JDK-8380634 在 27 修复），
   找不到 27 时才退回 `1.x` 映射；jlink 补齐
   `java.naming` / `java.sql` / `java.net.http` / `jdk.crypto.ec` / `jdk.unsupported`
+- 资源对象下载：`AssetIndex` 模型 + `AssetPlanner`；来源插件新增 `assetObjectUrl(hash)` 能力
+  （官方源返回资源 CDN 地址），补齐 `assets/objects` 后游戏不再因缺贴图崩溃（实测 5147 个对象 / 473MB）
+- 游戏日志面板：实例卡片下方展开，500 行环形缓冲、自动滚到底、显示运行中/退出码、可清空；
+  日志来自 `LaunchSession.output`（`SharedFlow<String>`），同时保留 `snapshot()` 供补齐历史
+- 完整游戏日志落盘 `<dataDir>/logs/latest.log`（每次启动覆盖，退出前 flush）
+- 启动前检查共享文件：客户端 JAR 缺失时直接提示「先检查/下载文件」，不再让游戏进程报错
 - 实例管理：`Instance` / `InstanceStore`（JSON 原子读写、坏文件自愈）/ `InstanceService`
   （创建、删除、自动重名后缀；实例目录含 saves/mods/config）
 - 游戏页改为实例列表：新建（用最新正式版）、启动、删除（二次确认，说明会删存档）；
@@ -87,7 +93,6 @@
 
 ### 已知限制
 
-- 资源对象（`assets/objects`）未下载：贴图/音效可能缺失（能进渲染线程，但画面不完整）
 - 账户是离线占位（`Player`/自定义名 + 离线 UUID + token `0`）：不能登录正版服务器
 - 游戏启动后没有把输出流到界面（只写日志与内部回调）
 - 首页/实例页还是空状态，等 `core` 的实例与账户服务
@@ -97,12 +102,12 @@
 ### 验证
 
 - 工具链：Gradle 9.6.1 wrapper + JDK 21 toolchain（Temurin 21.0.13 arm64），字节码目标 17
-- `./gradlew build` 通过；139 个单元测试全绿（core 115 / app 17 / 插件 7）
+- `./gradlew build` 通过；146 个单元测试全绿（core 120 / app 18 / 插件 8）
 - **真实启动成功**（过版本闸门）：`26.3` 下载 70 个文件 / 124 MB、0 失败，用 Zulu 25 拉起，
   日志出现 `Setting user: SmokeTest` 与 `Backend library: LWJGL version 3.4.3+4`，发出 `GameLaunching`
 - `./gradlew :app:run` 在 macOS 27.2（Apple Silicon）显示窗口，插件均 `ENABLED`
 - `--safe-mode` 实跑：页面 4 个（插件页 0）、主题 2 个
-- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 / 实例卡片 九张截图
+- 无头渲染出深色 / 樱花主题 / 设置页 / 插件页 / 版本清单 / 未安装源 / 安装卡片 / 安装进度 / 实例卡片 / 游戏日志 十张截图
 - 本机实跑截图确认：导航含插件页「关于」，设置页显示三个主题与下载源（mojang）
 - Java 检测新增 10 个用例：来源优先级、版本不够跳过、缺 `release` 不误认、macOS 兜底、版本归一
 - 真实冒烟：最新正式版 26.3 解析出 83 个待下载文件、约 127 MB、0 条告警

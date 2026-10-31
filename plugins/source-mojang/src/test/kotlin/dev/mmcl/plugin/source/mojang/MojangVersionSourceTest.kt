@@ -27,6 +27,18 @@ class MojangVersionSourceTest {
     }
 
     @Test
+    fun `资源对象地址按 SHA-1 分段`() {
+        val source = MojangVersionSource()
+        val hash = "6a84d4afab797aaf9f6ad283ebcd5899493c5c64"
+
+        assertEquals(
+            "https://resources.download.minecraft.net/6a/$hash",
+            source.assetObjectUrl(hash),
+        )
+        assertEquals(null, source.assetObjectUrl("6a"))
+    }
+
+    @Test
     fun `插件把源注册进服务表`() {
         val context = FakePluginContext()
 

@@ -95,6 +95,7 @@ fun main(args: Array<String>) {
             os = launcher.os,
             arch = launcher.arch,
             logger = logger,
+            assetUrl = { hash -> manifestService.currentSource()?.assetObjectUrl(hash) },
         )
 
     val pluginThemes: List<LauncherTheme> =
@@ -102,7 +103,7 @@ fun main(args: Array<String>) {
     val themeController = ThemeController(settings, pluginThemes)
 
     val javaDetector = JavaRuntimeDetector(launcher.dataDir, launcher.os, launcher.arch, settings, logger)
-    val gameLauncher = MinecraftLauncher(manager.events, logger)
+    val gameLauncher = MinecraftLauncher(manager.events, logger, logFile = { launcher.dataDir.resolve("logs").resolve("latest.log") })
     val launchContext =
         LaunchContext(
             sharedRoot = launcher.dataDir,

@@ -235,6 +235,8 @@
   打完后用 PlistBuddy 确认 `CFBundleShortVersionString` 是真实版本，别让 1.x 漏到用户手里
 - **jpackage 的 CFBundleVersion 与 ShortVersion 相同**：想要独立单调 build 号（自动更新需要）
   只能打包后改 plist 再签名，顺序是「改 plist → codesign → notarize」
+- **游戏崩溃先看崩溃报告**：`<instance>/crash-reports/crash-*.txt`；常见根因是 `assets/objects` 没下全
+  （`NoSuchFileException …/assets/objects/xx/<hash>`，`CubeMapTexture`），不是启动参数问题
 - **jlink 会裁掉运行时要用的模块**：打包后必须显式 `modules("java.naming", "java.sql", "java.net.http",
   "jdk.crypto.ec", "jdk.unsupported")`，否则 logback（javax.naming）或 HttpClient 会在启动时报
   `NoClassDefFoundError` —— 这个坑只在打包产物里出现，`:app:run` 不会暴露

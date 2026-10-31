@@ -2,10 +2,13 @@ package dev.mmcl.core.download
 
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
+import dev.mmcl.core.version.AssetIndex
 import dev.mmcl.core.version.VersionDetail
 import dev.mmcl.core.version.VersionDetailService
 import dev.mmcl.core.version.VersionManifestEntry
+import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 
 /**
@@ -30,10 +33,12 @@ data class InstallPlan(
     val totalBytes: Long get() = files.sumOf { it.size }
 }
 
-/** 安装结果：规划 + 下载报告。 */
+/** 安装结果：规划 + 下载报告（游戏文件与资源对象合并计数）。 */
 data class InstallResult(
     val plan: InstallPlan,
     val report: DownloadReport,
+    /** 资源对象下载报告；当前源不支持资源下载时为 `null`。 */
+    val assetReport: DownloadReport? = null,
 )
 
 /**
@@ -52,13 +57,50 @@ class GameInstaller(
     private val os: OperatingSystem,
     private val arch: Architecture,
     private val logger: Logger,
+    /** 资源对象地址提供者；由来源插件决定，默认不支持。 */
+    private val assetUrl: (hash: String) -> String? = { null },
 ) {
+    private val json = Json { ignoreUnknownKeys = true }
+
     /** 只做规划，不下载（界面用于"检查文件"）。 */
     suspend fun plan(entry: VersionManifestEntry, forceRefresh: Boolean = false): InstallPlan {
         val detail = detailService.load(entry, forceRefresh)
         val planned = GameFilePlanner.plan(detail, os, arch)
         planned.warnings.forEach { logger.warn("版本 {}：{}", detail.id, it) }
         return InstallPlan(detail = detail, files = planned.files, warnings = planned.warnings)
+    }
+
+    /**
+     * 下载资源对象（`assets/objects`）。
+     *
+     * 资源索引文件由 [plan] 阶段下载到 `assets/indexes/<id>.json`；这里解析它，
+     * 再按来源插件给的地址逐个下载。当前源不提供地址时返回 `null` 并告警。
+     */
+    private suspend fun downloadAssets(
+        detail: VersionDetail,
+        onProgress: suspend (DownloadProgress) -> Unit,
+    ): DownloadReport? {
+        val indexRef = detail.assetIndex ?: return null
+        val indexFile = root.resolve("assets/indexes/${indexRef.id}.json")
+        if (!Files.isRegularFile(indexFile)) {
+            logger.warn("资源索引不存在，跳过资源对象下载：{}", indexFile)
+            return null
+        }
+        val index =
+            runCatching { json.decodeFromString(AssetIndex.serializer(), Files.readString(indexFile, Charsets.UTF_8)) }
+                .onFailure { logger.warn("资源索引解析失败：{}", it.message) }
+                .getOrNull()
+                ?: return null
+        val assetPlan = AssetPlanner.plan(index) { hash -> assetUrl(hash) }
+        if (assetPlan.missingUrls > 0) {
+            logger.warn("{} 个资源对象没有下载地址：当前来源插件不支持资源对象下载", assetPlan.missingUrls)
+        }
+        if (assetPlan.files.isEmpty()) {
+            logger.warn("没有可下载的资源对象，游戏可能因缺贴图崩溃")
+            return null
+        }
+        logger.info("开始下载资源对象：{} 个文件", assetPlan.files.size)
+        return downloader.download(root, assetPlan.files) { progress -> onProgress(progress.copy(phase = "assets")) }
     }
 
     /** 规划并下载全部文件；已存在且校验通过的文件会被跳过。 */
@@ -69,14 +111,22 @@ class GameInstaller(
     ): InstallResult {
         val plan = plan(entry, forceRefresh)
         logger.info("开始准备版本 {}：{} 个文件，共 {} 字节", plan.versionId, plan.fileCount, plan.totalBytes)
-        val report = downloader.download(root, plan.files, onProgress)
+        val fileReport = downloader.download(root, plan.files) { progress -> onProgress(progress.copy(phase = "files")) }
+        val assetReport = downloadAssets(plan.detail, onProgress)
+        val merged =
+            DownloadReport(
+                downloaded = fileReport.downloaded + (assetReport?.downloaded ?: 0),
+                skipped = fileReport.skipped + (assetReport?.skipped ?: 0),
+                failures = fileReport.failures + (assetReport?.failures.orEmpty()),
+            )
         logger.info(
-            "版本 {} 准备完成：下载 {}，跳过 {}，失败 {}",
+            "版本 {} 准备完成：下载 {}，跳过 {}，失败 {}（资源对象：{}）",
             plan.versionId,
-            report.downloaded,
-            report.skipped,
-            report.failures.size,
+            merged.downloaded,
+            merged.skipped,
+            merged.failures.size,
+            if (assetReport == null) "未启用" else "下载 ${assetReport.downloaded} / 跳过 ${assetReport.skipped}",
         )
-        return InstallResult(plan, report)
+        return InstallResult(plan, merged, assetReport)
     }
 }

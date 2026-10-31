@@ -30,4 +30,14 @@ interface VersionManifestSource {
      * 失败时抛任意异常即可，core 会记录并把该源跳过、继续尝试下一个。
      */
     suspend fun fetchManifestJson(): String
+
+    /**
+     * 资源对象（`assets/objects/<hash>`）的下载地址。
+     *
+     * 应用内不硬编码资源基址：由来源插件决定怎么映射。
+     * 返回 `null` 表示该源不支持资源对象下载（游戏会因缺贴图崩溃）。
+     *
+     * @param hash 资源对象的 SHA-1
+     */
+    fun assetObjectUrl(hash: String): String? = null
 }

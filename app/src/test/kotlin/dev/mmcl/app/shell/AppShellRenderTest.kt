@@ -14,6 +14,7 @@ import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.pages.DownloadsPage
+import dev.mmcl.app.pages.GameLogPanel
 import dev.mmcl.app.pages.GamePrepCard
 import dev.mmcl.app.pages.InstanceCard
 import dev.mmcl.app.pages.InstancesPage
@@ -270,8 +271,42 @@ class AppShellRenderTest {
     }
 
     @Test
+    fun `渲染游戏日志面板`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        render("game-log", controller, listOf(GameLogDemoPage(), InstancesPage(manifestStub, installerStub)))
+    }
+
+    @Test
     fun `内置主题 id 固定不变`() {
         assertTrue(BuiltinThemes.DARK_ID == "builtin.dark")
+    }
+
+    /** 渲染测试专用的"游戏日志"页面。 */
+    private class GameLogDemoPage : UiPage {
+        override val id: String = "dev.mmcl.page.render-log"
+        override val title: String = "日志"
+        override val icon: UiIcon = UiIcon.INFO
+        override val group: UiGroup = UiGroup.MAIN
+        override val order: Int = 2
+
+        @Composable
+        override fun Content(navigator: AppNavigator) {
+            PageScaffold(title = "游戏", subtitle = "实例与共享文件") {
+                GameLogPanel(
+                    title = "游戏日志 · 26.3",
+                    lines = listOf(
+                        "[22:41:52] [main/INFO]: Setting user: Steve",
+                        "[22:41:52] [Render thread/INFO]: Backend library: LWJGL version 3.4.3+4",
+                        "[22:41:53] [Render thread/INFO]: OpenAL initialized on device MacBook Pro Speakers",
+                        "[22:41:54] [Render thread/WARN]: Missing asset: minecraft/textures/gui/title/background.png",
+                        "[22:41:56] [Render thread/INFO]: Stopping!",
+                    ),
+                    running = false,
+                    exitCode = 0,
+                    onClear = {},
+                )
+            }
+        }
     }
 
     /** 渲染测试专用的"实例列表"页面。 */

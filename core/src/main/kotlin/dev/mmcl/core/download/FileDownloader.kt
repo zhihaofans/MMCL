@@ -24,6 +24,8 @@ data class DownloadProgress(
     val completed: Int,
     val total: Int,
     val current: String = "",
+    /** 阶段标识：`files`（游戏文件）/ `assets`（资源对象）。 */
+    val phase: String = "",
 )
 
 /** 单个文件失败原因。 */

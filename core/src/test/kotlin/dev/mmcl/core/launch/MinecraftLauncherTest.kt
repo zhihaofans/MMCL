@@ -6,6 +6,7 @@ import dev.mmcl.api.event.GameExited
 import dev.mmcl.api.event.GameLaunching
 import dev.mmcl.core.event.DefaultEventBus
 import dev.mmcl.core.version.VersionDetail
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
@@ -14,6 +15,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
 
 class MinecraftLauncherTest {
@@ -60,6 +64,38 @@ class MinecraftLauncherTest {
         // 进程此时已退出（GameExited 是退出后发的）
         session.process.waitFor()
         assertEquals(false, session.isRunning)
+    }
+
+    @Test
+    fun `输出会同时进入流 环形缓冲与日志文件`() {
+        val logDir = Files.createTempDirectory("mmcl-game-log-test")
+        val logFile = logDir.resolve("latest.log")
+        val exited = CountDownLatch(1)
+        events.subscribe(GameExited::class) { exited.countDown() }
+        val launcher =
+            MinecraftLauncher(events, logger, logFile = { logFile }) { _, _ ->
+                ProcessBuilder(
+                    "/bin/sh",
+                    "-c",
+                    "sleep 0.4; echo log-line-1; sleep 0.1; echo log-line-2; exit 0",
+                ).redirectErrorStream(true).start()
+            }
+
+        val session = launcher.launch(request())
+        val received = CopyOnWriteArrayList<String>()
+        runBlocking {
+            withTimeout(10_000) {
+                session.output.take(2).collect { received += it }
+            }
+        }
+
+        assertTrue(exited.await(10, TimeUnit.SECONDS), "等待 GameExited 超时")
+        assertEquals(listOf("log-line-1", "log-line-2"), received)
+        assertTrue(session.snapshot().containsAll(listOf("log-line-1", "log-line-2")))
+        val text = Files.readString(logFile)
+        assertTrue(text.contains("log-line-1"), "日志文件缺少第一行：$text")
+        assertTrue(text.contains("log-line-2"), "日志文件缺少第二行：$text")
+        logDir.toFile().deleteRecursively()
     }
 
     @Test

@@ -59,7 +59,22 @@ class MojangVersionSource(
             response.body()
         }
 
+    /**
+     * Mojang 资源 CDN：`objects/<前两位>/<hash>`。
+     *
+     * 这个地址**只存在于插件里**，应用本身不含任何下载地址。
+     */
+    override fun assetObjectUrl(hash: String): String? {
+        if (hash.length != SHA1_LENGTH) return null
+        return "$DEFAULT_ASSET_BASE/${hash.substring(0, 2)}/$hash"
+    }
+
     companion object {
+        /** Mojang 资源对象基址（插件内部常量）。 */
+        const val DEFAULT_ASSET_BASE: String = "https://resources.download.minecraft.net"
+
+        private const val SHA1_LENGTH = 40
+
         /** Mojang 官方版本清单地址。 */
         const val DEFAULT_MANIFEST_URL: String =
             "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"

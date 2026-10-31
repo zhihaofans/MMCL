@@ -108,6 +108,9 @@ class InstancesPage(
         var pendingDelete by remember { mutableStateOf<Instance?>(null) }
         var runningSession by remember { mutableStateOf<LaunchSession?>(null) }
         var runningInstanceId by remember { mutableStateOf<String?>(null) }
+        var logLines by remember { mutableStateOf<List<String>>(emptyList()) }
+        var exitedCode by remember { mutableStateOf<Int?>(null) }
+        var logOwnerName by remember { mutableStateOf<String?>(null) }
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         val hasSource = manifests?.hasSource() == true
@@ -202,6 +205,12 @@ class InstancesPage(
                 launchStatus = "版本清单里找不到 ${instance.versionId}，先刷新版本清单"
                 return
             }
+            val clientJar = context.sharedRoot.resolve("versions").resolve(instance.versionId).resolve("${instance.versionId}.jar")
+            if (!java.nio.file.Files.isRegularFile(clientJar)) {
+                launchStatus = "共享文件缺失：先点下方的「检查文件 / 下载游戏文件」再启动"
+                return
+            }
+            runCatching { java.nio.file.Files.createDirectories(service.directoryOf(instance)) }
             launchStatus = "正在启动 ${instance.name}…"
             scope.launch {
                 try {
@@ -225,6 +234,9 @@ class InstancesPage(
                                 playerName = context.playerName,
                             ),
                         )
+                    logLines = session.snapshot()
+                    exitedCode = null
+                    logOwnerName = instance.name
                     runningSession = session
                     runningInstanceId = instance.id
                     launchStatus = "${instance.name} 已启动（pid ${session.pid}）"
@@ -246,8 +258,16 @@ class InstancesPage(
 
         LaunchedEffect(runningSession) {
             val session = runningSession ?: return@LaunchedEffect
-            while (session.isRunning) delay(1_000)
-            launchStatus = "游戏已退出（code ${session.process.exitValue()}）"
+            logLines = session.snapshot()
+            launch {
+                session.output.collect { line ->
+                    logLines = (logLines + line).takeLast(LaunchSession.MAX_LINES)
+                }
+            }
+            while (session.isRunning) delay(500)
+            logLines = session.snapshot()
+            exitedCode = session.process.exitValue()
+            launchStatus = "游戏已退出（code ${exitedCode}）"
             runningSession = null
             runningInstanceId = null
         }
@@ -321,6 +341,16 @@ class InstancesPage(
                                     onDelete = { pendingDelete = instance },
                                 )
                             }
+                        }
+
+                        if (logOwnerName != null && (logLines.isNotEmpty() || runningSession != null || exitedCode != null)) {
+                            GameLogPanel(
+                                title = "游戏日志 · ${logOwnerName}",
+                                lines = logLines,
+                                running = runningSession != null,
+                                exitCode = exitedCode,
+                                onClear = { logLines = emptyList() },
+                            )
                         }
 
                         launchStatus?.let {
