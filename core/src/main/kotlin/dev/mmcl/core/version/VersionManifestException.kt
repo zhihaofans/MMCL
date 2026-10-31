@@ -15,5 +15,5 @@ open class VersionManifestException(
  * 而不是让启动器悄悄连官方地址。
  */
 class NoVersionSourceException : VersionManifestException(
-    "没有可用的版本清单源：请把版本源插件（如 source-mojang）放进 <数据目录>/plugins/ 后重启",
+    "没有可用的版本清单源：请把下载源插件放进 <数据目录>/plugins/ 后重启",
 )

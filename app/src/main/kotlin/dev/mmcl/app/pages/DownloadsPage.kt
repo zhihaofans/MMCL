@@ -94,7 +94,7 @@ class DownloadsPage(
                     try {
                         ManifestUiState.Loaded(service.load(forceRefresh = force))
                     } catch (t: NoVersionSourceException) {
-                        ManifestUiState.Failed("未安装版本源插件：把 source-mojang 等插件放进 <数据目录>/plugins/ 后重启")
+                        ManifestUiState.Failed("未安装下载源插件：把下载源插件放进 <数据目录>/plugins/ 后重启")
                     } catch (t: Throwable) {
                         ManifestUiState.Failed(t.message ?: t::class.simpleName ?: "未知错误")
                     }
@@ -146,7 +146,7 @@ class DownloadsPage(
                         EmptyState(
                             icon = UiIcon.DOWNLOAD,
                             text = "没有可用的版本源",
-                            hint = "应用不内置任何下载地址：去「设置」里安装 source-mojang 等版本源插件",
+                            hint = "应用不内置任何下载地址：去「设置」里安装下载源插件",
                         )
                     }
 

@@ -81,7 +81,7 @@ fun main(args: Array<String>) {
         )
 
     if (manifestService.orderedSources().isEmpty()) {
-        logger.warn("未安装版本源插件：本应用不内置下载源，无法获取游戏版本；把 source-mojang 等插件放进 {} 后重启", pluginsDir)
+        logger.warn("未安装下载源插件：本应用不内置下载源，无法获取游戏版本；把下载源插件放进 {} 后重启", pluginsDir)
     }
 
     val authProviders = manager.services.getAll(AuthProvider::class)

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,6 +44,7 @@ import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionDetailService
+import dev.mmcl.core.version.VersionManifestEntry
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
@@ -116,7 +118,7 @@ class InstancesPage(
                     try {
                         ManifestUiState.Loaded(service.load(forceRefresh = force))
                     } catch (t: NoVersionSourceException) {
-                        ManifestUiState.Failed("未安装版本源插件：把 source-mojang 等插件放进 <数据目录>/plugins/ 后重启")
+                        ManifestUiState.Failed("未安装下载源插件：把下载源插件放进 <数据目录>/plugins/ 后重启")
                     } catch (t: Throwable) {
                         ManifestUiState.Failed(t.message ?: t::class.simpleName ?: "未知错误")
                     }
@@ -153,11 +155,8 @@ class InstancesPage(
                 launchStatus = "缺少账户插件：安装 auth-offline（内置）后重启启动器"
                 return
             }
-            val entry = manifest?.find(instance.versionId)
-            if (entry == null) {
-                launchStatus = "版本清单里找不到 ${instance.versionId}，先刷新版本清单"
-                return
-            }
+            // 没有清单源时退回空 URL：详情服务会优先读本地缓存
+            val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
             launchStatus = "正在启动 ${instance.name}…"
             scope.launch {
                 try {
@@ -237,106 +236,99 @@ class InstancesPage(
                 }
             },
         ) {
-            when (val current = state) {
-                ManifestUiState.Idle ->
-                    if (hasSource) {
-                        EmptyState(
-                            icon = UiIcon.GAME,
-                            text = if (instances.isEmpty()) "还没有实例" else "还没有载入版本清单",
-                            hint = "点右上角「安装新版本」，在下载页选版本安装",
-                        )
+            val account = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
+            val missing = instances.filter { !hasFiles(it) }
+            Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
+                Text(
+                    text = if (account == null) {
+                        "账户：未安装认证插件（游戏无法启动）"
                     } else {
-                        EmptyState(
-                            icon = UiIcon.DOWNLOAD,
-                            text = "没有可用的版本源",
-                            hint = "本应用不内置任何下载地址：去「设置」里安装 source-mojang 等版本源插件",
-                        )
-                    }
+                        "账户：${account.displayName} · ${launchContext?.playerName ?: "Player"}"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-                ManifestUiState.Loading ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(MmclSpacing.xxl),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(MmclSpacing.xxl))
-                    }
-
-                is ManifestUiState.Failed -> Column {
+                if (!hasSource) {
                     Text(
-                        text = "版本清单获取失败：${current.message}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "未安装下载源插件：只能启动本机已装好的实例；去「设置」安装下载源插件后重启",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    TextButton(onClick = { refresh(force = true) }) { Text("重试") }
                 }
 
-                is ManifestUiState.Loaded -> {
-                    val account = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
-                    val missing = instances.filter { !hasFiles(it) }
-                    Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
+                if (missing.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
+                            .padding(MmclSpacing.s),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
-                            text = if (account == null) {
-                                "账户：未安装认证插件（游戏无法启动）"
-                            } else {
-                                "账户：${account.displayName} · ${launchContext?.playerName ?: "Player"}"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "有 ${missing.size} 个实例缺少共享文件，启动会被拦下",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
                         )
-                        if (missing.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
-                                    .padding(MmclSpacing.s),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "有 ${missing.size} 个实例缺少共享文件，启动会被拦下",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Button(onClick = { openDownloads(missing.first().versionId) }) { Text("去下载") }
-                            }
-                        }
-
-                        if (instances.isEmpty()) {
-                            EmptyState(
-                                icon = UiIcon.GAME,
-                                text = "还没有实例",
-                                hint = "去「下载」页安装版本，装完可以自动创建实例",
-                            )
-                        } else {
-                            instances.forEach { instance ->
-                                InstanceCard(
-                                    instance = instance,
-                                    missingFiles = !hasFiles(instance),
-                                    running = runningInstanceId == instance.id,
-                                    onLaunch = { launchInstance(instance) },
-                                    onDelete = { pendingDelete = instance },
-                                )
-                            }
-                        }
-
-                        if (logOwnerName != null && (logLines.isNotEmpty() || runningSession != null || exitedCode != null)) {
-                            GameLogPanel(
-                                title = "游戏日志 · ${logOwnerName}",
-                                lines = logLines,
-                                running = runningSession != null,
-                                exitCode = exitedCode,
-                                onClear = { logLines = emptyList() },
-                            )
-                        }
-
-                        launchStatus?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Button(onClick = { openDownloads(missing.first().versionId) }) { Text("去下载") }
                     }
+                }
+
+                if (instances.isEmpty()) {
+                    EmptyState(
+                        icon = UiIcon.GAME,
+                        text = "还没有实例",
+                        hint = if (hasSource) {
+                            "点右上角「安装新版本」，在下载页选版本安装"
+                        } else {
+                            "先安装版本源插件，再安装游戏版本"
+                        },
+                    )
+                } else {
+                    instances.forEach { instance ->
+                        InstanceCard(
+                            instance = instance,
+                            missingFiles = !hasFiles(instance),
+                            running = runningInstanceId == instance.id,
+                            onLaunch = { launchInstance(instance) },
+                            onDelete = { pendingDelete = instance },
+                        )
+                    }
+                }
+
+                if (logOwnerName != null && (logLines.isNotEmpty() || runningSession != null || exitedCode != null)) {
+                    GameLogPanel(
+                        title = "游戏日志 · ${logOwnerName}",
+                        lines = logLines,
+                        running = runningSession != null,
+                        exitCode = exitedCode,
+                        onClear = { logLines = emptyList() },
+                    )
+                }
+
+                launchStatus?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                when (val current = state) {
+                    ManifestUiState.Loading ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.size(MmclSpacing.s))
+                            Text("正在获取版本清单…", style = MaterialTheme.typography.labelSmall)
+                        }
+                    is ManifestUiState.Failed ->
+                        Text(
+                            text = "版本清单获取失败：${current.message}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    else -> Unit
                 }
             }
         }

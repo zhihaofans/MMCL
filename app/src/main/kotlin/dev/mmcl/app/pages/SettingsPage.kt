@@ -77,7 +77,7 @@ class SettingsPage(
                 val sources = manifests?.orderedSources().orEmpty()
                 if (sources.isEmpty()) {
                     Text(
-                        text = "未安装版本源插件。本应用不内置任何下载地址：把 source-mojang 等插件放进 <数据目录>/plugins/ 后重启。",
+                        text = "未安装下载源插件。本应用不内置任何下载地址：把下载源插件放进 <数据目录>/plugins/ 后重启。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )

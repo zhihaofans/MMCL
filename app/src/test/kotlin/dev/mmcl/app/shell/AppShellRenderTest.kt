@@ -18,6 +18,8 @@ import dev.mmcl.app.pages.GameLogPanel
 import dev.mmcl.app.pages.GamePrepCard
 import dev.mmcl.app.pages.InstanceCard
 import dev.mmcl.app.pages.InstancesPage
+import dev.mmcl.core.instance.InstanceService
+import dev.mmcl.core.instance.InstanceStore
 import dev.mmcl.app.pages.ManifestSummary
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
@@ -248,7 +250,17 @@ class AppShellRenderTest {
     fun `渲染未安装版本源的状态`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
 
-        render("no-source", controller, listOf(InstancesPage(noSourceService), DownloadsPage(noSourceService)))
+        val instancesWithoutSource =
+            InstanceService(
+                store = InstanceStore(java.nio.file.Files.createTempDirectory("mmcl-render-instances").resolve("instances.json"), org.slf4j.LoggerFactory.getLogger("test.render")),
+                instancesDir = java.nio.file.Files.createTempDirectory("mmcl-render-instance-dirs"),
+                logger = org.slf4j.LoggerFactory.getLogger("test.render"),
+            ).also { it.create("26.3") }
+        render(
+            "no-source",
+            controller,
+            listOf(InstancesPage(noSourceService, instancesWithoutSource), DownloadsPage(noSourceService)),
+        )
     }
 
     @Test
