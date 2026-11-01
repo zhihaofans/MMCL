@@ -89,7 +89,7 @@
 ├── core/                # 插件运行时、启动引擎、事件总线、服务注册
 ├── app/                 # main 入口、Compose 窗口、组装
 └── plugins/
-    ├── hello/           # 已落地：内置示例插件
+    ├── hello/           # 示例插件（不内置，开发时手动安装）
     ├── ui-about/        # 已落地：UI 页面插件示例
     ├── theme-sakura/    # 已落地：主题插件示例
     ├── auth-microsoft/  # 规划中

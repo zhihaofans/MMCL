@@ -178,6 +178,8 @@ override fun onLoad(context: PluginContext) {
 }
 ```
 
+> `plugins/hello` 是**开发示例**，不随应用内置；本地调试可手动装它的 JAR（见 §10）。
+>
 > 示例插件（`hello`）**不要注册真实能力**：能力会参与选择，示例插件抢到后会让真实插件失效。
 
 消费能力：
