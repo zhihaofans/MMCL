@@ -78,10 +78,12 @@ class LaunchCommandBuilderTest {
     fun `classpath 按平台架构过滤且含客户端 JAR`() {
         val command = LaunchCommandBuilder.build(request())
         val entries = command.classpath.split(File.pathSeparatorChar)
+        // classpath 内部用 Path，Windows 上分隔是反斜杠，断言前统一成正斜杠再比较
+        fun normalized(value: String) = value.replace('\\', '/')
 
-        assertTrue(entries.any { it.endsWith("libraries/com/example/lib/1.0/lib-1.0.jar") })
-        assertTrue(entries.any { it.endsWith("versions/1.21.8/1.21.8.jar") })
-        assertTrue(entries.any { it.endsWith("lwjgl-3.4.3-natives-macos-arm64.jar") })
+        assertTrue(entries.any { normalized(it).endsWith("libraries/com/example/lib/1.0/lib-1.0.jar") })
+        assertTrue(entries.any { normalized(it).endsWith("versions/1.21.8/1.21.8.jar") })
+        assertTrue(entries.any { normalized(it).endsWith("lwjgl-3.4.3-natives-macos-arm64.jar") })
         assertFalse(entries.any { it.contains("natives-macos.jar") })
         assertFalse(entries.any { it.contains("natives-windows") })
     }

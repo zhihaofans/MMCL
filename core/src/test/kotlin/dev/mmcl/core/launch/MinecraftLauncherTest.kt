@@ -26,12 +26,44 @@ class MinecraftLauncherTest {
 
     private val detail = VersionDetail(id = "test-version", type = "release", mainClass = "FakeMain")
 
+    /** 当前 JDK 的 java 可执行文件；Windows 下是 java.exe。 */
+    private fun javaExecutable(): String {
+        val exe = if (System.getProperty("os.name").lowercase().contains("win")) "java.exe" else "java"
+        return Path.of(System.getProperty("java.home"), "bin", exe).toString()
+    }
+
+    /**
+     * 造一个“假游戏进程”：把 [body] 作为 main 方法体写成临时 Java 源码，
+     * 用单文件源码模式（JEP 330）交给当前 JDK 跑。
+     *
+     * 不用 `/bin/sh -c` 是因为 Windows 上没有 /bin/sh，`cmd /c` 的转义规则又完全不同；
+     * 用同一个 JVM 既跨平台，又能精确控制输出时序与退出码。
+     */
+    private fun fakeGameProcess(body: String): Process {
+        val dir = Files.createTempDirectory("mmcl-fake-game")
+        val source = dir.resolve("FakeGame.java")
+        val code =
+            """
+            public class FakeGame {
+                public static void main(String[] args) throws Exception {
+            $body
+                }
+            }
+            """.trimIndent()
+        Files.writeString(source, code)
+        dir.toFile().deleteOnExit()
+        source.toFile().deleteOnExit()
+        return ProcessBuilder(javaExecutable(), source.toString())
+            .redirectErrorStream(true)
+            .start()
+    }
+
     private fun request() =
         LaunchRequest(
             detail = detail,
-            sharedRoot = Path.of("/tmp/mmcl-launcher-test"),
-            instanceDir = Path.of("/tmp/mmcl-launcher-test/instances/default"),
-            javaExecutable = Path.of("/bin/sh"),
+            sharedRoot = Path.of("mmcl-launcher-test"),
+            instanceDir = Path.of("mmcl-launcher-test/instances/default"),
+            javaExecutable = Path.of(javaExecutable()),
             launcherVersion = "0.0.1",
             os = OperatingSystem.MACOS,
             arch = Architecture.ARM64,
@@ -52,7 +84,13 @@ class MinecraftLauncherTest {
         // 用一个真实的假进程代替 java/Minecraft：打印一行后以退出码 3 结束
         val launcher =
             MinecraftLauncher(events, logger) { _, _ ->
-                ProcessBuilder("/bin/sh", "-c", "echo hello-mmcl; exit 3").redirectErrorStream(true).start()
+                fakeGameProcess(
+                    """
+                            System.out.println("hello-mmcl");
+                            System.out.flush();
+                            System.exit(3);
+                    """.trimIndent(),
+                )
             }
 
         val session = launcher.launch(request()) { line -> lines += line }
@@ -75,11 +113,16 @@ class MinecraftLauncherTest {
         events.subscribe(GameExited::class) { exited.countDown() }
         val launcher =
             MinecraftLauncher(events, logger, logFile = { logFile }) { _, _ ->
-                ProcessBuilder(
-                    "/bin/sh",
-                    "-c",
-                    "sleep 0.4; echo log-line-1; sleep 0.1; echo log-line-2; exit 0",
-                ).redirectErrorStream(true).start()
+                fakeGameProcess(
+                    """
+                            Thread.sleep(600);
+                            System.out.println("log-line-1");
+                            System.out.flush();
+                            Thread.sleep(150);
+                            System.out.println("log-line-2");
+                            System.out.flush();
+                    """.trimIndent(),
+                )
             }
 
         val session = launcher.launch(request())

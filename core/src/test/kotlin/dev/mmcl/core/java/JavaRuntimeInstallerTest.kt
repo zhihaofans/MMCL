@@ -64,7 +64,11 @@ class JavaRuntimeInstallerTest {
 
         assertTrue(Files.isRegularFile(target.resolve("release")))
         assertTrue(Files.isRegularFile(target.resolve("bin").resolve("java")))
-        assertEquals("runtime/macos-arm64/jdk-25", dataDir.relativize(target).toString())
+        assertEquals(
+            "runtime/macos-arm64/jdk-25",
+            // Windows 上 Path.toString() 用反斜杠，断言前统一成正斜杠
+            dataDir.relativize(target).toString().replace('\\', '/'),
+        )
 
         val detector = detector()
         val runtime = detector.detect(25)

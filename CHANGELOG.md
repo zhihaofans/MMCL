@@ -30,6 +30,9 @@
   不再退化成 `Task 'Files\Eclipse' not found` 这种误导性报错
 - 打包格式按宿主平台选择（Windows `Msi` / macOS `Dmg` / Linux `Deb`）：原脚本硬编码 `Dmg`，
   Windows 上 `packageMsi` 任务根本不存在
+- 测试跨平台化，修复 Windows 上 4 个失败：`MinecraftLauncherTest` 不再依赖 `/bin/sh`
+  （改用当前 JDK 的单文件源码模式造进程），`LaunchCommandBuilderTest` / `JavaRuntimeInstallerTest`
+  的路径断言先统一分隔符再比较
 
 ### 移除
 
