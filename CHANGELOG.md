@@ -29,6 +29,8 @@
   Dragonwell / Oracle OpenJDK 多个发行版，已自动按宿主 `os`/`arch` 过滤，不再自己拼压缩包名
 - 设置页新增「打开插件目录」按钮：按平台用 `open` / `explorer.exe` / `xdg-open` 打开插件目录，目录不存在时先创建；
   打不开就在按钮下方显示原因，不弹错误框也不中断界面
+- `plugins/runtime-mirror`（不内置）：国内镜像来源——清华 TUNA / 中科大 USTC 的 Temurin、
+  华为云的 Oracle OpenJDK。镜像站没有"最新版"接口，插件读目录列表按版本号挑最高的包
 
 ### 修复
 

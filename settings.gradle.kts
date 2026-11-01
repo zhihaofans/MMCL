@@ -30,5 +30,6 @@ include(
     ":plugins:theme-sakura",
     ":plugins:runtime-adoptium",
     ":plugins:runtime-foojay",
+    ":plugins:runtime-mirror",
     ":plugins:source-mojang",
 )
