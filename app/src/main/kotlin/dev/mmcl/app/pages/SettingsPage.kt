@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +41,9 @@ import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 /**
@@ -79,6 +82,7 @@ class SettingsPage(
 
     @Composable
     override fun Content(navigator: AppNavigator) {
+        val scope = rememberCoroutineScope()
         PageScaffold(title = "设置", subtitle = "外观与运行信息") {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -136,8 +140,17 @@ class SettingsPage(
                     )
                 } else {
                     var selectedJavaSourceId by remember(javaSources) {
-                        mutableStateOf(javaSources?.current()?.id)
+                        mutableStateOf(javaSources?.selectedId())
                     }
+                    ChoiceRow(
+                        title = "自动",
+                        subtitle = "按优先级依次尝试，镜像缺包时自动换下一个",
+                        selected = selectedJavaSourceId == null,
+                        onClick = {
+                            selectedJavaSourceId = null
+                            javaSources?.select(JavaRuntimeSources.AUTO)
+                        },
+                    )
                     for (provider in providers) {
                         JavaSourceRow(
                             provider = provider,
@@ -165,11 +178,14 @@ class SettingsPage(
                 ) {
                     Button(
                         onClick = {
-                            pluginDirMessage =
-                                directoryLauncher.open(pluginsDir).fold(
-                                    onSuccess = { "已在文件管理器中打开" },
-                                    onFailure = { "打开失败：${it.message ?: it::class.simpleName}" },
-                                )
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) { directoryLauncher.open(pluginsDir) }
+                                pluginDirMessage =
+                                    result.fold(
+                                        onSuccess = { "已在文件管理器中打开" },
+                                        onFailure = { "打开失败：${it.message ?: it::class.simpleName}" },
+                                    )
+                            }
                         },
                     ) { Text("打开插件目录") }
                     Text(
@@ -261,6 +277,17 @@ private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick:
 
 @Composable
 private fun JavaSourceRow(provider: JavaRuntimeProvider, selected: Boolean, onClick: () -> Unit) {
+    ChoiceRow(
+        title = provider.displayName,
+        subtitle = "${provider.id} · 优先级 ${provider.priority}",
+        selected = selected,
+        onClick = onClick,
+    )
+}
+
+/** 单选行：自动选项与具体来源共用。 */
+@Composable
+private fun ChoiceRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -279,9 +306,9 @@ private fun JavaSourceRow(provider: JavaRuntimeProvider, selected: Boolean, onCl
     ) {
         RadioButton(selected = selected, onClick = onClick)
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = provider.displayName, style = MaterialTheme.typography.titleSmall)
+            Text(text = title, style = MaterialTheme.typography.titleSmall)
             Text(
-                text = "${provider.id} · 优先级 ${provider.priority}",
+                text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+### 变更
+
+- 设置页「Java 运行时来源」增加「自动（按优先级）」选项，选错可一键回到自动
+- 「打开插件目录」移到 IO 线程执行，不再阻塞界面
+- 运行时安装按魔数识别 zip / tar.gz：来源把格式标错也能正确解压
+
 ### 修复
 
 - `DirectoryLauncherTest` 的期望值改用 `Path.toString()`，Windows 上不再因 `/` 与 `\` 差异失败

@@ -117,6 +117,29 @@ class JavaRuntimeInstallerTest {
     }
 
     @Test
+    fun `声明格式与实际不符时按魔数处理`() = runTest {
+        val target =
+            installerFor(tarGzFixture())
+                .install(
+                    25,
+                    RuntimeDownload(
+                        url = "https://example.invalid/jdk.zip",
+                        format = ArchiveFormat.ZIP,
+                        fileName = "jdk.zip",
+                    ),
+                )
+
+        assertTrue(Files.isRegularFile(target.resolve("release")))
+    }
+
+    @Test
+    fun `无法识别的压缩包报错`() = runTest {
+        assertFailsWith<IOException> {
+            installerFor("not-an-archive".toByteArray()).install(25, RuntimeDownload(url = "https://example.invalid/jdk.zip"))
+        }
+    }
+
+    @Test
     fun `版本低于要求时报错`() = runTest {
         val bytes = zipFixture("jdk-17/release", "JAVA_VERSION=\"17.0.12\"")
 

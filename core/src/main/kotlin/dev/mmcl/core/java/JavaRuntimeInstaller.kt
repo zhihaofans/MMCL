@@ -68,7 +68,16 @@ class JavaRuntimeInstaller(
 
                 val extracted = work.resolve("extracted")
                 Files.createDirectories(extracted)
-                extract(archive, download.format, extracted)
+                val actualFormat = sniffFormat(archive)
+                    ?: throw IOException("无法识别运行时压缩包格式（既不是 zip 也不是 tar.gz）")
+                if (actualFormat != download.format) {
+                    logger.warn(
+                        "来源声明的压缩格式是 {}，实际是 {}；按实际格式处理",
+                        download.format,
+                        actualFormat,
+                    )
+                }
+                extract(archive, actualFormat, extracted)
                 val home =
                     findJdkHome(extracted)
                         ?: throw IOException("压缩包里找不到 JDK 目录（缺少 release 文件）")
@@ -89,6 +98,17 @@ class JavaRuntimeInstaller(
                 deleteRecursively(work)
             }
         }
+
+    /** 按魔数判断格式：`PK` 是 zip，`1f 8b` 是 gzip。 */
+    private fun sniffFormat(archive: Path): ArchiveFormat? {
+        Files.newInputStream(archive).use { input ->
+            val head = ByteArray(4)
+            val read = input.read(head)
+            if (read >= 2 && head[0] == 0x1f.toByte() && head[1] == 0x8b.toByte()) return ArchiveFormat.TAR_GZ
+            if (read >= 4 && head[0] == 'P'.code.toByte() && head[1] == 'K'.code.toByte()) return ArchiveFormat.ZIP
+        }
+        return null
+    }
 
     private fun extract(archive: Path, format: ArchiveFormat, destination: Path) {
         when (format) {
