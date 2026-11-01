@@ -37,9 +37,11 @@ import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.java.JavaRuntimeSources
+import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
+import java.nio.file.Path
 
 /**
  * 设置页：主题切换（即时生效并持久化）+ 运行信息。
@@ -59,6 +61,13 @@ class SettingsPage(
     override val icon: UiIcon = UiIcon.SETTINGS
     override val group: UiGroup = UiGroup.SYSTEM
     override val order: Int = 30
+
+    /** 平台相关的"打开目录"实现；目录不存在时会先建出来。 */
+    private val directoryLauncher = DirectoryLauncher(launcher.os)
+
+    /** 插件目录：内置插件由 `BuiltinPluginSync` 同步到这里，用户插件也放这里。 */
+    private val pluginsDir: Path
+        get() = launcher.dataDir.resolve("plugins")
 
     companion object {
         /** 页面 id。 */
@@ -142,6 +151,36 @@ class SettingsPage(
                     Text(
                         text = "下载 Java 时用选中的来源；不选则按优先级自动挑。" +
                             "已装好的运行时仍按「手动指定 → 自带 runtime → JAVA_HOME → PATH」探测。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                SectionTitle("插件")
+                var pluginDirMessage by remember { mutableStateOf<String?>(null) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+                ) {
+                    Button(
+                        onClick = {
+                            pluginDirMessage =
+                                directoryLauncher.open(pluginsDir).fold(
+                                    onSuccess = { "已在文件管理器中打开" },
+                                    onFailure = { "打开失败：${it.message ?: it::class.simpleName}" },
+                                )
+                        },
+                    ) { Text("打开插件目录") }
+                    Text(
+                        text = pluginsDir.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                pluginDirMessage?.let { message ->
+                    Text(
+                        text = message,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

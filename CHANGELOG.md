@@ -27,6 +27,8 @@
   `JavaRuntimeProvider` 增加 `priority`（默认 100），用户没选时按优先级自动挑，插件卸载后设置自动失效
 - `plugins/runtime-foojay`（不内置）：通过 foojay Disco API 一次提供 Zulu / Liberica / Microsoft / Corretto /
   Dragonwell / Oracle OpenJDK 多个发行版，已自动按宿主 `os`/`arch` 过滤，不再自己拼压缩包名
+- 设置页新增「打开插件目录」按钮：按平台用 `open` / `explorer.exe` / `xdg-open` 打开插件目录，目录不存在时先创建；
+  打不开就在按钮下方显示原因，不弹错误框也不中断界面
 
 ### 修复
 
