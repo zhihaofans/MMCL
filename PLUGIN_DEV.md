@@ -268,6 +268,9 @@ interface JavaRuntimeProvider {
 
 - 用户可以在「设置 → Java 运行时来源」里指定用哪个来源，选中值存进设置 `java.runtime.provider`
   （`auto` 表示按优先级自动选）；插件被卸载后这条设置自动失效，不会留下悬空选中
+- 现成实现：`plugins/runtime-adoptium`（只提供 Temurin）、`plugins/runtime-foojay`
+  （foojay Disco API，一次提供 Zulu / Liberica / Microsoft / Corretto / Dragonwell / Oracle OpenJDK），
+  两者都**不内置**
 
 - UI 插件还可以注册 `UiWidget` 往固定插槽加内容（`UiSlot.TOP_BAR` / `STATUS_BAR` / `HOME`）：
 

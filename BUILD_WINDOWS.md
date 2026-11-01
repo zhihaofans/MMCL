@@ -378,6 +378,7 @@ core\build\reports\tests\test\index.html
 | `plugins/theme-sakura` | `dev.mmcl.theme.sakura` | ✅ | 樱花主题示例 |
 | `plugins/source-mojang` | `dev.mmcl.source.mojang` | ❌ | Mojang 官方版本清单源（**没它就没有任何可下载版本**） |
 | `plugins/runtime-adoptium` | `dev.mmcl.runtime.adoptium` | ❌ | Temurin Java 运行时下载来源（缺 Java 时可一键下载） |
+| `plugins/runtime-foojay` | `dev.mmcl.runtime.foojay` | ❌ | 一次提供多个发行版（Zulu / Liberica / Microsoft / Corretto / Dragonwell / Oracle OpenJDK），在「设置 → Java 运行时来源」里挑 |
 | `plugins/hello` | `dev.mmcl.plugin.hello` | ❌ | 纯示例：只订阅事件、不注册任何能力 |
 
 前三个在首次启动时由 `BuiltinPluginSync` 从应用资源复制到插件目录；后三个在仓库里有源码，
@@ -388,6 +389,7 @@ core\build\reports\tests\test\index.html
 ```powershell
 .\gradlew.bat :plugins:source-mojang:jar
 .\gradlew.bat :plugins:runtime-adoptium:jar
+.\gradlew.bat :plugins:runtime-foojay:jar
 ```
 
 也可以一次编全部：`.\gradlew.bat assemble`。产物在各自模块下：

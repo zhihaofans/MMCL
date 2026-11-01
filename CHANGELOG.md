@@ -25,6 +25,8 @@
   复制到 `%APPDATA%\MMCL\plugins` 后重启验证，以及 JAR 声明、多版本、Compose 冲突三个坑
 - Java 运行时来源可选：「设置 → Java 运行时来源」列出已装插件注册的来源，点击即写入 `java.runtime.provider`；
   `JavaRuntimeProvider` 增加 `priority`（默认 100），用户没选时按优先级自动挑，插件卸载后设置自动失效
+- `plugins/runtime-foojay`（不内置）：通过 foojay Disco API 一次提供 Zulu / Liberica / Microsoft / Corretto /
+  Dragonwell / Oracle OpenJDK 多个发行版，已自动按宿主 `os`/`arch` 过滤，不再自己拼压缩包名
 
 ### 修复
 
