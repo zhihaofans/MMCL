@@ -42,6 +42,8 @@
   的路径断言先统一分隔符再比较
 - `BUILD_WINDOWS.md` 修正渲染测试的描述：`AppShellRenderTest` 实际是 11 个用例（不是 10 个），
   且用 `ImageComposeScene` 离屏渲染、不创建窗口，headless 环境同样能跑（附软件渲染的开启方式）
+- Java 运行时安装前校验平台：读取压缩包内 `release` 的 `OS_NAME` / `OS_ARCH`，与宿主不符就拒绝安装并说明原因。
+  此前只校验大版本，macOS arm64 上装了 x64 的包也能装进去，要到启动游戏才因架构不兼容而崩
 
 ### 移除
 

@@ -268,6 +268,8 @@ interface JavaRuntimeProvider {
 
 - 用户可以在「设置 → Java 运行时来源」里指定用哪个来源，选中值存进设置 `java.runtime.provider`
   （`auto` 表示按优先级自动选）；插件被卸载后这条设置自动失效，不会留下悬空选中
+- `resolve` 收到的是**宿主**的 `os` / `arch`，插件只负责把它们映射成自己的地址参数；
+  core 的安装器还会校验压缩包内 `release` 的 `OS_NAME` / `OS_ARCH`，给错平台的包会被拒绝并报明确原因
 - 现成实现：`plugins/runtime-adoptium`（只提供 Temurin）、`plugins/runtime-foojay`
   （foojay Disco API，一次提供 Zulu / Liberica / Microsoft / Corretto / Dragonwell / Oracle OpenJDK），
   两者都**不内置**

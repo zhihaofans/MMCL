@@ -66,6 +66,7 @@ class JavaRuntimeInstaller(
                 val home =
                     findJdkHome(extracted)
                         ?: throw IOException("压缩包里找不到 JDK 目录（缺少 release 文件）")
+                validatePlatform(home)
                 val installedMajor =
                     readMajorVersion(home)
                         ?: throw IOException("无法从 release 文件解析 Java 版本")
@@ -146,6 +147,66 @@ class JavaRuntimeInstaller(
                 .filter { Files.isDirectory(it) && Files.isRegularFile(it.resolve("release")) }
                 .min(Comparator.comparingInt { it.nameCount })
                 .orElse(null)
+        }
+
+    /**
+     * 校验压缩包确实是**当前平台**的运行时。
+     *
+     * JDK 的 `release` 文件里带 `OS_NAME` / `OS_ARCH`（如 `OS_NAME="Darwin"`、`OS_ARCH="aarch64"`）。
+     * 来源插件如果给错了包（最常见的是 macOS arm64 拿到 x64 的包），装完不会被版本校验发现：
+     * 检测器照样认这个 JDK，直到启动游戏才因为 CPU 架构不符而崩。这里提前拦下。
+     *
+     * 字段缺失时跳过校验：个别发行版不带这两项，不能因此拒绝安装。
+     */
+    private fun validatePlatform(home: Path) {
+        if (arch == Architecture.UNKNOWN) return
+        val release = readReleaseProperties(home) ?: return
+
+        release["OS_NAME"]?.let { declared ->
+            val name = declared.trim('"').lowercase()
+            val matches =
+                when (os) {
+                    OperatingSystem.WINDOWS -> name == "windows"
+                    OperatingSystem.MACOS -> name == "darwin" || name == "macos" || name == "mac os x"
+                    OperatingSystem.LINUX -> name == "linux"
+                }
+            if (!matches) {
+                throw IOException(
+                    "下载到的运行时是 $declared 版本，当前平台是 ${os.name.lowercase()}：来源可能给错了平台的包",
+                )
+            }
+        }
+
+        release["OS_ARCH"]?.let { declared ->
+            if (normalizeArch(declared.trim('"')) != normalizeArch(arch.name.lowercase())) {
+                throw IOException(
+                    "下载到的运行时是 $declared 架构，当前架构是 ${arch.name.lowercase()}：来源可能给错了平台的包",
+                )
+            }
+        }
+    }
+
+    /** `release` 文件里的 `KEY="value"` 行解析成 map；读不到返回 `null`。 */
+    private fun readReleaseProperties(home: Path): Map<String, String>? {
+        val release = home.resolve("release")
+        if (!Files.isRegularFile(release)) return null
+        return runCatching { Files.readAllLines(release, Charsets.UTF_8) }
+            .getOrNull()
+            ?.mapNotNull { line ->
+                val index = line.indexOf('=')
+                if (index <= 0) return@mapNotNull null
+                val key = line.substring(0, index).trim().uppercase()
+                val value = line.substring(index + 1).trim().trim('"')
+                key to value
+            }
+            ?.toMap()
+    }
+
+    private fun normalizeArch(value: String): String =
+        when (value.trim().trim('"').lowercase()) {
+            "x86_64", "amd64", "x64" -> "x86_64"
+            "aarch64", "arm64" -> "aarch64"
+            else -> value.trim().trim('"').lowercase()
         }
 
     private fun deleteRecursively(path: Path) {

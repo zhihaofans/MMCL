@@ -108,6 +108,54 @@ class JavaRuntimeInstallerTest {
         }
     }
 
+    @Test
+    fun `平台不符的压缩包会被拒绝`() = runTest {
+        // 在 macOS arm64 上拿到 Linux x64 的包：版本号没问题，但装上去游戏会崩
+        val bytes =
+            zipFixture(
+                "jdk-25/release",
+                "JAVA_VERSION=\"25.0.1\"\nOS_NAME=\"Linux\"\nOS_ARCH=\"x86_64\"",
+            )
+
+        val error =
+            assertFailsWith<IOException> {
+                installerFor(bytes).install(25, RuntimeDownload(url = "https://example.invalid/jdk.zip"))
+            }
+
+        assertTrue(error.message.orEmpty().contains("Linux"), error.message.orEmpty())
+        assertTrue(!Files.exists(dataDir.resolve("runtime/macos-arm64/jdk-25")))
+    }
+
+    @Test
+    fun `架构不符的压缩包会被拒绝`() = runTest {
+        // 同一个 macOS，但 arm64 机器拿到 x64 的包
+        val bytes =
+            zipFixture(
+                "jdk-25/release",
+                "JAVA_VERSION=\"25.0.1\"\nOS_NAME=\"Darwin\"\nOS_ARCH=\"x86_64\"",
+            )
+
+        val error =
+            assertFailsWith<IOException> {
+                installerFor(bytes).install(25, RuntimeDownload(url = "https://example.invalid/jdk.zip"))
+            }
+
+        assertTrue(error.message.orEmpty().contains("x86_64"), error.message.orEmpty())
+    }
+
+    @Test
+    fun `平台匹配的压缩包正常安装`() = runTest {
+        val bytes =
+            zipFixture(
+                "jdk-25/release",
+                "JAVA_VERSION=\"25.0.1\"\nOS_NAME=\"Darwin\"\nOS_ARCH=\"aarch64\"",
+            )
+
+        val target = installerFor(bytes).install(25, RuntimeDownload(url = "https://example.invalid/jdk.zip"))
+
+        assertTrue(Files.isRegularFile(target.resolve("release")))
+    }
+
     private fun detector() =
         JavaRuntimeDetector(
             dataDir = dataDir,
