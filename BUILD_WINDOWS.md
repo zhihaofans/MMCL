@@ -334,7 +334,19 @@ plugins\<name>\build\libs\
 core\build\reports\tests\test\index.html
 ```
 
-> **注意**：`app` 模块有 10 个基于 Compose 渲染的截图测试（`AppShellRenderTest`），会真实创建窗口并输出 PNG 到 `app\build\screenshots\`。在无桌面会话的环境（SSH、服务、CI）里会因 `sun.awt.X11` / 无显示而失败，属正常现象，本地桌面运行即可。
+> **注意**：`app` 模块共 19 个测试，其中 **11 个**是基于 Compose 渲染的截图测试（`AppShellRenderTest`），产出 11 张 PNG 到 `app\build\screenshots\`。
+>
+> 这些测试用 `ImageComposeScene` 做**离屏渲染**，不创建窗口，所以在无桌面会话的 SSH / 服务 / CI 环境里也能跑——前提是 skiko 能加载原生库（Linux 需要 libGL、libEGL、libX11、fontconfig 与字体；Windows 一般开箱即用，至少要有字体）。
+>
+> 如果在无 GPU 的环境（容器、CI、虚拟机）里 skiko 初始化失败或渲染异常缓慢，可强制软件渲染。注意 `JAVA_TOOL_OPTIONS` 要靠新 daemon 才能继承，所以先 `--stop`：
+>
+> ```powershell
+> .\gradlew.bat --stop
+> $env:JAVA_TOOL_OPTIONS = "-Dskiko.renderApi=SOFTWARE"
+> .\gradlew.bat :app:test --tests "*AppShellRenderTest*" --rerun-tasks
+> ```
+>
+> 本仓库在无 X、无 GPU 的 Linux 容器上，就是靠这一步跑通全部 11 个用例的。
 
 ### 4.4 运行启动器（验证 UI 与插件加载）
 

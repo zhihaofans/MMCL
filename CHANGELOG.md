@@ -34,6 +34,8 @@
 - 测试跨平台化，修复 Windows 上 4 个失败：`MinecraftLauncherTest` 不再依赖 `/bin/sh`
   （改用当前 JDK 的单文件源码模式造进程），`LaunchCommandBuilderTest` / `JavaRuntimeInstallerTest`
   的路径断言先统一分隔符再比较
+- `BUILD_WINDOWS.md` 修正渲染测试的描述：`AppShellRenderTest` 实际是 11 个用例（不是 10 个），
+  且用 `ImageComposeScene` 离屏渲染、不创建窗口，headless 环境同样能跑（附软件渲染的开启方式）
 
 ### 移除
 
