@@ -34,7 +34,10 @@ import dev.mmcl.core.plugin.LoadedPlugin
 import dev.mmcl.core.plugin.PluginDescriptor
 import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.core.settings.InMemorySettingsService
+import dev.mmcl.api.capability.JavaRuntimeProvider
+import dev.mmcl.api.capability.RuntimeDownload
 import dev.mmcl.api.capability.VersionManifestSource
+import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.version.LatestVersions
 import dev.mmcl.core.version.VersionManifest
 import dev.mmcl.core.version.VersionManifestEntry
@@ -230,10 +233,41 @@ class AppShellRenderTest {
     @Test
     fun `渲染设置页（主题列表）`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
-        val settingsPage = SettingsPage(launcher, controller, safeMode = false, manifests = manifestStub)
+        val javaSources =
+            JavaRuntimeSources(
+                providers = {
+                    listOf(
+                        fakeRuntimeProvider("adoptium", "Adoptium Temurin", 100),
+                        fakeRuntimeProvider("foojay:zulu", "Azul Zulu", 110),
+                        fakeRuntimeProvider("foojay:microsoft", "Microsoft OpenJDK", 130),
+                    )
+                },
+                settings = InMemorySettingsService(),
+            )
+        val settingsPage =
+            SettingsPage(
+                launcher,
+                controller,
+                safeMode = false,
+                manifests = manifestStub,
+                javaSources = javaSources,
+            )
 
         render("shell-settings", controller, listOf(settingsPage, InstancesPage()))
     }
+
+    private fun fakeRuntimeProvider(id: String, name: String, priority: Int) =
+        object : JavaRuntimeProvider {
+            override val id: String = id
+            override val displayName: String = name
+            override val priority: Int = priority
+
+            override suspend fun resolve(
+                majorVersion: Int,
+                os: OperatingSystem,
+                arch: Architecture,
+            ): RuntimeDownload? = null
+        }
 
     @Test
     fun `渲染插件页`() {

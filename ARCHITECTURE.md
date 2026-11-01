@@ -129,7 +129,7 @@ app ──► core ──► api
 |---|---|
 | 插件运行时本身 | 自举失败则全盘失效 |
 | 启动执行链（JVM 参数、主类调用） | 启动器存在的意义 |
-| Java 运行时检测与安装 | 启动前置条件；检测、下载、解压、版本校验都在 core，**下载地址由 `JavaRuntimeProvider` 插件提供** |
+| Java 运行时检测与安装 | 启动前置条件；检测、下载、解压、版本校验都在 core，**下载地址由 `JavaRuntimeProvider` 插件提供**，用户可在设置里选来源 |
 | 版本清单解析 / 校验 / 缓存 | 启动前置条件，且不含任何具体来源 |
 | 核心文件下载与校验 | 安全与完整性底线：文件规划、并发下载、SHA-1 校验、原子落盘都在 core；**下载地址来自插件** |
 | 下载任务队列 | `DownloadsService`：串行、同版本去重、`StateFlow` 状态；任务属于应用作用域，切页不取消 |
@@ -198,6 +198,7 @@ app ──► core ──► api
 | `AuthProvider` | 账户认证方式（`priority` 选择，内置 `auth-offline`） |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
+| `JavaRuntimeProvider` | Java 运行时下载来源（`priority` 选择，用户可在设置里指定） |
 | `UiContribution` | UI 面板/标签页（占位契约，P1 替换为 `UiPage`，见 `UI_DESIGN.md`） |
 
 ---

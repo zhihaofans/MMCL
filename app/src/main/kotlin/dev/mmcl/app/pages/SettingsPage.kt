@@ -33,8 +33,10 @@ import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.app.theme.ThemeController
+import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
@@ -50,6 +52,7 @@ class SettingsPage(
     private val safeMode: Boolean,
     private val manifests: VersionManifestService? = null,
     private val settings: SettingsService? = null,
+    private val javaSources: JavaRuntimeSources? = null,
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
@@ -108,6 +111,37 @@ class SettingsPage(
                     }
                     Text(
                         text = "缓存来源：${manifests?.cachedSourceId() ?: "无"}；选中后下一次刷新生效",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                SectionTitle("Java 运行时来源")
+                val providers = javaSources?.all().orEmpty()
+                if (providers.isEmpty()) {
+                    Text(
+                        text = "未安装 Java 运行时来源插件。缺少 Java 时，装一个运行时来源插件" +
+                            "（如 runtime-adoptium / runtime-foojay）再重启。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    var selectedJavaSourceId by remember(javaSources) {
+                        mutableStateOf(javaSources?.current()?.id)
+                    }
+                    for (provider in providers) {
+                        JavaSourceRow(
+                            provider = provider,
+                            selected = provider.id == selectedJavaSourceId,
+                            onClick = {
+                                selectedJavaSourceId = provider.id
+                                javaSources?.select(provider.id)
+                            },
+                        )
+                    }
+                    Text(
+                        text = "下载 Java 时用选中的来源；不选则按优先级自动挑。" +
+                            "已装好的运行时仍按「手动指定 → 自带 runtime → JAVA_HOME → PATH」探测。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -179,6 +213,36 @@ private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick:
             Text(text = source.displayName, style = MaterialTheme.typography.titleSmall)
             Text(
                 text = "${source.id} · 优先级 ${source.priority}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun JavaSourceRow(provider: JavaRuntimeProvider, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = MmclSpacing.s, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MmclSpacing.xs),
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = provider.displayName, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "${provider.id} · 优先级 ${provider.priority}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

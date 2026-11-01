@@ -22,7 +22,7 @@
 - [ ] `auth-microsoft`（设备码 / OAuth 流程）
 - [ ] `download-modrinth` + `download-curseforge`
 - [ ] `loader-fabric` / `loader-forge` / `loader-neoforge`（**只针对最新正式版系列维护**）
-- [ ] 插件设置页
+- [ ] 插件设置页（通用机制：插件自报设置项；Java 运行时来源选择已先落在应用设置页）
 - [ ] 插件版本冲突、签名与来源校验
 
 ### 0.4.x — 打包发布
@@ -51,7 +51,6 @@
 
 ## 阻塞 / 待用户决定
 
-- [ ] 运行时下载协议 —— 需要运行时来源插件（等协议设计，地址同样不能内置）
 - [ ] Windows 注册表 / Linux 常见目录的 JDK 探测 —— 等用户决定要不要做
 - [ ] Apple Developer 账号与 Developer ID 证书 —— 等用户提供，用于签名与公证
 - [ ] 独立 build number（CFBundleVersion）—— jpackage 不支持，需要打包后改 plist + 重签

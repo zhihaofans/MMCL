@@ -31,6 +31,7 @@ import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.instance.InstanceStore
 import dev.mmcl.core.java.JavaRuntimeDetector
 import dev.mmcl.core.java.JavaRuntimeInstaller
+import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.net.JdkHttpTransport
 import kotlinx.coroutines.CoroutineScope
@@ -128,7 +129,12 @@ fun main(args: Array<String>) {
     val themeController = ThemeController(settings, pluginThemes)
 
     val javaDetector = JavaRuntimeDetector(launcher.dataDir, launcher.os, launcher.arch, settings, logger)
-    val javaProviders = manager.services.getAll(JavaRuntimeProvider::class)
+    // 来源插件可能随时被安装/卸载，这里每次求值；用户在设置里选中的来源优先
+    val javaSources =
+        JavaRuntimeSources(
+            providers = { manager.services.getAll(JavaRuntimeProvider::class) },
+            settings = settings,
+        )
     val javaInstaller =
         JavaRuntimeInstaller(
             transport = transport,
@@ -162,7 +168,7 @@ fun main(args: Array<String>) {
                 detailService = detailService,
                 javaDetector = javaDetector,
                 javaInstaller = javaInstaller,
-                javaProviders = javaProviders,
+                javaSources = javaSources,
                 launcher = gameLauncher,
                 launchContext = launchContext,
                 authProviders = authProviders,
@@ -177,7 +183,7 @@ fun main(args: Array<String>) {
                 autoLoad = true,
             ),
             PluginsPage(plugins),
-            SettingsPage(launcher, themeController, safeMode, manifestService, settings),
+            SettingsPage(launcher, themeController, safeMode, manifestService, settings, javaSources),
         )
     val pluginPages: List<UiPage> =
         if (safeMode) emptyList() else manager.services.getAll(UiPage::class)

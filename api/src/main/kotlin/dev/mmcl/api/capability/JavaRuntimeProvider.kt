@@ -37,6 +37,13 @@ interface JavaRuntimeProvider {
     val displayName: String
 
     /**
+     * 默认优先级，数值越小越优先。
+     *
+     * 用户在设置里显式选中的来源会覆盖这个顺序（见 `java.runtime.provider` 设置项）。
+     */
+    val priority: Int get() = 100
+
+    /**
      * 解析某个大版本在目标平台上的下载信息。
      *
      * @return 不支持该平台/版本时返回 `null`

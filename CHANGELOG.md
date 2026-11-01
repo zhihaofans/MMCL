@@ -23,6 +23,8 @@
 - `BUILD_WINDOWS.md`：Windows 上的编译、测试、运行与打包手册
 - `BUILD_WINDOWS.md` 增补「编译并安装插件」：内置 / 非内置插件对照表、`gradlew :plugins:<name>:jar`、
   复制到 `%APPDATA%\MMCL\plugins` 后重启验证，以及 JAR 声明、多版本、Compose 冲突三个坑
+- Java 运行时来源可选：「设置 → Java 运行时来源」列出已装插件注册的来源，点击即写入 `java.runtime.provider`；
+  `JavaRuntimeProvider` 增加 `priority`（默认 100），用户没选时按优先级自动挑，插件卸载后设置自动失效
 
 ### 修复
 

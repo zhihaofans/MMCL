@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.AuthProvider
-import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
@@ -41,6 +40,7 @@ import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.java.JavaRuntimeDetector
 import dev.mmcl.core.java.JavaRuntimeInstaller
+import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.launch.LaunchRequest
 import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
@@ -82,7 +82,7 @@ class InstancesPage(
     private val detailService: VersionDetailService? = null,
     private val javaDetector: JavaRuntimeDetector? = null,
     private val javaInstaller: JavaRuntimeInstaller? = null,
-    private val javaProviders: List<JavaRuntimeProvider> = emptyList(),
+    private val javaSources: JavaRuntimeSources? = null,
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
     private val authProviders: List<AuthProvider> = emptyList(),
@@ -239,7 +239,7 @@ class InstancesPage(
         fun downloadJava(required: Int) {
             val installer = javaInstaller
             val context = launchContext
-            val provider = javaProviders.minWithOrNull(compareBy({ it.id }))
+            val provider = javaSources?.current()
             if (installer == null || context == null || provider == null) {
                 javaMessage = "没有可用的运行时来源插件：去「设置」安装后重启"
                 return
@@ -364,7 +364,7 @@ class InstancesPage(
                 }
 
                 missingJava?.let { required ->
-                    val provider = javaProviders.minWithOrNull(compareBy({ it.id }))
+                    val provider = javaSources?.current()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

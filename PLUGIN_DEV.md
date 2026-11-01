@@ -261,9 +261,13 @@ class MojangSourcePlugin : Plugin {
 interface JavaRuntimeProvider {
     val id: String
     val displayName: String
+    val priority: Int get() = 100     // 用户没显式选时按这个排序，越小越优先
     suspend fun resolve(majorVersion: Int, os: OperatingSystem, arch: Architecture): RuntimeDownload?
 }
 ```
+
+- 用户可以在「设置 → Java 运行时来源」里指定用哪个来源，选中值存进设置 `java.runtime.provider`
+  （`auto` 表示按优先级自动选）；插件被卸载后这条设置自动失效，不会留下悬空选中
 
 - UI 插件还可以注册 `UiWidget` 往固定插槽加内容（`UiSlot.TOP_BAR` / `STATUS_BAR` / `HOME`）：
 
