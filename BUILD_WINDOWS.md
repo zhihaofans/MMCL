@@ -363,7 +363,74 @@ core\build\reports\tests\test\index.html
 .\gradlew.bat :app:run --info
 ```
 
-### 4.5 清理
+### 4.5 编译并安装插件（内置之外的插件）
+
+应用**只内置 3 个插件**，其余插件都要自己编译后手动装进插件目录。尤其是**所有下载源**：
+应用本身不含任何下载地址，`source-mojang` 这类源插件不随安装包分发（`ARCHITECTURE.md` §9）。
+没装源插件时，启动器能启动已装好的实例，但游戏页拿不到版本清单。
+
+#### 4.5.1 哪些内置、哪些要自己装
+
+| 模块 | 插件 id | 内置 | 作用 |
+|---|---|---|---|
+| `plugins/auth-offline` | `dev.mmcl.auth.offline` | ✅ | 离线账户（`player.name`，缺省 `Player`） |
+| `plugins/ui-about` | `dev.mmcl.ui.about` | ✅ | 往首页加卡片、状态栏加标记的示例 |
+| `plugins/theme-sakura` | `dev.mmcl.theme.sakura` | ✅ | 樱花主题示例 |
+| `plugins/source-mojang` | `dev.mmcl.source.mojang` | ❌ | Mojang 官方版本清单源（**没它就没有任何可下载版本**） |
+| `plugins/runtime-adoptium` | `dev.mmcl.runtime.adoptium` | ❌ | Temurin Java 运行时下载来源（缺 Java 时可一键下载） |
+| `plugins/hello` | `dev.mmcl.plugin.hello` | ❌ | 纯示例：只订阅事件、不注册任何能力 |
+
+前三个在首次启动时由 `BuiltinPluginSync` 从应用资源复制到插件目录；后三个在仓库里有源码，
+但**不会**被打进安装包，必须自己构建。
+
+#### 4.5.2 编译
+
+```powershell
+.\gradlew.bat :plugins:source-mojang:jar
+.\gradlew.bat :plugins:runtime-adoptium:jar
+```
+
+也可以一次编全部：`.\gradlew.bat assemble`。产物在各自模块下：
+
+```
+plugins\source-mojang\build\libs\dev.mmcl.source.mojang-0.0.1.jar
+plugins\runtime-adoptium\build\libs\dev.mmcl.runtime.adoptium-0.0.1.jar
+```
+
+文件名固定为 `<插件 id>-<插件版本>.jar`，版本来自插件模块自己的 `build.gradle.kts`
+（**与启动器版本无关**，目前都是 `0.0.1`）。
+
+#### 4.5.3 安装
+
+把 JAR 复制进插件目录即可，**不要解压**（加载器只扫描目录下的 `*.jar` 文件，子目录一律忽略）：
+
+```powershell
+$plugins = "$env:APPDATA\MMCL\plugins"
+New-Item -ItemType Directory -Force -Path $plugins | Out-Null
+Copy-Item plugins\source-mojang\build\libs\*.jar      $plugins -Force
+Copy-Item plugins\runtime-adoptium\build\libs\*.jar   $plugins -Force
+dir $plugins
+```
+
+目录即 `C:\Users\<你>\AppData\Roaming\MMCL\plugins\`，装好后应该能看到 3 个内置插件 + 你复制进去的 JAR。
+
+#### 4.5.4 验证
+
+1. **重启启动器**（插件只在启动时扫描一次，热装不生效）
+2. 左侧「插件」页出现新条目，状态为**已启用**
+3. 「设置」页的下载源列表出现「Mojang 官方」——有源之后游戏页才会去拉版本清单
+4. 日志里能看到 `发现插件 ... 已启用`；装坏了只会让该插件不可用，不影响启动器
+
+#### 4.5.5 三个坑
+
+- **JAR 必须声明 `META-INF/services/dev.mmcl.api.plugin.Plugin`**：缺失时该 JAR 直接被跳过，
+  日志里是「插件 JAR 未声明 META-INF/services/...」
+- **插件 id / 版本来自代码，不来自文件名**：改名不影响加载；同一 id 装了多份时，
+  按 `Plugin.version` 保留最高版本并告警，旧的可以删掉
+- **插件不能自带 Compose**：内置插件有 `:app:verifyPluginJars` 把关，手动装的外部插件没人拦，
+  带了 `androidx/compose/**` 会在运行期类冲突
+
+### 4.6 清理
 
 ```powershell
 .\gradlew.bat clean
@@ -456,6 +523,13 @@ jpackage **不支持**直接产出 exe 安装器（`.exe` 只能作为**应用�
 # 运行
 .\gradlew.bat :app:run
 
+# 编译单个插件 → plugins\<name>\build\libs\
+.\gradlew.bat :plugins:source-mojang:jar
+.\gradlew.bat :plugins:runtime-adoptium:jar
+
+# 安装插件（复制 JAR 到插件目录，重启生效）
+Copy-Item plugins\source-mojang\build\libs\*.jar "$env:APPDATA\MMCL\plugins" -Force
+
 # 免安装目录（不需要 WiX）
 .\gradlew.bat :app:createDistributable
 
@@ -523,9 +597,10 @@ jpackage **不支持**直接产出 exe 安装器（`.exe` 只能作为**应用�
 - [ ] `.\gradlew.bat --version` 显示 Gradle 9.6.1 + JVM 21
 - [ ] `.\gradlew.bat help` 通过
 - [ ] `.\gradlew.bat assemble` 通过
-- [ ] `.\gradlew.bat test` 通过（在桌面会话下运行）
+- [ ] `.\gradlew.bat test` 通过（**任意环境都能跑**，headless 见 §4.3 的说明）
 - [ ] `.\gradlew.bat :app:run` 能弹出窗口
 - [ ] `.\gradlew.bat :app:createDistributable` 产出可运行的 `MMCL.exe`
 - [ ] （可选，需 WiX）`.\gradlew.bat :app:packageMsi` 产出 `.msi`
 - [ ] 双击 `MMCL.exe` 能启动，且无需额外安装 Java
 - [ ] `%APPDATA%\MMCL\plugins\` 下出现 3 个内置插件 JAR
+- [ ] （需要能拉版本清单）编译并装入 `source-mojang`，重启后「设置」页能看到「Mojang 官方」（§4.5）

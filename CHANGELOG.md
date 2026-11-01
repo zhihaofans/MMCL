@@ -21,6 +21,8 @@
 - `Instance` 增加 `lastLaunchedAtEpochMillis`（旧 `instances.json` 直接用默认值 0 兼容），
   `InstanceService` 增加 `markLaunched(id)` 与 `recent(limit)`，启动成功后自动记录
 - `BUILD_WINDOWS.md`：Windows 上的编译、测试、运行与打包手册
+- `BUILD_WINDOWS.md` 增补「编译并安装插件」：内置 / 非内置插件对照表、`gradlew :plugins:<name>:jar`、
+  复制到 `%APPDATA%\MMCL\plugins` 后重启验证，以及 JAR 声明、多版本、Compose 冲突三个坑
 
 ### 修复
 
