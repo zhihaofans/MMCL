@@ -81,6 +81,21 @@ class InstanceServiceTest {
     }
 
     @Test
+    fun `markLaunched 记录时间并按最近启动排序`() {
+        val first = service.create("26.3")
+        val second = service.create("26.2")
+
+        // 都没启动过：按创建时间倒序（新的在前）
+        assertEquals(listOf("26.2", "26.3"), service.recent().map { it.id })
+        assertTrue(service.markLaunched(first.id))
+        assertEquals(listOf("26.3", "26.2"), service.recent().map { it.id })
+        assertTrue(service.recent().first().lastLaunchedAtEpochMillis > 0)
+        assertFalse(service.markLaunched("missing"))
+        assertEquals(second.id, service.list().first { it.id == second.id }.id)
+        assertEquals(1, service.list().count { it.id == first.id })
+    }
+
+    @Test
     fun `列表按创建时间排序`() {
         service.create("26.3")
         service.create("26.2")

@@ -28,6 +28,24 @@ class InstanceService(
     /** 当前全部实例，按创建时间升序。 */
     fun list(): List<Instance> = store.load().sortedBy { it.createdAtEpochMillis }
 
+    /** 按"最近启动优先"排序（没启动过的按创建时间倒序排在后面），用于首页。 */
+    fun recent(limit: Int = 3): List<Instance> =
+        store.load()
+            .sortedWith(
+                compareByDescending<Instance> { it.lastLaunchedAtEpochMillis }
+                    .thenByDescending { it.createdAtEpochMillis },
+            )
+            .take(limit)
+
+    /** 记录一次成功启动；实例不存在时返回 `false`。 */
+    fun markLaunched(id: String): Boolean {
+        val existing = store.load()
+        val target = existing.firstOrNull { it.id == id } ?: return false
+        val updated = target.copy(lastLaunchedAtEpochMillis = clock())
+        store.save(existing.map { if (it.id == id) updated else it })
+        return true
+    }
+
     /** 实例的游戏目录。 */
     fun directoryOf(instance: Instance): Path = instancesDir.resolve(instance.id)
 

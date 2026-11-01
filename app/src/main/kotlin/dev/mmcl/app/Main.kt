@@ -10,6 +10,7 @@ import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.pages.DownloadsPage
+import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.InstancesPage
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
@@ -129,6 +130,13 @@ fun main(args: Array<String>) {
 
     val builtinPages: List<UiPage> =
         listOf(
+            HomePage(
+                instances = instanceService,
+                manifests = manifestService,
+                authProviders = authProviders,
+                playerName = settings.getString("player.name") ?: "Player",
+                intent = intent,
+            ),
             InstancesPage(
                 manifests = manifestService,
                 instanceService = instanceService,

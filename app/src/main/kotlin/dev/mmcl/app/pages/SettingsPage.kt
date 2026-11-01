@@ -46,11 +46,16 @@ class SettingsPage(
     private val safeMode: Boolean,
     private val manifests: VersionManifestService? = null,
 ) : UiPage {
-    override val id: String = "dev.mmcl.page.settings"
+    override val id: String = PAGE_ID
     override val title: String = "设置"
     override val icon: UiIcon = UiIcon.SETTINGS
     override val group: UiGroup = UiGroup.SYSTEM
     override val order: Int = 30
+
+    companion object {
+        /** 页面 id。 */
+        const val PAGE_ID: String = "dev.mmcl.page.settings"
+    }
 
     @Composable
     override fun Content(navigator: AppNavigator) {

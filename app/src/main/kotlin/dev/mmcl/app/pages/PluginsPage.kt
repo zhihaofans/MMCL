@@ -29,11 +29,16 @@ import dev.mmcl.ui.kit.PageScaffold
 
 /** 插件页：展示插件加载状态与来源 JAR，插件管理（启用/禁用）留到后续版本。 */
 class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
-    override val id: String = "dev.mmcl.page.plugins"
+    override val id: String = PAGE_ID
     override val title: String = "插件"
     override val icon: UiIcon = UiIcon.PLUGIN
     override val group: UiGroup = UiGroup.SYSTEM
     override val order: Int = 20
+
+    companion object {
+        /** 页面 id。 */
+        const val PAGE_ID: String = "dev.mmcl.page.plugins"
+    }
 
     @Composable
     override fun Content(navigator: AppNavigator) {

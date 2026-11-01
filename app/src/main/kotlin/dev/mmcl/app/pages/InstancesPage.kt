@@ -85,11 +85,16 @@ class InstancesPage(
     private val intent: NavigationIntent? = null,
     private val autoLoad: Boolean = false,
 ) : UiPage {
-    override val id: String = "dev.mmcl.page.instances"
+    override val id: String = INSTANCES_PAGE_ID
     override val title: String = "游戏"
     override val icon: UiIcon = UiIcon.GAME
     override val group: UiGroup = UiGroup.MAIN
     override val order: Int = 0
+
+    companion object {
+        /** 页面 id，供其它页面跳转。 */
+        const val PAGE_ID: String = INSTANCES_PAGE_ID
+    }
 
     @Composable
     override fun Content(navigator: AppNavigator) {
@@ -181,6 +186,7 @@ class InstancesPage(
                                 auth = auth,
                             ),
                         )
+                    runCatching { service.markLaunched(instance.id) }
                     logLines = session.snapshot()
                     exitedCode = null
                     logOwnerName = instance.name
@@ -197,6 +203,7 @@ class InstancesPage(
 
         LaunchedEffect(Unit) {
             refreshInstances()
+            intent?.consumeLaunchInstance()?.let { id -> instances.firstOrNull { it.id == id }?.let { launchInstance(it) } }
             if (autoLoad && !autoLoadTriggered && hasSource) {
                 autoLoadTriggered = true
                 refresh(force = false)
@@ -391,3 +398,6 @@ internal fun InstanceCard(
         TextButton(onClick = onDelete, enabled = !running) { Text("删除") }
     }
 }
+
+/** 实例页的固定页面 id（首页等其它页面跳转用）。 */
+const val INSTANCES_PAGE_ID: String = "dev.mmcl.page.instances"

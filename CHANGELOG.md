@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 首页（默认页）：账户与下载源状态、最近实例（最多 3 个，可一键启动）、快捷入口
+  （安装新版本 / 下载 / 插件 / 设置）；「启动」跳转游戏页执行，日志与停止只有一份实现
+- `Instance` 增加 `lastLaunchedAtEpochMillis`（旧 `instances.json` 直接用默认值 0 兼容），
+  `InstanceService` 增加 `markLaunched(id)` 与 `recent(limit)`，启动成功后自动记录
+
 ### 移除
 
 - 删除 `GamePrepCard` 与渲染测试里的安装演示：下载页的版本行/任务行已接管，

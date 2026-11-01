@@ -26,4 +26,20 @@ class NavigationIntent {
         pendingDownloadVersion = null
         return current
     }
+
+    /** 待启动的实例 id（首页点「启动」后由游戏页消费）。 */
+    var pendingLaunchInstanceId: String? by mutableStateOf(null)
+        private set
+
+    /** 请求游戏页启动某个实例。 */
+    fun requestLaunch(instanceId: String) {
+        pendingLaunchInstanceId = instanceId
+    }
+
+    /** 取走并清空待启动实例。 */
+    fun consumeLaunchInstance(): String? {
+        val current = pendingLaunchInstanceId
+        pendingLaunchInstanceId = null
+        return current
+    }
 }

@@ -14,6 +14,7 @@ import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.pages.DownloadsPage
+import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.GameLogPanel
 import dev.mmcl.app.pages.InstanceCard
 import dev.mmcl.app.pages.InstancesPage
@@ -126,6 +127,7 @@ class AppShellRenderTest {
 
     private fun pages(themeController: ThemeController): List<UiPage> =
         listOf(
+            HomePage(manifests = manifestStub),
             InstancesPage(manifestStub),
             DownloadsPage(manifestStub),
             PluginsPage(plugins),
@@ -223,6 +225,30 @@ class AppShellRenderTest {
             "no-source",
             controller,
             listOf(InstancesPage(noSourceService, instancesWithoutSource), DownloadsPage(noSourceService)),
+        )
+    }
+
+    @Test
+    fun `渲染首页`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        val homeInstances =
+            InstanceService(
+                store = InstanceStore(java.nio.file.Files.createTempDirectory("mmcl-render-home").resolve("instances.json"), org.slf4j.LoggerFactory.getLogger("test.render")),
+                instancesDir = java.nio.file.Files.createTempDirectory("mmcl-render-home-dirs"),
+                logger = org.slf4j.LoggerFactory.getLogger("test.render"),
+            ).also {
+                it.create("26.3")
+                it.create("26.2").also { second -> it.markLaunched(second.id) }
+            }
+        render(
+            "home",
+            controller,
+            listOf(HomePage(instances = homeInstances, manifests = manifestStub, playerName = "Steve"), DownloadsPage(manifestStub)),
+        )
+        render(
+            "home-empty",
+            controller,
+            listOf(HomePage(manifests = manifestStub), DownloadsPage(manifestStub)),
         )
     }
 
