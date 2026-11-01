@@ -200,7 +200,8 @@ sources.forEach { it.search("sodium") }
 | `AuthProvider` | 账户认证方式（`displayName` / `priority` / `createSession`；内置 `auth-offline` 可删除或禁用） |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
-| `UiContribution` | UI 面板/标签页（占位契约；P1 起为 `UiPage`，见 `UI_DESIGN.md`） |
+| `UiPage` | 完整页面（导航栏追加一项） |
+| `UiWidget` | 插槽小部件（顶栏 / 状态栏 / 首页卡片），见下 |
 | `VersionManifestSource` | 版本清单来源（官方 / 镜像 / 本地），**应用内不内置任何实现** |
 
 接口定义示例：
@@ -253,6 +254,20 @@ class MojangSourcePlugin : Plugin {
 
 - 源插件还可以提供资源对象地址：`override fun assetObjectUrl(hash: String): String?`，
   返回 `null` 表示不支持（游戏会因缺贴图崩溃）；官方源返回 `https://resources.download.minecraft.net/<前两位>/<hash>`
+- UI 插件还可以注册 `UiWidget` 往固定插槽加内容（`UiSlot.TOP_BAR` / `STATUS_BAR` / `HOME`）：
+
+```kotlin
+class StatusWidget : UiWidget {
+    override val id = "dev.mmcl.example.status"
+    override val slot = UiSlot.STATUS_BAR
+    override val order = 100
+    @Composable override fun Content(navigator: AppNavigator) { Text("同步完成") }
+}
+
+context.services.register(UiWidget::class, StatusWidget())
+```
+
+- 安全模式（`--safe-mode`）下所有插件页面与 widget 都不渲染
 - 可以装多个源，core 按 `priority` 升序逐个尝试，全部失败才回退本地缓存
 - 设置项 `version.source` 可指定优先使用哪个源
 - 插件返回脏 JSON 只会让该源被跳过，不会写坏缓存

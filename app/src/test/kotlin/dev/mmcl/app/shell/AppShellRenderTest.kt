@@ -1,5 +1,7 @@
 package dev.mmcl.app.shell
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
@@ -13,6 +15,8 @@ import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.ui.UiSlot
+import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.GameLogPanel
@@ -134,10 +138,42 @@ class AppShellRenderTest {
             SettingsPage(launcher, themeController, safeMode = false, manifests = manifestStub),
         )
 
+    private val demoWidgets: List<UiWidget> =
+        listOf(
+            object : UiWidget {
+                override val id: String = "demo.top"
+                override val slot: UiSlot = UiSlot.TOP_BAR
+
+                @Composable
+                override fun Content(navigator: AppNavigator) {
+                    Text(text = "DEMO", style = MaterialTheme.typography.labelSmall)
+                }
+            },
+            object : UiWidget {
+                override val id: String = "demo.status"
+                override val slot: UiSlot = UiSlot.STATUS_BAR
+
+                @Composable
+                override fun Content(navigator: AppNavigator) {
+                    Text(text = "同步完成", style = MaterialTheme.typography.labelSmall)
+                }
+            },
+            object : UiWidget {
+                override val id: String = "demo.home"
+                override val slot: UiSlot = UiSlot.HOME
+
+                @Composable
+                override fun Content(navigator: AppNavigator) {
+                    Text(text = "示例插件卡片：插件可以往首页加内容", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+        )
+
     private fun render(
         name: String,
         themeController: ThemeController,
         screen: List<UiPage> = pages(themeController),
+        widgets: List<UiWidget> = emptyList(),
     ) {
         Files.createDirectories(screenshots)
         val scene =
@@ -148,6 +184,7 @@ class AppShellRenderTest {
                         launcher = launcher,
                         safeMode = false,
                         pluginCount = plugins.size,
+                        widgets = widgets,
                     )
                 }
             }
@@ -165,7 +202,7 @@ class AppShellRenderTest {
     @Test
     fun `渲染默认深色外壳`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
-        render("shell-dark", controller)
+        render("shell-dark", controller, widgets = demoWidgets)
     }
 
     @Test
@@ -243,7 +280,15 @@ class AppShellRenderTest {
         render(
             "home",
             controller,
-            listOf(HomePage(instances = homeInstances, manifests = manifestStub, playerName = "Steve"), DownloadsPage(manifestStub)),
+            listOf(
+                HomePage(
+                    instances = homeInstances,
+                    manifests = manifestStub,
+                    playerName = "Steve",
+                    widgets = demoWidgets,
+                ),
+                DownloadsPage(manifestStub),
+            ),
         )
         render(
             "home-empty",

@@ -7,6 +7,9 @@
 
 ### 新增
 
+- `UiWidget` / `UiSlot` 插槽小部件：插件可往顶栏（`TOP_BAR`）、状态栏（`STATUS_BAR`）、
+  首页卡片区（`HOME`）加内容；`UiRegistry` 统一收集、去重、排序，安全模式全部忽略
+- `plugins/ui-about` 注册一张首页卡片与一个状态栏标记，作为 widget 示例
 - 首页（默认页）：账户与下载源状态、最近实例（最多 3 个，可一键启动）、快捷入口
   （安装新版本 / 下载 / 插件 / 设置）；「启动」跳转游戏页执行，日志与停止只有一份实现
 - `Instance` 增加 `lastLaunchedAtEpochMillis`（旧 `instances.json` 直接用默认值 0 兼容），

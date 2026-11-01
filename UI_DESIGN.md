@@ -45,8 +45,9 @@
 - **内容区**：每页自己滚动，外壳不接管；页面统一用 `PageScaffold`（标题 + 内容 + 可选右上角操作）
 - **页面分工**：游戏页 = 实例/启动/日志；下载页 = 版本清单、共享文件安装与修复。
   下载任务归 core `DownloadsService`，切页不取消，状态栏显示进度
-- **顶栏右侧**：账户入口（P3 接认证服务）、任务指示、设置快捷键
-- **状态栏**：任务进度、当前实例、启动器版本；插件可通过 Slot 往里加东西（P4）
+- **顶栏右侧**：账户入口（P3 接认证服务）、任务指示、设置快捷键；插件可通过 `UiSlot.TOP_BAR` 追加
+- **状态栏**：任务进度、当前实例、启动器版本；插件可通过 `UiSlot.STATUS_BAR` 追加
+- **首页卡片**：插件通过 `UiSlot.HOME` 往首页加快捷卡片（`UiWidget`）
 
 ---
 
@@ -248,7 +249,7 @@ app/src/main/kotlin/dev/mmcl/app/
 | **P1 外壳** | 导航栏 + 4 个内置页 + 路由 + 空状态 | `api-ui` 的 `UiPage`/`AppNavigator`；`app/shell/*`；`plugins/ui-about` 示例页 | `:app:run` 能切页，插件页出现在 TOOLS 组 | ✅ 已完成 |
 | **P2 主题** | `ui-kit` + `LauncherTheme` + `SettingsService` + 主题选择页 + 安全阀 | `ui-kit` 模块；`ThemeController`；`plugins/theme-sakura` 示例 | 切换即时生效、重启保持；`--safe-mode` 可用 | ✅ 已完成 |
 | **P3 真实数据** | 实例页接 core 的实例与账户服务，启动按钮；下载页接版本清单与安装队列；首页总览 | core 的三个读接口 + app 卡片网格 + `DownloadsService` + `HomePage` | 能列出本机实例并点启动；下载页能安装/修复；首页可一键启动最近实例 | ✅ 已完成 |
-| **P4 部件** | Widget Slot（顶栏/状态栏/首页卡片）+ 任务进度 | `UiWidget`/`UiSlot`；首页卡片示例 | 插件卡片出现在首页，状态栏显示下载进度 | ⏳ |
+| **P4 部件** | Widget Slot（顶栏/状态栏/首页卡片）+ 任务进度 | `UiWidget`/`UiSlot`；首页卡片示例 | 插件卡片出现在首页，状态栏显示下载进度 | ✅ 已完成 |
 | **P5 深化** | 自定义标题栏、背景图主题、字体、i18n、窗口状态记忆 | 视需求 | 三平台观感一致 | ⏳ |
 
 预估：P1 一轮、P2 一到两轮、P3 取决于启动链进度、P4 一轮、P5 按需。

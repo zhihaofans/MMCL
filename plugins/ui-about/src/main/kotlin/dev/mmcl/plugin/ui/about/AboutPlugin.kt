@@ -12,6 +12,8 @@ import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.ui.UiSlot
+import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
 
@@ -49,6 +51,44 @@ class AboutPlugin : Plugin {
 
     override fun onLoad(context: PluginContext) {
         context.services.register(UiPage::class, AboutPage(context.launcher))
-        context.logger.info("关于页已注册")
+        context.services.register(UiWidget::class, AboutHomeWidget(context.launcher))
+        context.services.register(UiWidget::class, AboutStatusWidget())
+        context.logger.info("关于页与插槽小部件已注册")
+    }
+}
+
+
+/** 首页卡片：演示插件往 [UiSlot.HOME] 挂内容。 */
+class AboutHomeWidget(private val launcher: LauncherInfo) : UiWidget {
+    override val id: String = "dev.mmcl.ui.about.home"
+    override val slot: UiSlot = UiSlot.HOME
+    override val order: Int = 100
+
+    @Composable
+    override fun Content(navigator: AppNavigator) {
+        Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.xs)) {
+            Text(text = "MMCL ${launcher.version}", style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "这张卡片由 ui-about 插件通过 UiWidget 注册，用来验证首页插槽。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 状态栏标记：演示插件往 [UiSlot.STATUS_BAR] 挂内容。 */
+class AboutStatusWidget : UiWidget {
+    override val id: String = "dev.mmcl.ui.about.status"
+    override val slot: UiSlot = UiSlot.STATUS_BAR
+    override val order: Int = 100
+
+    @Composable
+    override fun Content(navigator: AppNavigator) {
+        Text(
+            text = "about 插件",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

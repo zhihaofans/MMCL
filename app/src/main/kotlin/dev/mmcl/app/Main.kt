@@ -9,6 +9,7 @@ import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.InstancesPage
@@ -160,7 +161,10 @@ fun main(args: Array<String>) {
         )
     val pluginPages: List<UiPage> =
         if (safeMode) emptyList() else manager.services.getAll(UiPage::class)
-    val pages = UiRegistry(builtinPages, pluginPages, safeMode).pages
+    val pluginWidgets: List<UiWidget> =
+        if (safeMode) emptyList() else manager.services.getAll(UiWidget::class)
+    val registry = UiRegistry(builtinPages, pluginPages, pluginWidgets, safeMode)
+    val pages = registry.pages
 
     logger.info(
         "MMCL {} 就绪：页面 {} 个（插件页 {} 个）、主题 {} 个、插件 {} 个（启用 {} 个）",
@@ -187,6 +191,7 @@ fun main(args: Array<String>) {
                     safeMode = safeMode,
                     pluginCount = plugins.size,
                     downloads = downloads,
+                    widgets = registry.widgets,
                 )
             }
         }

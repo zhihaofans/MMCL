@@ -156,7 +156,7 @@ app ──► core ──► api
 
 `api` 只包含：
 
-- 接口（`Plugin`、`PluginContext`、`EventBus`、`ServiceRegistry`、`LaunchService`、`DownloadSource`、`AuthProvider` 等）
+- 接口（`Plugin`、`PluginContext`、`EventBus`、`ServiceRegistry`、`LaunchService`、`DownloadSource`、`AuthProvider` 等）；UI 契约另见 `api-ui`（`UiPage`、`UiWidget`/`UiSlot`、`LauncherTheme`）
 - 不可变数据类
 - 密封类事件
 - 异常类型

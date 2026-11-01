@@ -10,6 +10,8 @@ import dev.mmcl.api.service.ServiceRegistry
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.ui.UiSlot
+import dev.mmcl.api.ui.UiWidget
 import java.nio.file.Path
 import kotlin.reflect.KClass
 import kotlin.test.Test
@@ -26,6 +28,20 @@ class AboutPluginTest {
         assertEquals(1, pages.size)
         assertEquals("dev.mmcl.ui.about", pages.single().id)
         assertEquals(UiGroup.TOOLS, pages.single().group)
+    }
+
+    @Test
+    fun `注册首页卡片与状态栏小部件`() {
+        val context = FakePluginContext()
+
+        AboutPlugin().onLoad(context)
+
+        val widgets = context.services.getAll(UiWidget::class)
+        assertEquals(2, widgets.size)
+        assertEquals(
+            setOf(UiSlot.HOME, UiSlot.STATUS_BAR),
+            widgets.map { it.slot }.toSet(),
+        )
     }
 
     private class FakePluginContext : PluginContext {

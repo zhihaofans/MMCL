@@ -28,6 +28,8 @@ import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.ui.UiSlot
+import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
@@ -48,6 +50,7 @@ class HomePage(
     private val authProviders: List<AuthProvider> = emptyList(),
     private val playerName: String = "Player",
     private val intent: NavigationIntent? = null,
+    private val widgets: List<UiWidget> = emptyList(),
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "首页"
@@ -119,6 +122,22 @@ class HomePage(
                 Button(onClick = { navigator.navigate(DownloadsPage.PAGE_ID) }) { Text("安装新版本") }
                 OutlinedButton(onClick = { navigator.navigate(DownloadsPage.PAGE_ID) }) { Text("下载") }
                 OutlinedButton(onClick = { navigator.navigate(PluginsPage.PAGE_ID) }) { Text("插件") }
+            }
+
+            val homeWidgets = widgets.filter { it.slot == UiSlot.HOME }.sortedBy { it.order }
+            if (homeWidgets.isNotEmpty()) {
+                Text("插件卡片", style = MaterialTheme.typography.titleSmall)
+                homeWidgets.forEach { widget ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                            .padding(MmclSpacing.m),
+                    ) {
+                        widget.Content(navigator)
+                    }
+                }
             }
         }
     }

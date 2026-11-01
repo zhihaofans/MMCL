@@ -33,7 +33,10 @@ import androidx.compose.ui.unit.dp
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
+import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiPage
+import dev.mmcl.api.ui.UiSlot
+import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.core.download.DownloadTask
 import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.ui.kit.MmclIcons
@@ -51,17 +54,21 @@ fun AppShell(
     safeMode: Boolean,
     pluginCount: Int,
     downloads: DownloadsService? = null,
+    widgets: List<UiWidget> = emptyList(),
 ) {
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
 
     Column(modifier = Modifier.fillMaxSize()) {
+        val widgetsBySlot = widgets.groupBy { it.slot }
         TopBar(
             title = current.title,
             launcher = launcher,
             safeMode = safeMode,
             canGoBack = navigator.canGoBack(),
             onBack = { navigator.back() },
+            widgets = widgetsBySlot[UiSlot.TOP_BAR].orEmpty(),
+            navigator = navigator,
         )
         HorizontalDivider()
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -78,6 +85,8 @@ fun AppShell(
             pluginCount = pluginCount,
             pageCount = pages.size,
             downloadTasks = downloadTasks,
+            widgets = widgetsBySlot[UiSlot.STATUS_BAR].orEmpty(),
+            navigator = navigator,
         )
     }
 }
@@ -89,6 +98,8 @@ private fun TopBar(
     safeMode: Boolean,
     canGoBack: Boolean,
     onBack: () -> Unit,
+    widgets: List<UiWidget> = emptyList(),
+    navigator: AppNavigator? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = MmclSpacing.l),
@@ -106,6 +117,9 @@ private fun TopBar(
         }
         Text(text = title, style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.weight(1f))
+        if (navigator != null) {
+            widgets.forEach { widget -> widget.Content(navigator) }
+        }
         if (safeMode) {
             Surface(
                 color = MaterialTheme.colorScheme.errorContainer,
@@ -200,6 +214,8 @@ private fun StatusBar(
     pluginCount: Int,
     pageCount: Int,
     downloadTasks: List<DownloadTask> = emptyList(),
+    widgets: List<UiWidget> = emptyList(),
+    navigator: AppNavigator? = null,
 ) {
     Row(
         modifier = Modifier
@@ -220,6 +236,9 @@ private fun StatusBar(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (navigator != null) {
+            widgets.forEach { widget -> widget.Content(navigator) }
+        }
         val active = downloadTasks.firstOrNull { it.state.isActive }
         if (active != null) {
             val progress = active.progress
