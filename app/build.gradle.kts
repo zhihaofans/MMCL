@@ -75,8 +75,11 @@ val packagingJdkHome: File? =
 
 val packagingJdkMajor: Int = packagingJdkHome?.let(::jdkMajorVersion) ?: Runtime.version().feature()
 
-// JDK 24/25/26 的 jpackage 不接受首段为 0 的版本号：0.0.1 -> 1.0.1；其它情况保留真实版本
-val needsVersionMapping: Boolean = packagingJdkMajor in 24..26
+val hostOsName = System.getProperty("os.name").lowercase()
+
+// 正常构建用 JDK 27，不做映射。只有手动 -PpackageJdk 指向 JDK < 27 且在 macOS 打包时，
+// jpackage 会拒绝首段为 0 的版本号（实测 21/25 都拒），此时才映射 0.0.2 -> 1.0.2。
+val needsVersionMapping: Boolean = hostOsName.contains("mac") && packagingJdkMajor < 27
 val bundleVersion: String =
     run {
         val parts = launcherVersion.split(".")
@@ -182,7 +185,6 @@ tasks.named("check") {
 }
 
 // 按宿主平台选打包格式：Windows 上 packageMsi 才能真正产出安装包（需要 WiX 3.x）
-val hostOsName = System.getProperty("os.name").lowercase()
 val hostTargetFormat =
     when {
         hostOsName.contains("win") -> org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi
@@ -204,6 +206,13 @@ compose.desktop {
             macOS {
                 bundleID = "dev.mmcl.launcher"
                 dockName = "MMCL"
+            }
+            windows {
+                // 一旦发布不要改：MSI 用它识别"同一产品的升级/卸载"
+                upgradeUuid = "64609219-4A98-4B20-85FA-52296C41DC46"
+                menuGroup = "MMCL"
+                perUserInstall = true
+                dirChooser = true
             }
             // jlink 默认会裁掉这些模块：logback 需要 java.naming，Compose/skiko 偶发需要 unsupported
             modules("java.naming", "java.sql", "java.net.http", "jdk.crypto.ec", "jdk.unsupported")

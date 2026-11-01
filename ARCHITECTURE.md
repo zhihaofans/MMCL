@@ -39,7 +39,7 @@
 
 | 领域 | 选型 |
 |---|---|
-| 语言 | Kotlin 2.4.x（编译用 JDK 21 toolchain，字节码目标 17） |
+| 语言 | Kotlin 2.4.x（编译用 JDK 27 toolchain，字节码目标 17） |
 | UI | Compose Multiplatform 1.12.x |
 | 构建 | Gradle 9.6.x（Kotlin DSL，只用 wrapper） |
 | 插件发现 | `ServiceLoader` + 独立 `URLClassLoader` |
@@ -47,7 +47,7 @@
 | 日志 | SLF4J + 平台实现（logback） |
 | 测试 | JUnit 5 + kotlin.test |
 | 开发主机 | macOS 27（Apple Silicon 优先） |
-| JDK | Temurin 21（toolchain），`java -version` 显示 `aarch64` |
+| JDK | Temurin 27（toolchain + jpackage），`java -version` 显示 `aarch64` |
 
 ---
 
@@ -276,7 +276,7 @@ app ──► core ──► api
 ### 12.2 macOS 27 要点
 
 - **架构**：只支持 `arm64`（Apple Silicon）；不构建、不测试 `x86_64` 产物，Intel Mac 上只告警提示不受支持
-- **JDK**：使用 `arm64` 版 Temurin 21（toolchain），确认 `java -version` 含 `aarch64`
+- **JDK**：使用 `arm64` 版 Temurin 27（toolchain + jpackage），确认 `java -version` 含 `aarch64`
 - **数据目录**：macOS 为 `~/Library/Application Support/MMCL/`，与 Windows（`%APPDATA%\MMCL`）、Linux（`$XDG_DATA_HOME/mmcl`）统一由 `Platforms.dataDir()` 计算
 - **窗口与菜单**：Compose Multiplatform 在 macOS 上有原生菜单栏差异，需在 `app` 中做平台分支
 - **打包**：`app` 需产出 `.app`（可选 `.dmg`），并配置 `Info.plist`

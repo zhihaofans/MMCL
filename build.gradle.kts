@@ -17,8 +17,9 @@ subprojects {
 
     plugins.withId("org.jetbrains.kotlin.jvm") {
         extensions.configure<KotlinJvmProjectExtension> {
-            // 用 JDK 21 编译，产出 17 字节码：启动器本身要能被 17+ 的 JRE 运行
-            jvmToolchain(21)
+            // 用 JDK 27 编译，产出 17 字节码：启动器本身要能被 17+ 的 JRE 运行；
+            // JDK 27 同时用于 jpackage（JDK < 27 的 macOS jpackage 拒绝 0.x 版本号）
+            jvmToolchain(27)
             compilerOptions {
                 jvmTarget.set(JvmTarget.JVM_17)
             }

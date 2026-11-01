@@ -1,7 +1,7 @@
 # BUILD_WINDOWS.md — Windows 平台编译与打包手册
 
 > 适用：在 Windows 10/11 上编译、测试、运行并打包本启动器。
-> 项目栈：Kotlin / JVM（**编译用 JDK 21 toolchain，产出 17 字节码**）、Compose Multiplatform、Gradle 9.6.1 Wrapper、多模块。
+> 项目栈：Kotlin / JVM（**编译用 JDK 27 toolchain，产出 17 字节码**）、Compose Multiplatform、Gradle 9.6.1 Wrapper、多模块。
 > 相关文档：架构见 `ARCHITECTURE.md`，插件开发见 `PLUGIN_DEV.md`，Agent 规则见 `AGENTS.md`。
 >
 > **本文档中的每条结论都已在本项目的构建脚本与源码中核对过**，引用了具体文件行号。若代码变更导致不符，请以代码为准并回头修文档。
@@ -12,7 +12,7 @@
 
 | 坑 | 现象 | 真相 |
 |---|---|---|
-| **JDK 27 不是必需的** | 早期版本在**配置阶段**强查 JDK 27 工具链，没装就 `help` 都跑不了 | 只有 jpackage 在 JDK 24~26 上才需要版本号映射；JDK 21 打包完全正常。**JDK 21 足够，不要为了构建去装 JDK 27** |
+| **JDK 27 是必需的** | `Cannot find a Java installation ... languageVersion=27` | `jvmToolchain(27)`：编译、测试、jpackage 统一用 JDK 27（字节码仍 17）。装 27 即可，不再需要 21 |
 | **`-PpackageJdk` 路径必须整体加引号** | `Task 'Files\Eclipse' not found` | 路径含空格未加引号，被 shell 切成多个参数，后半段被当成**任务名**。跟 JDK 版本毫无关系 |
 | **Windows 上没有 `packageMsi`** | `Task 'packageMsi' not found in project ':app'` | 打包格式是**按宿主平台**选的。Windows 上是 `packageMsi`，但那需要先安装 WiX；macOS 上只有 `packageDmg` |
 | **Maven Central 连不上** | `Could not GET 'https://repo.maven.apache.org/...'` 且无更具体原因 | 国内直连中央仓库经常在 TCP/TLS 阶段失败。用 `init.gradle` 把镜像插到**最前面**（追加到末尾无效，见 §3.3） |
@@ -24,7 +24,7 @@
 | 项目 | 要求 | 说明 |
 |---|---|---|
 | 操作系统 | Windows 10 21H2+ / Windows 11（x64 或 ARM64） | |
-| **JDK** | **Temurin 21**（完整 JDK，含 `jpackage.exe`） | 根 `build.gradle.kts` 里 `jvmToolchain(21)` + `jvmTarget = JVM_17`，Gradle 必须能找到 **JDK 21** 才能编译 |
+| **JDK** | **Temurin 27**（完整 JDK，含 `jpackage.exe`） | 根 `build.gradle.kts` 里 `jvmToolchain(27)` + `jvmTarget = JVM_17`，Gradle 必须能找到 **JDK 27** 才能编译与打包 |
 | 构建工具 | 项目自带 Gradle Wrapper（`gradlew.bat`，Gradle 9.6.1） | 无需全局安装 Gradle |
 | 终端 | PowerShell 7+ 或 Windows Terminal | |
 | 网络 | 首次构建需下载依赖，约 300+ MB | 国内建议按 §3.3 配镜像 |
@@ -32,26 +32,25 @@
 
 > **不要使用 Android Studio 自带的 JBR**：它不包含 `jpackage`，`packageMsi` / `createDistributable` 会失败。
 >
-> **`JAVA_HOME` 与 Gradle 的 JDK 是两个概念**：Gradle 用 `JAVA_HOME` 启动自身，再按 `jvmToolchain(21)` 去本机找 JDK 21 编译。两者都指向 JDK 21 最省事；若 `JAVA_HOME` 指向更高版本（如 25），Gradle 仍会去自动发现 JDK 21，装好 §2 就够。
+> **`JAVA_HOME` 与 Gradle 的 JDK 是两个概念**：Gradle 用 `JAVA_HOME` 启动自身，再按 `jvmToolchain(27)` 去本机找 JDK 27 编译/打包。**两者都指向 JDK 27 最省事**；若 `JAVA_HOME` 是 21/25，Gradle 也会自动发现已安装的 27，但打包仍用 27。
 
 ---
 
-## 2. 安装 JDK 21（winget）
+## 2. 安装 JDK 27（winget）
 
 ### 2.1 安装
 
 ```powershell
-winget install --exact --id EclipseAdoptium.Temurin.21.JDK --source winget
+winget install --exact --id EclipseAdoptium.Temurin.27.JDK --source winget
+# 若 winget 源里没有 27，用：winget search Temurin
 ```
 
 备选发行版（任选其一，功能等价）：
 
 ```powershell
-# Microsoft Build of OpenJDK 21
-winget install Microsoft.OpenJDK.21
-
-# Azul Zulu 21
-winget install Azul.Zulu.21.JDK
+# 其他发行版：只要保证是完整 JDK 27（含 jpackage.exe）即可
+winget search Temurin
+winget search OpenJDK
 ```
 
 ### 2.2 验证
@@ -62,7 +61,7 @@ winget install Azul.Zulu.21.JDK
 java -version
 ```
 
-期望输出包含 `openjdk version "21.` 字样。
+期望输出包含 `openjdk version "27.` 字样。
 
 查找 JDK 安装路径：
 
@@ -79,14 +78,14 @@ Windows 不会自动设置 `JAVA_HOME`，需手动配置。
 1. 开始菜单搜索「环境变量」→「编辑系统环境变量」
 2. 「环境变量」→「系统变量」→「新建」
    - 变量名：`JAVA_HOME`
-   - 变量值：例如 `C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot`
+   - 变量值：例如 `C:\Program Files\Eclipse Adoptium\jdk-27`
 3. 编辑系统变量 `Path` →「新建」→ 填入 `%JAVA_HOME%\bin`
 4. 一路「确定」，**重开终端**
 
 **PowerShell 一次性方式（仅当前会话有效）：**
 
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot"
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-27"
 $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 ```
 
@@ -95,7 +94,7 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 ```powershell
 [Environment]::SetEnvironmentVariable(
   "JAVA_HOME",
-  "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot",
+  "C:\Program Files\Eclipse Adoptium\jdk-27",
   "User"
 )
 ```
@@ -148,12 +147,12 @@ gradle\wrapper\gradle-wrapper.properties
 
 ```
 Gradle 9.6.1
-JVM: 21.x.x (Eclipse Adoptium 21.x.x+xx)
+JVM: 27.x.x (Eclipse Adoptium 27.x.x+xx)
 ```
 
 **这一条只验证"Gradle 本身能跑"**，还不能说明项目配置正确。如果这里就卡在 `Downloading https://services.gradle.org/...`，先按 §3.3 处理网络。
 
-如果使用 IntelliJ IDEA：`File → Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK` 选择 Temurin 21。
+如果使用 IntelliJ IDEA：`File → Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK` 选择 Temurin 27。
 
 ### 3.3 Maven Central 连不上怎么办
 
@@ -234,39 +233,29 @@ systemProp.https.proxyPort=7890
 | 报错 | 原因 | 处理 |
 |---|---|---|
 | `e: build.gradle.kts:xx:xx: unexpected symbol` | 存在全角字符（`｝`、`，`、`（`） | 按行号改半角 |
-| `Cannot find a Java installation ... matching: {languageVersion=27 ...}` | 项目版本较旧，配置阶段强查 JDK 27 | 更新 `app/build.gradle.kts`（见 §4.1.1），或临时加 `-PpackageJdk=<JDK 21 目录>` |
+| `Cannot find a Java installation ... matching: {languageVersion=27 ...}` | 本机没装 JDK 27 | 按 §2 安装 JDK 27 |
 | `Task 'Files\Eclipse' not found in root project 'MMCL'` | `-PpackageJdk` 路径未加引号被空格切开 | 见 §4.1.2 |
 
-#### 4.1.1 为什么不再需要 JDK 27
+#### 4.1.1 JDK 27：编译与打包统一
 
-`version=0.0.1` 时首段是 0，而 **jpackage 在 JDK 24~26 上会拒绝首段为 0 的 app-version**（JDK-8380634，JDK 27 已修）。旧脚本的解法是"找 JDK 27 打包，找不到就把版本映射成 1.x"。
+项目用 `jvmToolchain(27)`：编译、测试、jpackage 都用 **JDK 27**，字节码目标仍是 17。
+三个平台的安装包因此都输出真实版本（例如 `0.0.2`）。
 
-问题在于旧代码用了 `.launcherFor { ... }.getOrNull()`——**它在找不到匹配工具链时不是返回 null，而是抛 `ToolchainProvisioningException`**，且位于配置阶段，所以整台机器上任何任务都跑不了。
+历史原因：macOS 的 jpackage 在 JDK < 27 上会拒绝首段为 0 的 app-version（JDK-8380634，JDK 27 已修）。
+早期用 21 编译 + 27 打包，导致 macOS 的 dmg 被映射成 `1.0.x`，与应用内版本不一致。
 
-修复后（`app/build.gradle.kts`）改为**按实际打包 JDK 的主版本**决定是否映射，并支持显式指定：
+`-PpackageJdk` 仍保留（调试/特殊环境），逻辑在 `app/build.gradle.kts`：
 
-```kotlin
-val packagingJdkHome: File? =
-    requestedJdk                                  // -PpackageJdk 优先
-        ?: runCatching {                          // 找不到 JDK 27 就返回 null，不再抛出
-            toolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(27)) }
-                .getOrNull()?.metadata?.installationPath?.asFile
-        }.getOrNull()
-        // 两者都没有时退回当前运行 Gradle 的 JDK，见下表
+- 优先 `-PpackageJdk`；否则找 JDK 27 工具链；再否则用当前运行 Gradle 的 JDK
+- 只有「macOS 宿主 + 打包 JDK < 27」时才把 `0.0.2` 映射成 `1.0.2`
+- 找不到匹配工具链不再抛配置异常（已用 `runCatching` + `getOrNull` 包住）
 
-val packagingJdkMajor = packagingJdkHome?.let(::jdkMajorVersion) ?: Runtime.version().feature()
-val needsVersionMapping = packagingJdkMajor in 24..26
-```
+| 你的 JDK | 能编译/测试/打包 | Windows/Linux 安装包版本 | macOS 安装包版本 |
+|---|---|---|---|
+| **27（推荐）** | ✅ | `0.0.2` | `0.0.2` |
+| 21 / 24 / 25 / 26 | ✅（toolchain 仍要 27；`-PpackageJdk` 只影响打包 JDK） | `0.0.2` | `1.0.2`（映射） |
 
-结论：
-
-| 你的 JDK | 能否编译/测试/打包 | 安装包版本 |
-|---|---|---|
-| 21 | ✅ 全部可以 | `0.0.1`（真实版本，无需映射） |
-| 24 / 25 / 26 | ✅ 全部可以 | 自动映射成 `1.0.1` |
-| 27 | ✅ 全部可以 | `0.0.1` |
-
-**所以：不需要为构建专门安装 JDK 27。**
+**结论：装 JDK 27 一个就够，编译和打包都不再需要 21。**
 
 #### 4.1.2 `-PpackageJdk` 的正确写法
 
@@ -274,16 +263,16 @@ val needsVersionMapping = packagingJdkMajor in 24..26
 
 ```powershell
 # PowerShell / cmd 通用
-.\gradlew.bat build "-PpackageJdk=C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot"
+.\gradlew.bat build "-PpackageJdk=C:\Program Files\Eclipse Adoptium\jdk-27"
 ```
 
 ```powershell
 # PowerShell 也可以先用变量，避免转义困扰
-$jdk = "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot"
+$jdk = "C:\Program Files\Eclipse Adoptium\jdk-27"
 .\gradlew.bat build "-PpackageJdk=$jdk"
 ```
 
-**写错会怎样**：`-PpackageJdk=C:\Program Files\Eclipse Adoptium\jdk-21` 被切成三段，后两段被当作任务名，报 `Task 'Files\Eclipse' not found`。
+**写错会怎样**：`-PpackageJdk=C:\Program Files\Eclipse Adoptium\jdk-27` 被切成三段，后两段被当作任务名，报 `Task 'Files\Eclipse' not found`。
 
 修复后的脚本容错更多：传 JDK 根目录、`bin` 目录、`java.exe` 路径都可以；路径非法时会打一条明确告警并继续构建，而不是抛这个误导性错误。
 
@@ -495,18 +484,35 @@ app\build\compose\binaries\main\app\MMCL\
 
 目录内含 `MMCL.exe` 与内置 JRE，可直接双击运行，**不需要 WiX**。验证"能不能用"优先用它，比打 Msi 快得多。
 
-### 5.4 关于 `.exe` 安装包
+### 5.4 用 GitHub Actions 出包（推荐）
+
+仓库自带 `.github/workflows/package.yml`，在 GitHub 上手动触发（Actions → package → Run workflow），
+或推送 `0.*` / `v*` tag 时自动跑三平台矩阵：
+
+| 平台 | 任务 | 产物 |
+|---|---|---|
+| `macos-14` | `:app:packageDmg` | `MMCL-macos-dmg` artifact |
+| `windows-latest` | `:app:packageMsi`（自动装 WiX 3） | `MMCL-windows-msi` artifact |
+| `ubuntu-latest` | `:app:packageDeb` | `MMCL-linux-deb` artifact |
+
+版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.2`）。CI 统一安装 JDK 27，
+编译与 jpackage 同一个 JDK，不做版本映射。
+
+`windows { }` 里的 `upgradeUuid` 已经固定，**发布后不要改**，否则 MSI 会把新版本当成另一个产品，
+无法升级/卸载旧版。
+
+### 5.5 关于 `.exe` 安装包
 
 jpackage **不支持**直接产出 exe 安装器（`.exe` 只能作为**应用启动器**，见 5.3 产物）。需要 exe 安装包请用 Inno Setup / NSIS 对 5.3 的目录再打一层——本项目当前没有这条链路。
 
-### 5.5 打包失败排查
+### 5.6 打包失败排查
 
 | 报错 | 原因 | 处理 |
 |---|---|---|
 | `Can not find WiX` / `wix.exe` 找不到 | 未装 WiX 或不在 `PATH` | `winget install WiXToolset.WiXToolset`，重开终端 |
 | `candle.exe` 退出代码 14 | 非 `en-US` 区域设置导致 WiX 异常 | `Set-Culture en-US`，**重开终端**后重试；或临时改系统区域为英语（美国） |
-| `app-version 第一个数字不能为零` | jpackage 主版本在 24~26 且版本号首段为 0 | 用 JDK 21 或 27 打包，或确认脚本版本映射已生效（§4.1.1） |
-| `jpackage.exe is missing` | 用了 JBR 或 JRE | 换完整 JDK（Temurin 21） |
+| `app-version 第一个数字不能为零` | 手动 `-PpackageJdk` 指向 JDK < 27 且在 macOS 打包 | 用 JDK 27 打包（§4.1.1） |
+| `jpackage.exe is missing` | 用了 JBR 或 JRE | 换完整 JDK（Temurin 27） |
 | 文档早先提到的"自动下载 WiX" | **不存在** | jpackage 从不自动下载 WiX，必须手动安装 |
 
 ---
@@ -561,16 +567,16 @@ Copy-Item plugins\source-mojang\build\libs\*.jar "$env:APPDATA\MMCL\plugins" -Fo
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | `unexpected symbol` / `Expecting '}'` | `build.gradle.kts` 里有全角字符（`｝`、`，`、`（`） | 改半角 |
-| `Cannot find a Java installation ... languageVersion=27` | 旧脚本配置阶段强查 JDK 27 | 更新 `app/build.gradle.kts`（§4.1.1） |
+| `Cannot find a Java installation ... languageVersion=27` | 本机没装 JDK 27 | 按 §2 安装 |
 | `Task 'Files\Eclipse' not found` | `-PpackageJdk` 路径含空格未加引号 | 引号包住整个 `-P` 参数（§4.1.2） |
 | `Could not GET 'https://repo.maven.apache.org/...'` + 只有主机名 | 直连 Maven Central 失败 | 配 `init.gradle` 镜像（§3.3） |
-| `Unsupported class file major version` | Gradle 启动用的 JDK 过低（低于 17） | 确认 `JAVA_HOME` 指向 JDK 21 |
-| `No matching toolchains found ... languageVersion=21` | 本机没有 JDK 21 | 按 §2 安装；`JAVA_HOME` 指向 21 即可被自动发现 |
+| `Unsupported class file major version` | Gradle 启动用的 JDK 过低（低于 17） | 确认 `JAVA_HOME` 指向 JDK 27 |
+| `No matching toolchains found ... languageVersion=27` | 本机没有 JDK 27 | 按 §2 安装 |
 | `Task 'packageMsi' not found` | 在 macOS/Linux 上执行，或脚本旧版只写了 `Dmg` | 用当前平台对应的任务名（§5.1） |
-| `jpackage.exe is missing` | 使用了 JBR 或 JRE | 换完整 JDK（Temurin 21） |
+| `jpackage.exe is missing` | 使用了 JBR 或 JRE | 换完整 JDK（Temurin 27） |
 | `Can not find WiX` | 未装 WiX | `winget install WiXToolset.WiXToolset` |
 | `candle.exe` 退出代码 14 | 非 `en-US` 区域设置 | `Set-Culture en-US`，重开终端 |
-| `app-version 第一个数字不能为零` | jpackage 24~26 + 版本 0.x | 用 JDK 21/27，或确认版本映射生效 |
+| `app-version 第一个数字不能为零` | 手动指定了 JDK < 27 在 macOS 打包 | 用 JDK 27 打包 |
 | 测试里 `ProcessBuilder` 相关失败 | 测试硬编码了 `/bin/sh` 等 POSIX 路径 | 已修复为跨平台版本，确认拉取到最新代码 |
 | 测试里路径断言失败（`\` vs `/`） | 测试硬编码了正斜杠 | 同上，已修复 |
 | 打包后应用启动静默崩溃 | 同目录残留旧 `jre`/`runtime` 文件夹 | 移走该文件夹，让应用使用内置 JRE |
@@ -595,10 +601,10 @@ Copy-Item plugins\source-mojang\build\libs\*.jar "$env:APPDATA\MMCL\plugins" -Fo
 
 在 Windows 上完成一次"能编译、能跑、能打包"的验证，按顺序勾选：
 
-- [ ] `java -version` 显示 21
-- [ ] `echo $env:JAVA_HOME` 指向 Temurin 21
+- [ ] `java -version` 显示 27
+- [ ] `echo $env:JAVA_HOME` 指向 Temurin 27
 - [ ] `& "$env:JAVA_HOME\bin\jpackage.exe" --version` 成功
-- [ ] `.\gradlew.bat --version` 显示 Gradle 9.6.1 + JVM 21
+- [ ] `.\gradlew.bat --version` 显示 Gradle 9.6.1 + JVM 27
 - [ ] `.\gradlew.bat help` 通过
 - [ ] `.\gradlew.bat assemble` 通过
 - [ ] `.\gradlew.bat test` 通过（**任意环境都能跑**，headless 见 §4.3 的说明）

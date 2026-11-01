@@ -41,7 +41,7 @@
 
 ## 1. 速读
 
-- 语言：Kotlin / JVM，**字节码目标 17**，编译用 **JDK 21 toolchain**（见 5.5）
+- 语言：Kotlin / JVM，**字节码目标 17**，编译用 **JDK 27 toolchain**（见 5.5）
 - UI：Compose Multiplatform（仅 `app`、`api-ui`、`ui-kit` 可依赖；方案见 `UI_DESIGN.md`）
 - 构建：Gradle Kotlin DSL，多模块，**只用仓库自带的 Gradle Wrapper**
 - 插件发现：`java.util.ServiceLoader`
@@ -145,8 +145,8 @@
 ### 5.5 本机开发环境（已就绪，勿重复安装）
 
 1. 操作系统：macOS 27.x，Apple Silicon（`arm64`）
-2. JDK：**Temurin 21（arm64）** 作为 Gradle toolchain；另有 Zulu 25（启动 Gradle）与
-   **Temurin 27（只用于 jpackage 打包，见第 9 节）**
+2. JDK：**Temurin 27（arm64）** 作为 Gradle toolchain，同时用于 jpackage 打包；
+   另有 Zulu 25 只用来启动 Gradle（`JAVA_HOME` 指向 25 也可以）
 3. 校验：`/usr/libexec/java_home -V` 应列出 8 / 21 / 25 / 27；`./gradlew -version` 应显示 wrapper 版本与 `Launcher JVM`
 4. Gradle：**只用 `./gradlew`**（版本以 `gradle/wrapper/gradle-wrapper.properties` 为准），不要 `brew install gradle`
 5. 首次构建会联网下载依赖；网络受限时用 `./gradlew build --offline`（依赖须已在 `~/.gradle/caches`）
@@ -230,10 +230,11 @@
 - **Gradle 要写 `~/.gradle`**：沙箱里构建需要放开到工作区外；离线时用 `--offline`（依赖须已在缓存里）
 - **插件版本双写**：`build.gradle.kts` 的 `version` 与 `Plugin.version` 必须一致，否则 JAR 名和界面显示会对不上
 - **`:app:run` 是长驻进程**：窗口关闭前任务不结束，本机验证时别用阻塞写法等它返回
-- **jpackage 24~26 拒绝首段为 0 的版本**（JDK-8380634，**JDK 27 已修**）：macOS 上直接打 `0.0.1`
-  会报 “app-version 中的第一个数字不能为零”。打包配置会用 Gradle toolchain 找 JDK 27
-  （也可 `-PpackageJdk=<jdk27 home>` 指定）；找不到才退回 `1.x` 映射。
-  打完后用 PlistBuddy 确认 `CFBundleShortVersionString` 是真实版本，别让 1.x 漏到用户手里
+- **JDK 27 是构建+打包的统一工具链**：早期用 21 编译、27 打包，版本号会因 macOS 的 jpackage
+  限制被映射成 `1.x`。现在 `jvmToolchain(27)`，三个平台都输出真实版本；只有手动
+  `-PpackageJdk=<JDK 21/25>` 在 macOS 打包时才会退回 `1.x` 映射
+- **macOS jpackage 拒绝首段为 0 的版本**（JDK 21/25 实测都拒，JDK 27 已修）：用 27 打包即可；
+  打完后用 PlistBuddy 确认 `CFBundleShortVersionString` 是真实版本
 - **jpackage 的 CFBundleVersion 与 ShortVersion 相同**：想要独立单调 build 号（自动更新需要）
   只能打包后改 plist 再签名，顺序是「改 plist → codesign → notarize」
 - **26.x 的游戏控制台是 log4j2 XML**：一个事件占 4~6 行，别直接展示；用 `GameLogFormatter`

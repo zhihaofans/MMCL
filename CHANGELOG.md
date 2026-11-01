@@ -5,7 +5,21 @@
 
 ## [Unreleased]
 
+### 新增
+
+- Windows 安装包配置：`windows { upgradeUuid（固定）, menuGroup, perUserInstall, dirChooser }`
+- GitHub Actions 三平台打包（`.github/workflows/package.yml`）：手动触发或推送版本 tag 时产出
+  dmg / msi / deb 并上传 artifact；macOS job 额外用 JDK 27 打包，三个平台版本号一致（`0.0.2`）
+
+### 修复
+
+- 版本映射只在手动 `-PpackageJdk` 指定 JDK < 27 且在 macOS 打包时触发（实测 JDK 21 同样拒绝 0.x）；
+  默认 JDK 27 下三平台都不映射
+
 ### 变更
+
+- 构建工具链升级到 **JDK 27**（`jvmToolchain(27)`，字节码目标仍是 17）：编译与 jpackage 共用
+  同一个 JDK，三平台安装包版本号统一为真实版本（`0.0.2`）；CI 也只装 JDK 27
 
 - 设置页「Java 运行时来源」增加「自动（按优先级）」选项，选错可一键回到自动
 - 「打开插件目录」移到 IO 线程执行，不再阻塞界面
