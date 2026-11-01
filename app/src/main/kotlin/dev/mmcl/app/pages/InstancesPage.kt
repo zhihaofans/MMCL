@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.AuthProvider
+import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
@@ -39,6 +40,7 @@ import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.java.JavaRuntimeInstaller
 import dev.mmcl.core.launch.LaunchRequest
 import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
@@ -79,6 +81,8 @@ class InstancesPage(
     private val instanceService: InstanceService? = null,
     private val detailService: VersionDetailService? = null,
     private val javaDetector: JavaRuntimeDetector? = null,
+    private val javaInstaller: JavaRuntimeInstaller? = null,
+    private val javaProviders: List<JavaRuntimeProvider> = emptyList(),
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
     private val authProviders: List<AuthProvider> = emptyList(),
@@ -107,6 +111,10 @@ class InstancesPage(
         var logLines by remember { mutableStateOf<List<String>>(emptyList()) }
         var exitedCode by remember { mutableStateOf<Int?>(null) }
         var logOwnerName by remember { mutableStateOf<String?>(null) }
+        var missingJava by remember { mutableStateOf<Int?>(null) }
+        var javaMessage by remember { mutableStateOf<String?>(null) }
+        var javaBusy by remember { mutableStateOf(false) }
+        var pendingJavaInstance by remember { mutableStateOf<Instance?>(null) }
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         val hasSource = manifests?.hasSource() == true
@@ -169,7 +177,9 @@ class InstancesPage(
                     val required = detail.javaVersion?.majorVersion ?: 0
                     val runtime = detector.detect(required)
                     if (runtime == null) {
-                        launchStatus = "缺少 Java ≥$required，无法启动 ${instance.name}"
+                        missingJava = required
+                        pendingJavaInstance = instance
+                        launchStatus = "缺少 Java ≥$required，无法启动 ${instance.name}；可用下面的按钮下载"
                         return@launch
                     }
                     val auth = provider.createSession(context.playerName)
@@ -224,6 +234,37 @@ class InstancesPage(
             launchStatus = "游戏已退出（code ${exitedCode}）"
             runningSession = null
             runningInstanceId = null
+        }
+
+        fun downloadJava(required: Int) {
+            val installer = javaInstaller
+            val context = launchContext
+            val provider = javaProviders.minWithOrNull(compareBy({ it.id }))
+            if (installer == null || context == null || provider == null) {
+                javaMessage = "没有可用的运行时来源插件：去「设置」安装后重启"
+                return
+            }
+            javaBusy = true
+            javaMessage = "正在解析 Java $required…"
+            scope.launch {
+                try {
+                    val download =
+                        provider.resolve(required, context.os, context.arch)
+                            ?: error("运行时来源不支持 ${context.os} / ${context.arch}")
+                    val home =
+                        installer.install(required, download) { bytes ->
+                            javaMessage = "已下载 ${bytes / 1024 / 1024} MB…"
+                        }
+                    javaMessage = "Java $required 已安装"
+                    missingJava = null
+                    javaBusy = false
+                    pendingJavaInstance?.let { launchInstance(it) }
+                    pendingJavaInstance = null
+                } catch (t: Throwable) {
+                    javaBusy = false
+                    javaMessage = "下载 Java 失败：${t.message ?: t::class.simpleName}"
+                }
+            }
         }
 
         PageScaffold(
@@ -318,6 +359,38 @@ class InstancesPage(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                missingJava?.let { required ->
+                    val provider = javaProviders.minWithOrNull(compareBy({ it.id }))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f))
+                            .padding(MmclSpacing.s),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (provider == null) {
+                                "缺少 Java ≥$required：去「设置」安装运行时来源插件"
+                            } else {
+                                "缺少 Java ≥$required（来源：${provider.displayName}）"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Button(onClick = { downloadJava(required) }, enabled = provider != null && !javaBusy) {
+                            Text(if (javaBusy) "下载中…" else "下载 Java $required")
+                        }
+                    }
+                }
+                javaMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

@@ -203,6 +203,7 @@ sources.forEach { it.search("sodium") }
 | `UiPage` | 完整页面（导航栏追加一项） |
 | `UiWidget` | 插槽小部件（顶栏 / 状态栏 / 首页卡片），见下 |
 | `VersionManifestSource` | 版本清单来源（官方 / 镜像 / 本地），**应用内不内置任何实现** |
+| `JavaRuntimeProvider` | Java 运行时下载来源（`runtime-adoptium` 示例，单独分发） |
 
 接口定义示例：
 
@@ -254,6 +255,16 @@ class MojangSourcePlugin : Plugin {
 
 - 源插件还可以提供资源对象地址：`override fun assetObjectUrl(hash: String): String?`，
   返回 `null` 表示不支持（游戏会因缺贴图崩溃）；官方源返回 `https://resources.download.minecraft.net/<前两位>/<hash>`
+- Java 运行时来源示例（`plugins/runtime-adoptium`，不内置）：
+
+```kotlin
+interface JavaRuntimeProvider {
+    val id: String
+    val displayName: String
+    suspend fun resolve(majorVersion: Int, os: OperatingSystem, arch: Architecture): RuntimeDownload?
+}
+```
+
 - UI 插件还可以注册 `UiWidget` 往固定插槽加内容（`UiSlot.TOP_BAR` / `STATUS_BAR` / `HOME`）：
 
 ```kotlin

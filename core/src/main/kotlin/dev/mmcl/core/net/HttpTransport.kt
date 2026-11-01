@@ -26,6 +26,17 @@ interface HttpTransport {
      * @throws IOException 网络错误或非 2xx 状态码
      */
     suspend fun downloadTo(url: String, target: Path)
+
+    /**
+     * 带字节回调的下载，用于限速。
+     *
+     * 默认实现忽略回调、退回两个参数的版本；支持流式的实现（[JdkHttpTransport]）会覆盖它。
+     *
+     * @param onBytes 每读到一块数据回调一次，调用方在这里做限速
+     */
+    suspend fun downloadTo(url: String, target: Path, onBytes: suspend (Int) -> Unit) {
+        downloadTo(url, target)
+    }
 }
 
 /**
@@ -49,21 +60,34 @@ class JdkHttpTransport(
         }
 
     override suspend fun downloadTo(url: String, target: Path) {
+        downloadTo(url, target) {}
+    }
+
+    override suspend fun downloadTo(url: String, target: Path, onBytes: suspend (Int) -> Unit) {
         withContext(Dispatchers.IO) {
-            val response =
-                send(
-                    url,
-                    HttpResponse.BodyHandlers.ofFile(
-                        target,
-                        java.nio.file.StandardOpenOption.CREATE,
-                        java.nio.file.StandardOpenOption.WRITE,
-                        java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
-                    ),
-                )
-            if (response.statusCode() !in 200..299) {
-                throw IOException("HTTP ${response.statusCode()}：$url")
+            val response = send(url, HttpResponse.BodyHandlers.ofInputStream())
+            java.nio.file.Files.newOutputStream(
+                target,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.WRITE,
+                java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+            ).use { output ->
+                response.body().use { input ->
+                    val buffer = ByteArray(CHUNK_BYTES)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        if (read == 0) continue
+                        output.write(buffer, 0, read)
+                        onBytes(read)
+                    }
+                }
             }
         }
+    }
+
+    private companion object {
+        const val CHUNK_BYTES = 64 * 1024
     }
 
     private fun <T> send(url: String, handler: HttpResponse.BodyHandler<T>): HttpResponse<T> {

@@ -2,6 +2,7 @@
 kotlin = "2.4.21"
 compose = "1.12.2"
 coroutines = "1.11.0"
+commons-compress = "1.27.1"
 slf4j = "2.0.17"
 logback = "1.5.20"
 junit = "5.14.4"
@@ -22,6 +23,7 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 compose-icons-core = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "composeIcons" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

@@ -6,6 +6,7 @@ import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -23,6 +24,8 @@ class FileDownloaderTest {
 
     private val okBytes = "hello-mmcl-downloader".toByteArray()
     private val okSha = sha1Hex(okBytes)
+    private val flakyRequests = AtomicInteger()
+    private val missingRequests = AtomicInteger()
 
     @BeforeTest
     fun setUp() {
@@ -37,7 +40,17 @@ class FileDownloaderTest {
             exchange.sendResponseHeaders(200, body.size.toLong())
             exchange.responseBody.use { it.write(body) }
         }
+        server.createContext("/flaky.jar") { exchange ->
+            if (flakyRequests.incrementAndGet() == 1) {
+                exchange.sendResponseHeaders(500, -1)
+                exchange.close()
+            } else {
+                exchange.sendResponseHeaders(200, okBytes.size.toLong())
+                exchange.responseBody.use { it.write(okBytes) }
+            }
+        }
         server.createContext("/missing.jar") { exchange ->
+            missingRequests.incrementAndGet()
             exchange.sendResponseHeaders(404, -1)
             exchange.close()
         }
@@ -51,8 +64,16 @@ class FileDownloaderTest {
         root.toFile().deleteRecursively()
     }
 
-    private fun downloader(concurrency: Int = 2) =
-        FileDownloader(JdkHttpTransport(userAgent = "test"), logger, concurrency)
+    private fun downloader(
+        concurrency: Int = 2,
+        maxAttempts: Int = 3,
+    ) = FileDownloader(
+        JdkHttpTransport(userAgent = "test"),
+        logger,
+        concurrency,
+        maxAttempts = maxAttempts,
+        retryDelayMillis = { 0 },
+    )
 
     private fun sha1Hex(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-1").digest(bytes).joinToString("") { "%02x".format(it) }

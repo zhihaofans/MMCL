@@ -11,10 +11,8 @@
 ### 0.1.x — 能启动游戏
 
 - [ ] 正版账户（`auth-microsoft`，见 0.3.x）
-- [ ] 下载失败重试与限速
 - [ ] 老版本 natives / classifiers 下载（1.19 之前）
 - [ ] `source-bmclapi` 等镜像源插件
-- [ ] Java 运行时下载（解压到 `<dataDir>/runtime/<os>-<arch>/`，地址由运行时来源插件提供）
 
 ### 0.2.x — 界面
 

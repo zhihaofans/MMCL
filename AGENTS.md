@@ -241,6 +241,10 @@
   示例只订阅事件、不打日志以外的副作用
 - **下载任务状态不能放 Compose 页面里**：`remember` + 页面协程会在切页时取消下载；用 core 的
   `DownloadsService`（应用级作用域 + `StateFlow`），页面只订阅
+- **重试要排除确定性失败**：SHA-1 不符、404/403 重试只会浪费时间；`FileDownloader` 只对
+  网络错误 / 429 / 5xx 重试，测试里的 500-then-200 场景覆盖了这条
+- **运行时解压必须防穿越、处理符号链接**：tar.gz 用 commons-compress，条目路径要
+  `normalize()` 后校验仍在目标目录内；macOS JDK 压缩包含符号链接，创建失败只告警不中断
 - **游戏崩溃先看崩溃报告**：`<instance>/crash-reports/crash-*.txt`；常见根因是 `assets/objects` 没下全
   （`NoSuchFileException …/assets/objects/xx/<hash>`，`CubeMapTexture`），不是启动参数问题
 - **jlink 会裁掉运行时要用的模块**：打包后必须显式 `modules("java.naming", "java.sql", "java.net.http",

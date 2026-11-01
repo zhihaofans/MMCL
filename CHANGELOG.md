@@ -7,6 +7,12 @@
 
 ### 新增
 
+- 下载失败重试：单文件最多 3 次、指数退避；只重试网络错误 / 429 / 5xx，404/403 与 SHA-1 不符不重试
+- 下载限速：设置页「限速（KB/s）」写入 `download.maxKbPerSecond`，所有并发下载共享一个令牌桶
+- Java 运行时下载：`JavaRuntimeProvider` 扩展点 + core `JavaRuntimeInstaller`
+  （下载 → 校验 SHA-1 → 解压 zip/tar.gz → 校验 `release` 版本 → 安装到 `runtime/<os>-<arch>/jdk-<major>/`）；
+  缺少 Java 时游戏页可直接下载并自动重试启动
+- `plugins/runtime-adoptium`：Adoptium Temurin 来源示例（不内置，需单独安装）
 - `UiWidget` / `UiSlot` 插槽小部件：插件可往顶栏（`TOP_BAR`）、状态栏（`STATUS_BAR`）、
   首页卡片区（`HOME`）加内容；`UiRegistry` 统一收集、去重、排序，安全模式全部忽略
 - `plugins/ui-about` 注册一张首页卡片与一个状态栏标记，作为 widget 示例

@@ -7,6 +7,7 @@ dependencies {
     api(project(":api"))
     implementation(libs.slf4j.api)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.commons.compress)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.kotlin.test.junit5)

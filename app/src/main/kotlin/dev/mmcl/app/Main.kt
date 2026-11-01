@@ -5,6 +5,7 @@ import androidx.compose.ui.window.application
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.AuthProvider
+import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
@@ -29,6 +30,7 @@ import dev.mmcl.app.pages.LaunchContext
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.instance.InstanceStore
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.java.JavaRuntimeInstaller
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.net.JdkHttpTransport
 import kotlinx.coroutines.CoroutineScope
@@ -102,7 +104,14 @@ fun main(args: Array<String>) {
     val installer =
         GameInstaller(
             detailService = detailService,
-            downloader = FileDownloader(transport, logger),
+            downloader =
+                FileDownloader(
+                    transport,
+                    logger,
+                    maxBytesPerSecond = {
+                        (settings.getString(SettingsPage.LIMIT_KEY)?.toLongOrNull() ?: 0L) * 1024L
+                    },
+                ),
             root = launcher.dataDir,
             os = launcher.os,
             arch = launcher.arch,
@@ -119,6 +128,15 @@ fun main(args: Array<String>) {
     val themeController = ThemeController(settings, pluginThemes)
 
     val javaDetector = JavaRuntimeDetector(launcher.dataDir, launcher.os, launcher.arch, settings, logger)
+    val javaProviders = manager.services.getAll(JavaRuntimeProvider::class)
+    val javaInstaller =
+        JavaRuntimeInstaller(
+            transport = transport,
+            logger = logger,
+            runtimeRoot = launcher.dataDir.resolve("runtime"),
+            os = launcher.os,
+            arch = launcher.arch,
+        )
     val gameLauncher = MinecraftLauncher(manager.events, logger, logFile = { launcher.dataDir.resolve("logs").resolve("latest.log") })
     val launchContext =
         LaunchContext(
@@ -143,6 +161,8 @@ fun main(args: Array<String>) {
                 instanceService = instanceService,
                 detailService = detailService,
                 javaDetector = javaDetector,
+                javaInstaller = javaInstaller,
+                javaProviders = javaProviders,
                 launcher = gameLauncher,
                 launchContext = launchContext,
                 authProviders = authProviders,
@@ -157,7 +177,7 @@ fun main(args: Array<String>) {
                 autoLoad = true,
             ),
             PluginsPage(plugins),
-            SettingsPage(launcher, themeController, safeMode, manifestService),
+            SettingsPage(launcher, themeController, safeMode, manifestService, settings),
         )
     val pluginPages: List<UiPage> =
         if (safeMode) emptyList() else manager.services.getAll(UiPage::class)

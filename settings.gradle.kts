@@ -28,5 +28,6 @@ include(
     ":plugins:hello",
     ":plugins:ui-about",
     ":plugins:theme-sakura",
+    ":plugins:runtime-adoptium",
     ":plugins:source-mojang",
 )

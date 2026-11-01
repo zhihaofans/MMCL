@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.mmcl.api.LauncherInfo
+import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiGroup
@@ -45,6 +49,7 @@ class SettingsPage(
     private val themeController: ThemeController,
     private val safeMode: Boolean,
     private val manifests: VersionManifestService? = null,
+    private val settings: SettingsService? = null,
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
@@ -55,6 +60,9 @@ class SettingsPage(
     companion object {
         /** 页面 id。 */
         const val PAGE_ID: String = "dev.mmcl.page.settings"
+
+        /** 下载限速设置键（KB/s，0 = 不限）。 */
+        const val LIMIT_KEY: String = "download.maxKbPerSecond"
     }
 
     @Composable
@@ -104,6 +112,40 @@ class SettingsPage(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
+                SectionTitle("下载")
+                var limitText by remember(settings) {
+                    mutableStateOf(settings?.getString(LIMIT_KEY)?.takeIf { it.isNotBlank() } ?: "0")
+                }
+                var limitSaved by remember { mutableStateOf(false) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+                ) {
+                    OutlinedTextField(
+                        value = limitText,
+                        onValueChange = { value ->
+                            limitText = value.filter { it.isDigit() }
+                            limitSaved = false
+                        },
+                        label = { Text("限速（KB/s，0 = 不限）") },
+                        singleLine = true,
+                        modifier = Modifier.width(240.dp),
+                    )
+                    Button(
+                        onClick = {
+                            settings?.putString(LIMIT_KEY, limitText.ifBlank { "0" })
+                            limitSaved = true
+                        },
+                        enabled = settings != null,
+                    ) { Text(if (limitSaved) "已保存" else "保存") }
+                }
+                Text(
+                    text = "所有并发下载共享这个总速率；改动在下次下载开始时生效。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
                 SectionTitle("关于")
                 InfoRow("版本", launcher.version)
