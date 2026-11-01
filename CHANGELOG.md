@@ -21,6 +21,16 @@
 - `Instance` 增加 `lastLaunchedAtEpochMillis`（旧 `instances.json` 直接用默认值 0 兼容），
   `InstanceService` 增加 `markLaunched(id)` 与 `recent(limit)`，启动成功后自动记录
 
+### 修复
+
+- `app/build.gradle.kts` 不再在配置阶段强查 JDK 27 工具链：`launcherFor{...}.getOrNull()` 在找不到匹配
+  工具链时实际会抛 `ToolchainProvisioningException`，导致没有 JDK 27 的机器连 `help` 都跑不了；
+  现改为捕获异常，并按**实际打包 JDK 的主版本**决定是否把 `0.x` 映射成 `1.x`
+- `-PpackageJdk` 支持 JDK 根目录 / `bin` 目录 / `java` 路径三种写法；路径非法时打告警并继续，
+  不再退化成 `Task 'Files\Eclipse' not found` 这种误导性报错
+- 打包格式按宿主平台选择（Windows `Msi` / macOS `Dmg` / Linux `Deb`）：原脚本硬编码 `Dmg`，
+  Windows 上 `packageMsi` 任务根本不存在
+
 ### 移除
 
 - `hello` 示例插件不再随应用内置（模块保留，开发时可手动安装）

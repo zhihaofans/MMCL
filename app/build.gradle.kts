@@ -10,27 +10,88 @@ plugins {
 
 val launcherVersion = providers.gradleProperty("version").getOrElse("0.0.0-dev")
 
-// jpackage 在 JDK 24~26 上拒绝首段为 0 的 app-version（JDK-8380634，JDK 27 已修复）。
-// 打包优先用本机装好的 JDK 27（Gradle 会自动发现 ~/Library/Java/JavaVirtualMachines 下的 JDK）；
-// 没有 27 时退回当前 JDK，并只在这条退路上把安装包版本映射成 1.x。
+// ---------------------------------------------------------------------------
+// 打包 JDK 解析
+//
+// jpackage 在 JDK 24~26 上拒绝首段为 0 的 app-version（JDK-8380634，JDK 27 已修复），
+// 所以只有当“实际用于打包的 JDK”主版本落在 24..26 时，才把版本映射成 1.x。
+// 解析顺序：-PpackageJdk=<JDK 目录> → 自动发现的 JDK 27 → 当前运行 Gradle 的 JDK。
+//
+// 两个坑（都踩过）：
+// 1) launcherFor{...}.getOrNull() 在“找不到匹配工具链”时**不是**返回 null，而是抛
+//    ToolchainProvisioningException。该表达式在配置阶段求值，一旦抛出，连 help/assemble 都跑不了。
+// 2) Windows 上传 -PpackageJdk=C:\Program Files\... 若不加引号，会被 shell 按空格切成多个参数，
+//    Gradle 把 "Files\Eclipse" 当成任务名，报 “Task 'Files\Eclipse' not found”，与 JDK 毫无关系。
+// ---------------------------------------------------------------------------
 val toolchains = extensions.getByType<JavaToolchainService>()
-val packagingJdkHome: String? =
-    providers.gradleProperty("packageJdk").orNull?.takeIf { it.isNotBlank() }
-        ?: toolchains
-            .launcherFor { languageVersion.set(JavaLanguageVersion.of(27)) }
-            .getOrNull()
-            ?.metadata
-            ?.installationPath
-            ?.asFile
-            ?.absolutePath
 
-// 兜底映射：0.0.1 -> 1.0.1（仅在找不到 JDK 27 时使用）
+/** 允许传 JDK 根目录、bin 目录或 java(.exe) 路径；不合法返回 null。 */
+fun normalizeJdkHome(raw: String?): File? {
+    val text = raw?.trim()?.trim('"')?.trim('\'')?.takeIf { it.isNotEmpty() } ?: return null
+    var dir = File(text)
+    if (dir.isFile) dir = dir.parentFile ?: return null
+    if (dir.name.equals("bin", ignoreCase = true)) dir = dir.parentFile ?: return null
+    val exe = if (System.getProperty("os.name").lowercase().contains("win")) "java.exe" else "java"
+    return dir.takeIf { File(it, "bin/$exe").isFile }
+}
+
+/** 从 <jdk>/release 读 JAVA_VERSION，避开启动 JVM 的开销。 */
+fun jdkMajorVersion(home: File): Int? {
+    val release = File(home, "release")
+    if (!release.isFile) return null
+    val value =
+        release.useLines { lines -> lines.firstOrNull { it.startsWith("JAVA_VERSION=") } }
+            ?.substringAfter('=')
+            ?.trim()
+            ?.trim('"')
+            ?: return null
+    return if (value.startsWith("1.")) {
+        value.removePrefix("1.").substringBefore('.').toIntOrNull()
+    } else {
+        value.substringBefore('.').toIntOrNull()
+    }
+}
+
+val requestedJdkRaw: String? = providers.gradleProperty("packageJdk").orNull
+val requestedJdk: File? = normalizeJdkHome(requestedJdkRaw)
+if (requestedJdkRaw != null && requestedJdk == null) {
+    logger.warn(
+        "忽略 -PpackageJdk=$requestedJdkRaw：不是有效的 JDK 目录（需要包含 bin${File.separator}java）。" +
+            "Windows 下路径含空格必须整体加引号，例如：\n" +
+            "  gradlew.bat build \"-PpackageJdk=C:\\Program Files\\Eclipse Adoptium\\jdk-21\"",
+    )
+}
+
+val packagingJdkHome: File? =
+    requestedJdk
+        ?: runCatching {
+            toolchains
+                .launcherFor { languageVersion.set(JavaLanguageVersion.of(27)) }
+                .getOrNull()
+                ?.metadata
+                ?.installationPath
+                ?.asFile
+        }.getOrNull()
+
+val packagingJdkMajor: Int = packagingJdkHome?.let(::jdkMajorVersion) ?: Runtime.version().feature()
+
+// JDK 24/25/26 的 jpackage 不接受首段为 0 的版本号：0.0.1 -> 1.0.1；其它情况保留真实版本
+val needsVersionMapping: Boolean = packagingJdkMajor in 24..26
 val bundleVersion: String =
     run {
         val parts = launcherVersion.split(".")
         val major = parts.firstOrNull()?.toIntOrNull() ?: 0
-        if (major == 0) "1." + parts.drop(1).joinToString(".").ifBlank { "0.0" } else launcherVersion
+        if (needsVersionMapping && major == 0) {
+            "1." + parts.drop(1).joinToString(".").ifBlank { "0.0" }
+        } else {
+            launcherVersion
+        }
     }
+
+logger.info(
+    "打包 JDK：${packagingJdkHome?.absolutePath ?: "<未指定，使用 Gradle 当前 JDK>"}，" +
+        "主版本 $packagingJdkMajor，安装包版本 ${if (needsVersionMapping) bundleVersion else launcherVersion}",
+)
 
 dependencies {
     implementation(project(":api"))
@@ -120,19 +181,24 @@ tasks.named("check") {
     dependsOn(verifyPluginJars)
 }
 
+// 按宿主平台选打包格式：Windows 上 packageMsi 才能真正产出安装包（需要 WiX 3.x）
+val hostOsName = System.getProperty("os.name").lowercase()
+val hostTargetFormat =
+    when {
+        hostOsName.contains("win") -> org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi
+        hostOsName.contains("mac") -> org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg
+        else -> org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb
+    }
+
 compose.desktop {
     application {
         mainClass = "dev.mmcl.app.MainKt"
         jvmArgs += listOf("-Dapple.awt.application.name=MMCL")
-        if (packagingJdkHome != null) {
-            javaHome = packagingJdkHome
-        }
+        packagingJdkHome?.let { javaHome = it.absolutePath }
         nativeDistributions {
-            // 先只出 macOS（当前优先平台）；Windows/Linux 以后再按平台分支
-            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg)
+            targetFormats(hostTargetFormat)
             packageName = "MMCL"
-            // 用 JDK 27 打包时可以保持真实版本；否则退回 1.x 映射
-            packageVersion = if (packagingJdkHome != null) launcherVersion else bundleVersion
+            packageVersion = if (needsVersionMapping) bundleVersion else launcherVersion
             description = "插件化的 Minecraft Java 启动器"
             vendor = "MMCL"
             macOS {
