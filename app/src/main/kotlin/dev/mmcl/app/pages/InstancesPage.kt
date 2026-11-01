@@ -239,8 +239,8 @@ class InstancesPage(
         fun downloadJava(required: Int) {
             val installer = javaInstaller
             val context = launchContext
-            val provider = javaSources?.current()
-            if (installer == null || context == null || provider == null) {
+            val sources = javaSources
+            if (installer == null || context == null || sources == null) {
                 javaMessage = "没有可用的运行时来源插件：去「设置」安装后重启"
                 return
             }
@@ -248,9 +248,18 @@ class InstancesPage(
             javaMessage = "正在解析 Java $required…"
             scope.launch {
                 try {
-                    val download =
-                        provider.resolve(required, context.os, context.arch)
-                            ?: error("运行时来源不支持 ${context.os} / ${context.arch}")
+                    // 镜像站常缺某个平台/版本，按优先级逐个来源问，用第一个给出的
+                    val resolved =
+                        sources.resolve(required, context.os, context.arch)
+                            ?: error(
+                                if (sources.hasProvider()) {
+                                    "没有来源支持 ${context.os} / ${context.arch}"
+                                } else {
+                                    "没有可用的运行时来源插件：去「设置」安装后重启"
+                                },
+                            )
+                    val (provider, download) = resolved
+                    javaMessage = "正在从 ${provider.displayName} 下载 Java $required…"
                     val home =
                         installer.install(required, download) { bytes ->
                             javaMessage = "已下载 ${bytes / 1024 / 1024} MB…"

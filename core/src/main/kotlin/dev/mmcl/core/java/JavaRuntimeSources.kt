@@ -1,7 +1,11 @@
 package dev.mmcl.core.java
 
+import dev.mmcl.api.Architecture
+import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.JavaRuntimeProvider
+import dev.mmcl.api.capability.RuntimeDownload
 import dev.mmcl.api.service.SettingsService
+import kotlinx.coroutines.CancellationException
 
 /**
  * Java 运行时来源的选择与排序。
@@ -36,6 +40,33 @@ class JavaRuntimeSources(
 
     /** 当前会用于下载的来源；没有任何来源插件时为 `null`。 */
     fun current(): JavaRuntimeProvider? = ordered().firstOrNull()
+
+    /**
+     * 按顺序问每个来源要下载信息，返回第一个能给出的。
+     *
+     * 镜像站经常缺某个平台或某个大版本（例如清华的 Windows 包更新比 Linux 慢），
+     * 单个来源返回 `null` 或抛异常时自动换下一个，不让用户卡在"该来源不支持"上。
+     *
+     * @return 来源与下载信息；所有来源都不支持时返回 `null`
+     */
+    suspend fun resolve(
+        majorVersion: Int,
+        os: OperatingSystem,
+        arch: Architecture,
+    ): Pair<JavaRuntimeProvider, RuntimeDownload>? {
+        for (provider in ordered()) {
+            val download =
+                try {
+                    provider.resolve(majorVersion, os, arch)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (t: Throwable) {
+                    null
+                }
+            if (download != null) return provider to download
+        }
+        return null
+    }
 
     /**
      * 用户显式选中、且当前确实存在的来源 id；没选、选了 `auto`，或选中的插件已被卸载时返回 `null`。

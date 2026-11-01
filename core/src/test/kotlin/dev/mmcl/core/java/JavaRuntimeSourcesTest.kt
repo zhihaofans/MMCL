@@ -5,6 +5,7 @@ import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.RuntimeDownload
 import dev.mmcl.core.settings.InMemorySettingsService
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -14,12 +15,17 @@ class JavaRuntimeSourcesTest {
         override val id: String,
         override val priority: Int = 100,
         override val displayName: String = id,
+        private val download: RuntimeDownload? = null,
+        private val failWith: String? = null,
     ) : JavaRuntimeProvider {
         override suspend fun resolve(
             majorVersion: Int,
             os: OperatingSystem,
             arch: Architecture,
-        ): RuntimeDownload? = null
+        ): RuntimeDownload? {
+            failWith?.let { error(it) }
+            return download
+        }
     }
 
     private val settings = InMemorySettingsService()
@@ -59,6 +65,40 @@ class JavaRuntimeSourcesTest {
 
         assertNull(sources.selectedId())
         assertEquals("a", sources.current()?.id)
+    }
+
+    @Test
+    fun `按顺序问每个来源，返回第一个能给出的`() = runTest {
+        val sources =
+            sources(
+                FakeProvider("a", 100),
+                FakeProvider("b", 200, download = RuntimeDownload(url = "https://example.invalid/b.zip")),
+            )
+
+        val resolved = sources.resolve(21, OperatingSystem.LINUX, Architecture.X86_64)
+
+        assertEquals("b", resolved?.first?.id)
+        assertEquals("https://example.invalid/b.zip", resolved?.second?.url)
+    }
+
+    @Test
+    fun `某个来源抛异常时换下一个`() = runTest {
+        val sources =
+            sources(
+                FakeProvider("broken", 100, failWith = "镜像挂了"),
+                FakeProvider("ok", 200, download = RuntimeDownload(url = "https://example.invalid/ok.zip")),
+            )
+
+        val resolved = sources.resolve(21, OperatingSystem.LINUX, Architecture.X86_64)
+
+        assertEquals("ok", resolved?.first?.id)
+    }
+
+    @Test
+    fun `所有来源都不支持时返回 null`() = runTest {
+        val sources = sources(FakeProvider("a", 100), FakeProvider("b", 200))
+
+        assertNull(sources.resolve(21, OperatingSystem.MACOS, Architecture.ARM64))
     }
 
     @Test

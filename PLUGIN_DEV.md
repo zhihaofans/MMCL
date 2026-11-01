@@ -276,6 +276,8 @@ interface JavaRuntimeProvider {
     Dragonwell / Oracle OpenJDK
   - `plugins/runtime-mirror`：国内镜像——清华 TUNA / 中科大 USTC 的 Temurin、华为云的 Oracle OpenJDK。
     镜像站没有"最新版"接口，插件读目录列表按版本号挑最高的一个
+- 装了多个来源时，core 按顺序逐个调 `resolve`，用**第一个给出下载信息**的：
+  某个来源不支持该平台或抛异常就换下一个，镜像站缺包不会让用户卡在"该来源不支持"
 
 - UI 插件还可以注册 `UiWidget` 往固定插槽加内容（`UiSlot.TOP_BAR` / `STATUS_BAR` / `HOME`）：
 
