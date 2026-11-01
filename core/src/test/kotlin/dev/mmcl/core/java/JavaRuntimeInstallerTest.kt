@@ -100,6 +100,23 @@ class JavaRuntimeInstallerTest {
     }
 
     @Test
+    fun `OS_ARCH 为空时视为缺失而不是误杀`() = runTest {
+        val release = "JAVA_VERSION=\"25.0.1\"\nOS_NAME=\"Mac OS X\"\nOS_ARCH=\"\""
+        val target = installerFor(zipFixture("jdk-25/release", release)).install(25, RuntimeDownload(url = "https://example.invalid/jdk.zip"))
+
+        assertTrue(Files.isRegularFile(target.resolve("release")))
+    }
+
+    @Test
+    fun `平台不符时报错`() = runTest {
+        val release = "JAVA_VERSION=\"25.0.1\"\nOS_NAME=\"Linux\"\nOS_ARCH=\"aarch64\""
+
+        assertFailsWith<IOException> {
+            installerFor(zipFixture("jdk-25/release", release)).install(25, RuntimeDownload(url = "https://example.invalid/jdk.zip"))
+        }
+    }
+
+    @Test
     fun `版本低于要求时报错`() = runTest {
         val bytes = zipFixture("jdk-17/release", "JAVA_VERSION=\"17.0.12\"")
 

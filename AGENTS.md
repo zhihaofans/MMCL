@@ -242,6 +242,8 @@
   示例只订阅事件、不打日志以外的副作用
 - **下载任务状态不能放 Compose 页面里**：`remember` + 页面协程会在切页时取消下载；用 core 的
   `DownloadsService`（应用级作用域 + `StateFlow`），页面只订阅
+- **运行时来源回退要覆盖安装阶段**：只在 `resolve` 返回 null 时换源不够——来源给错平台/损坏包时
+  是解压或平台校验阶段才失败；用 `JavaRuntimeSources.installFirst`，别在页面里手写“解析 + 安装”
 - **重试要排除确定性失败**：SHA-1 不符、404/403 重试只会浪费时间；`FileDownloader` 只对
   网络错误 / 429 / 5xx 重试，测试里的 500-then-200 场景覆盖了这条
 - **运行时解压必须防穿越、处理符号链接**：tar.gz 用 commons-compress，条目路径要

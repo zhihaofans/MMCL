@@ -12,13 +12,13 @@ class DirectoryLauncherTest {
 
     @Test
     fun `macOS 用 open`() {
-        assertEquals(listOf("open", "/tmp/mmcl plugins"), DirectoryLauncher(OperatingSystem.MACOS).command(dir))
+        assertEquals(listOf("open", dir.toString()), DirectoryLauncher(OperatingSystem.MACOS).command(dir))
     }
 
     @Test
     fun `Windows 用 explorer`() {
         assertEquals(
-            listOf("explorer.exe", "/tmp/mmcl plugins"),
+            listOf("explorer.exe", dir.toString()),
             DirectoryLauncher(OperatingSystem.WINDOWS).command(dir),
         )
     }
@@ -26,7 +26,7 @@ class DirectoryLauncherTest {
     @Test
     fun `Linux 用 xdg-open`() {
         assertEquals(
-            listOf("xdg-open", "/tmp/mmcl plugins"),
+            listOf("xdg-open", dir.toString()),
             DirectoryLauncher(OperatingSystem.LINUX).command(dir),
         )
     }

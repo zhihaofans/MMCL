@@ -5,7 +5,10 @@ import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.RuntimeDownload
 import dev.mmcl.api.service.SettingsService
+import java.io.IOException
+import java.nio.file.Path
 import kotlinx.coroutines.CancellationException
+import org.slf4j.Logger
 
 /**
  * Java 运行时来源的选择与排序。
@@ -23,6 +26,7 @@ import kotlinx.coroutines.CancellationException
 class JavaRuntimeSources(
     private val providers: () -> List<JavaRuntimeProvider>,
     private val settings: SettingsService? = null,
+    private val logger: Logger? = null,
 ) {
     /** 全部来源，按优先级排序（不受用户选择影响），供设置页展示。 */
     fun all(): List<JavaRuntimeProvider> =
@@ -60,10 +64,55 @@ class JavaRuntimeSources(
                     provider.resolve(majorVersion, os, arch)
                 } catch (e: CancellationException) {
                     throw e
-                } catch (t: Throwable) {
+                } catch (t: Exception) {
+                    logger?.warn("运行时来源 {} 解析失败，尝试下一个：{}", provider.id, t.message)
                     null
                 }
             if (download != null) return provider to download
+        }
+        return null
+    }
+
+    /**
+     * 逐个来源“解析 + 安装”，返回第一个装成功的来源与安装目录。
+     *
+     * 与 [resolve] 的区别：安装阶段失败（最常见是来源给了错误平台的包、平台校验抛错）也会换下一个来源，
+     * 而不是把错误直接甩给用户。
+     *
+     * @return 没有任何来源能提供下载时返回 `null`
+     * @throws IOException 有来源尝试过但全部失败（信息里带最后一个错误）
+     */
+    suspend fun installFirst(
+        majorVersion: Int,
+        os: OperatingSystem,
+        arch: Architecture,
+        installer: JavaRuntimeInstaller,
+        onProgress: suspend (Long) -> Unit = {},
+    ): Pair<JavaRuntimeProvider, Path>? {
+        var lastError: Exception? = null
+        for (provider in ordered()) {
+            val download =
+                try {
+                    provider.resolve(majorVersion, os, arch)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (t: Exception) {
+                    logger?.warn("运行时来源 {} 解析失败，尝试下一个：{}", provider.id, t.message)
+                    lastError = t
+                    continue
+                }
+                    ?: continue
+            try {
+                return provider to installer.install(majorVersion, download, onProgress)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Exception) {
+                logger?.warn("运行时来源 {} 安装失败，尝试下一个：{}", provider.id, t.message)
+                lastError = t
+            }
+        }
+        if (lastError != null) {
+            throw IOException("所有运行时来源都失败了：${lastError.message}", lastError)
         }
         return null
     }

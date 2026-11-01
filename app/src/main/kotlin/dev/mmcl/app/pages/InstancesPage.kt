@@ -248,9 +248,11 @@ class InstancesPage(
             javaMessage = "正在解析 Java $required…"
             scope.launch {
                 try {
-                    // 镜像站常缺某个平台/版本，按优先级逐个来源问，用第一个给出的
-                    val resolved =
-                        sources.resolve(required, context.os, context.arch)
+                    // 镜像站常缺某个平台/版本；安装期失败（例如错平台的包）也会自动换下一个来源
+                    val installed =
+                        sources.installFirst(required, context.os, context.arch, installer) { bytes ->
+                            javaMessage = "已下载 ${bytes / 1024 / 1024} MB…"
+                        }
                             ?: error(
                                 if (sources.hasProvider()) {
                                     "没有来源支持 ${context.os} / ${context.arch}"
@@ -258,13 +260,8 @@ class InstancesPage(
                                     "没有可用的运行时来源插件：去「设置」安装后重启"
                                 },
                             )
-                    val (provider, download) = resolved
-                    javaMessage = "正在从 ${provider.displayName} 下载 Java $required…"
-                    val home =
-                        installer.install(required, download) { bytes ->
-                            javaMessage = "已下载 ${bytes / 1024 / 1024} MB…"
-                        }
-                    javaMessage = "Java $required 已安装"
+                    val (provider, home) = installed
+                    javaMessage = "${provider.displayName} 的 Java $required 已安装"
                     missingJava = null
                     javaBusy = false
                     pendingJavaInstance?.let { launchInstance(it) }

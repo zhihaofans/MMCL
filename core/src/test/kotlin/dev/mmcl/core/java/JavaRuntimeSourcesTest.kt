@@ -4,11 +4,21 @@ import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.RuntimeDownload
+import dev.mmcl.core.net.HttpTransport
 import dev.mmcl.core.settings.InMemorySettingsService
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.test.runTest
+import org.slf4j.LoggerFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class JavaRuntimeSourcesTest {
     private class FakeProvider(
@@ -102,10 +112,71 @@ class JavaRuntimeSourcesTest {
     }
 
     @Test
+    fun `第一个来源安装失败时换下一个`() = runTest {
+        val root = Files.createTempDirectory("mmcl-sources-install")
+        val installer =
+            JavaRuntimeInstaller(
+                transport = MapTransport(mapOf("https://bad.invalid/jdk.zip" to "not-a-zip".toByteArray(), "https://good.invalid/jdk.zip" to zipFixture())),
+                logger = LoggerFactory.getLogger("test"),
+                runtimeRoot = root.resolve("runtime"),
+                os = OperatingSystem.MACOS,
+                arch = Architecture.ARM64,
+            )
+        val bad = FakeProvider("bad", 100, download = RuntimeDownload(url = "https://bad.invalid/jdk.zip"))
+        val good = FakeProvider("good", 200, download = RuntimeDownload(url = "https://good.invalid/jdk.zip"))
+
+        val installed = sources(bad, good).installFirst(25, OperatingSystem.MACOS, Architecture.ARM64, installer)
+
+        assertEquals("good", installed?.first?.id)
+        assertTrue(Files.isRegularFile(installed!!.second.resolve("release")))
+    }
+
+    @Test
+    fun `所有来源安装都失败时抛 IOException`() = runTest {
+        val root = Files.createTempDirectory("mmcl-sources-install-fail")
+        val installer =
+            JavaRuntimeInstaller(
+                transport = MapTransport(mapOf("https://bad.invalid/jdk.zip" to "not-a-zip".toByteArray())),
+                logger = LoggerFactory.getLogger("test"),
+                runtimeRoot = root.resolve("runtime"),
+                os = OperatingSystem.MACOS,
+                arch = Architecture.ARM64,
+            )
+        val bad = FakeProvider("bad", 100, download = RuntimeDownload(url = "https://bad.invalid/jdk.zip"))
+
+        assertFailsWith<IOException> {
+            sources(bad).installFirst(25, OperatingSystem.MACOS, Architecture.ARM64, installer)
+        }
+    }
+
+    @Test
     fun `没有来源插件时 current 为空`() {
         val sources = sources()
 
         assertNull(sources.current())
         assertEquals(false, sources.hasProvider())
+    }
+
+    private fun zipFixture(): ByteArray {
+        val buffer = ByteArrayOutputStream()
+        ZipOutputStream(buffer).use { zip ->
+            fun add(name: String, content: String) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(content.toByteArray())
+                zip.closeEntry()
+            }
+            add("jdk-25/release", "JAVA_VERSION=\"25.0.1\"")
+            add("jdk-25/bin/java", "#!/bin/sh\n")
+        }
+        return buffer.toByteArray()
+    }
+
+    private class MapTransport(private val files: Map<String, ByteArray>) : HttpTransport {
+        override suspend fun getText(url: String): String = ""
+
+        override suspend fun downloadTo(url: String, target: Path) {
+            val bytes = files[url] ?: error("unexpected url: $url")
+            Files.write(target, bytes)
+        }
     }
 }

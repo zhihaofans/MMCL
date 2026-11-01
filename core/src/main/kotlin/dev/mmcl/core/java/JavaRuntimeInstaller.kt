@@ -49,7 +49,13 @@ class JavaRuntimeInstaller(
             val work = Files.createTempDirectory(runtimeRoot, "java-download-")
             try {
                 val extension = if (download.format == ArchiveFormat.ZIP) "zip" else "tar.gz"
-                val archive = work.resolve(download.fileName ?: "runtime-$majorVersion.$extension")
+                // 文件名来自插件：只保留 basename，再走路径校验，避免 ../../ 写到临时目录外
+                val safeName =
+                    download.fileName
+                        ?.substringAfterLast('/')
+                        ?.substringAfterLast('\\')
+                        ?.takeIf { it.isNotBlank() && it != "." && it != ".." }
+                val archive = safeResolve(work, safeName ?: "runtime-$majorVersion.$extension")
                 var received = 0L
                 transport.downloadTo(download.url, archive) { bytes ->
                     received += bytes
@@ -159,10 +165,9 @@ class JavaRuntimeInstaller(
      * 字段缺失时跳过校验：个别发行版不带这两项，不能因此拒绝安装。
      */
     private fun validatePlatform(home: Path) {
-        if (arch == Architecture.UNKNOWN) return
         val release = readReleaseProperties(home) ?: return
 
-        release["OS_NAME"]?.let { declared ->
+        release["OS_NAME"]?.takeIf { it.isNotBlank() }?.let { declared ->
             val name = declared.trim('"').lowercase()
             val matches =
                 when (os) {
@@ -177,8 +182,10 @@ class JavaRuntimeInstaller(
             }
         }
 
-        release["OS_ARCH"]?.let { declared ->
-            if (normalizeArch(declared.trim('"')) != normalizeArch(arch.name.lowercase())) {
+        release["OS_ARCH"]?.takeIf { it.isNotBlank() }?.let { declared ->
+            if (arch != Architecture.UNKNOWN &&
+                normalizeArch(declared.trim('"')) != normalizeArch(arch.name.lowercase())
+            ) {
                 throw IOException(
                     "下载到的运行时是 $declared 架构，当前架构是 ${arch.name.lowercase()}：来源可能给错了平台的包",
                 )
