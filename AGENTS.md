@@ -33,6 +33,7 @@
   - `ARCHITECTURE.md`：架构与边界，冲突时以它为准
   - `UI_DESIGN.md`：界面外壳与主题化方案（含分期与安全阀）
   - `PLUGIN_DEV.md`：插件开发指南
+  - `BUILD_WINDOWS.md`：Windows 上的编译、测试、运行与打包手册（含网络镜像、jpackage 版本限制等坑）
   - `TODO.md`：**唯一未完成清单**，分「进行中 / 待办 / 阻塞」；完成一项就**从 TODO 删除**并在 CHANGELOG 记一条，不留已完成的勾选
   - `CHANGELOG.md`：Keep a Changelog 格式，每次改动先写进 `[Unreleased]`，发版时归档
 

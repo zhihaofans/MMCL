@@ -20,6 +20,7 @@
   （安装新版本 / 下载 / 插件 / 设置）；「启动」跳转游戏页执行，日志与停止只有一份实现
 - `Instance` 增加 `lastLaunchedAtEpochMillis`（旧 `instances.json` 直接用默认值 0 兼容），
   `InstanceService` 增加 `markLaunched(id)` 与 `recent(limit)`，启动成功后自动记录
+- `BUILD_WINDOWS.md`：Windows 上的编译、测试、运行与打包手册
 
 ### 修复
 
