@@ -13,6 +13,7 @@
 
 ### 修复
 
+- Linux「打开插件目录」：优先系统文件管理器（Thunar 等），找不到再退回 `xdg-open`，避免被 `$BROWSER` 当成网页打开
 - 版本映射只在手动 `-PpackageJdk` 指定 JDK < 27 且在 macOS 打包时触发（实测 JDK 21 同样拒绝 0.x）；
   默认 JDK 27 下三平台都不映射
 
@@ -24,6 +25,7 @@
 - 设置页「Java 运行时来源」增加「自动（按优先级）」选项，选错可一键回到自动
 - 「打开插件目录」移到 IO 线程执行，不再阻塞界面
 - 运行时安装按魔数识别 zip / tar.gz：来源把格式标错也能正确解压
+- 文档重整：`TODO.md` 补可玩闭环、启动参数／日志／修复、整合包与阻塞决策；去掉对其它启动器项目的对照表述（含 `UI_DESIGN.md`／`CHANGELOG` 历史措辞）
 
 ### 修复
 
@@ -101,7 +103,7 @@
   能力接口（`AuthProvider` / `DownloadSource` / `LoaderInstaller`）、内置事件
 - `core`：`ServiceLoader` 插件发现、依赖拓扑排序（含循环/缺失标记）、生命周期异常隔离、
   事件总线、服务注册表、跨平台数据目录、内置插件同步（带清单清理）、`FileSettingsService`
-- `app`：HMCL 式外壳（左导航 / 顶栏 / 内容区 / 状态栏），内置 游戏 / 下载 / 插件 / 设置 四页
+- `app`：外壳布局（左导航 / 顶栏 / 内容区 / 状态栏），内置 游戏 / 下载 / 插件 / 设置 四页
 - `api-ui` + `ui-kit`：`UiPage` / `AppNavigator` / `LauncherTheme` 契约，以及调色板、图标映射、
   `PageScaffold`、`EmptyState`、`SimpleLauncherTheme`
 - 主题：`ThemeController` 热切换 + 持久化，内置深色/浅色；插件主题示例 `plugins/theme-sakura`

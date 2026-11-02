@@ -24,10 +24,18 @@ class DirectoryLauncherTest {
     }
 
     @Test
-    fun `Linux 用 xdg-open`() {
+    fun `Linux 无文件管理器时退回 xdg-open`() {
         assertEquals(
             listOf("xdg-open", dir.toString()),
-            DirectoryLauncher(OperatingSystem.LINUX).command(dir),
+            DirectoryLauncher(OperatingSystem.LINUX, resolveLinuxFileManager = { null }).command(dir),
+        )
+    }
+
+    @Test
+    fun `Linux 优先用解析到的文件管理器`() {
+        assertEquals(
+            listOf("/usr/bin/thunar", dir.toString()),
+            DirectoryLauncher(OperatingSystem.LINUX, resolveLinuxFileManager = { "/usr/bin/thunar" }).command(dir),
         )
     }
 
@@ -37,7 +45,8 @@ class DirectoryLauncherTest {
         val target = base.resolve("plugins").resolve("nested")
         val started = mutableListOf<List<String>>()
 
-        val result = DirectoryLauncher(OperatingSystem.LINUX) { started += it }.open(target)
+        val result =
+            DirectoryLauncher(OperatingSystem.LINUX, { started += it }, { null }).open(target)
 
         assertTrue(result.isSuccess, result.exceptionOrNull()?.message.orEmpty())
         assertTrue(Files.isDirectory(target))
@@ -51,7 +60,7 @@ class DirectoryLauncherTest {
     @Test
     fun `起进程失败时返回失败而不是抛异常`() {
         val result =
-            DirectoryLauncher(OperatingSystem.LINUX) { error("no file manager") }
+            DirectoryLauncher(OperatingSystem.LINUX, { error("no file manager") }, { null })
                 .open(Files.createTempDirectory("mmcl-dir-launcher"))
 
         assertTrue(result.isFailure)
