@@ -7,6 +7,13 @@
 
 ### 新增
 
+- 空下载源引导：首页 / 下载页 / 游戏页在没有任何 `VersionManifestSource` 时给出三步说明
+  （编译 `source-mojang` → 放进插件目录 → 重启），带「打开插件目录」与「复制命令」按钮
+- 实例「校验/修复」：按 SHA-1 重新核对共享文件，完好的跳过、缺失或损坏的重下，任务走后台下载队列
+- 启动参数面板：每个实例可覆盖堆上限、额外 JVM 参数、额外环境变量（`KEY=VALUE` 每行一条），
+  环境变量在拉起游戏进程时注入
+- 日志面板：新增「复制」「导出…」「停止」「强制结束」；强制结束用于游戏卡死、`stop()` 不生效时
+- 断点续传：下载重试从已写长度用 `Range` 续传，服务器不支持时自动整份重下；SHA-1 不符的残留会被清掉
 - Windows 安装包配置：`windows { upgradeUuid（固定）, menuGroup, perUserInstall, dirChooser }`
 - GitHub Actions 三平台打包（`.github/workflows/package.yml`）：手动触发或推送版本 tag 时产出
   dmg / msi / deb 并上传 artifact；macOS job 额外用 JDK 27 打包，三个平台版本号一致（`0.0.2`）
