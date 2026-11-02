@@ -66,6 +66,7 @@ class DownloadsPage(
     private val instanceService: InstanceService? = null,
     private val intent: NavigationIntent? = null,
     private val autoLoad: Boolean = false,
+    private val pluginFolder: PluginFolder? = null,
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "下载"
@@ -143,10 +144,9 @@ class DownloadsPage(
                             hint = "点右上角「刷新版本清单」，选择版本安装",
                         )
                     } else {
-                        EmptyState(
-                            icon = UiIcon.DOWNLOAD,
-                            text = "没有可用的版本源",
-                            hint = "应用不内置任何下载地址：去「设置」里安装下载源插件",
+                        NoSourceGuide(
+                            folder = pluginFolder,
+                            modifier = Modifier.padding(MmclSpacing.m),
                         )
                     }
 

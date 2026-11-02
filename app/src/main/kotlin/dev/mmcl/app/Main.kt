@@ -14,12 +14,14 @@ import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.InstancesPage
+import dev.mmcl.app.pages.PluginFolder
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
 import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.builtin.BuiltinPluginSync
+import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.platform.Platforms
 import dev.mmcl.core.plugin.PluginManager
 import dev.mmcl.core.plugin.PluginState
@@ -66,6 +68,9 @@ fun main(args: Array<String>) {
 
     val pluginsDir = launcher.dataDir.resolve("plugins")
     BuiltinPluginSync.sync(pluginsDir, logger)
+    // 页面用的插件目录入口：装源插件、装运行时来源都要它
+    val pluginFolder =
+        PluginFolder(path = pluginsDir) { DirectoryLauncher(launcher.os).open(pluginsDir) }
 
     val manager = PluginManager(launcher, logger, settings = settings)
     val plugins =
@@ -161,6 +166,7 @@ fun main(args: Array<String>) {
                 authProviders = authProviders,
                 playerName = settings.getString("player.name") ?: "Player",
                 intent = intent,
+                pluginFolder = pluginFolder,
             ),
             InstancesPage(
                 manifests = manifestService,
@@ -174,6 +180,8 @@ fun main(args: Array<String>) {
                 authProviders = authProviders,
                 intent = intent,
                 autoLoad = true,
+                pluginFolder = pluginFolder,
+                downloads = downloads,
             ),
             DownloadsPage(
                 manifests = manifestService,
@@ -181,6 +189,7 @@ fun main(args: Array<String>) {
                 instanceService = instanceService,
                 intent = intent,
                 autoLoad = true,
+                pluginFolder = pluginFolder,
             ),
             PluginsPage(plugins),
             SettingsPage(launcher, themeController, safeMode, manifestService, settings, javaSources),

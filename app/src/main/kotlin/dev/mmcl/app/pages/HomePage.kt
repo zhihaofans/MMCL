@@ -51,6 +51,7 @@ class HomePage(
     private val playerName: String = "Player",
     private val intent: NavigationIntent? = null,
     private val widgets: List<UiWidget> = emptyList(),
+    private val pluginFolder: PluginFolder? = null,
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "首页"
@@ -92,6 +93,10 @@ class HomePage(
                     )
                 }
                 TextButton(onClick = { navigator.navigate(SettingsPage.PAGE_ID) }) { Text("设置") }
+            }
+
+            if (sourceCount == 0) {
+                NoSourceGuide(folder = pluginFolder)
             }
 
             if (recent.isEmpty()) {

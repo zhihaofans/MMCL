@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +42,7 @@ import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.core.java.JavaRuntimeInstaller
 import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.launch.LaunchRequest
@@ -51,6 +55,8 @@ import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
+import java.awt.FileDialog
+import java.awt.Frame
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.delay
@@ -88,6 +94,8 @@ class InstancesPage(
     private val authProviders: List<AuthProvider> = emptyList(),
     private val intent: NavigationIntent? = null,
     private val autoLoad: Boolean = false,
+    private val pluginFolder: PluginFolder? = null,
+    private val downloads: DownloadsService? = null,
 ) : UiPage {
     override val id: String = INSTANCES_PAGE_ID
     override val title: String = "游戏"
@@ -106,6 +114,7 @@ class InstancesPage(
         var launchStatus by remember { mutableStateOf<String?>(null) }
         var instances by remember { mutableStateOf<List<Instance>>(emptyList()) }
         var pendingDelete by remember { mutableStateOf<Instance?>(null) }
+        var editingParams by remember { mutableStateOf<Instance?>(null) }
         var runningSession by remember { mutableStateOf<LaunchSession?>(null) }
         var runningInstanceId by remember { mutableStateOf<String?>(null) }
         var logLines by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -117,6 +126,7 @@ class InstancesPage(
         var pendingJavaInstance by remember { mutableStateOf<Instance?>(null) }
         var autoLoadTriggered by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
+        val clipboard = LocalClipboardManager.current
         val hasSource = manifests?.hasSource() == true
 
         fun refreshInstances() {
@@ -146,6 +156,19 @@ class InstancesPage(
         fun openDownloads(versionId: String? = null) {
             if (versionId != null) intent?.requestDownload(versionId)
             navigator.navigate(DownloadsPage.PAGE_ID)
+        }
+
+        /** 校验并修复：重新规划文件后由下载器跳过完好文件、补下缺失与损坏的。 */
+        fun repairInstance(instance: Instance) {
+            val queue = downloads
+            if (queue == null) {
+                launchStatus = "下载队列未接线，无法校验"
+                return
+            }
+            val manifest = (state as? ManifestUiState.Loaded)?.manifest
+            val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
+            queue.enqueue(entry, forceRefresh = true)
+            launchStatus = "已加入校验/修复队列：${instance.versionId}，进度见「下载」页"
         }
 
         fun launchInstance(instance: Instance) {
@@ -194,6 +217,9 @@ class InstancesPage(
                                 os = context.os,
                                 arch = context.arch,
                                 auth = auth,
+                                maxMemoryMb = instance.memoryMb ?: DEFAULT_MEMORY_MB,
+                                extraJvmArgs = splitJvmArgs(instance.extraJvmArgs),
+                                environment = parseEnvVars(instance.envVars),
                             ),
                         )
                     runCatching { service.markLaunched(instance.id) }
@@ -304,10 +330,11 @@ class InstancesPage(
                 )
 
                 if (!hasSource) {
+                    NoSourceGuide(folder = pluginFolder)
                     Text(
-                        text = "未安装下载源插件：只能启动本机已装好的实例；去「设置」安装下载源插件后重启",
+                        text = "没有下载源时仍可启动本机已装好的实例。",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -346,6 +373,8 @@ class InstancesPage(
                             missingFiles = !hasFiles(instance),
                             running = runningInstanceId == instance.id,
                             onLaunch = { launchInstance(instance) },
+                            onRepair = { repairInstance(instance) },
+                            onEditParams = { editingParams = instance },
                             onDelete = { pendingDelete = instance },
                         )
                     }
@@ -358,6 +387,25 @@ class InstancesPage(
                         running = runningSession != null,
                         exitCode = exitedCode,
                         onClear = { logLines = emptyList() },
+                        onCopy = {
+                            clipboard.setText(AnnotatedString(logLines.joinToString("\n")))
+                            launchStatus = "日志已复制到剪贴板"
+                        },
+                        onExport = {
+                            launchStatus =
+                                exportLog(logLines.joinToString("\n")).fold(
+                                    onSuccess = { "日志已导出到 $it" },
+                                    onFailure = { "导出失败：${it.message ?: it::class.simpleName}" },
+                                )
+                        },
+                        onStop = {
+                            runningSession?.stop()
+                            launchStatus = "已请求停止游戏"
+                        },
+                        onForceStop = {
+                            runningSession?.forceStop()
+                            launchStatus = "已强制结束游戏进程"
+                        },
                     )
                 }
 
@@ -419,6 +467,24 @@ class InstancesPage(
             }
         }
 
+        editingParams?.let { target ->
+            LaunchParamsDialog(
+                instance = target,
+                onDismiss = { editingParams = null },
+                onSave = { memory, jvmArgs, envVars ->
+                    val ok = instanceService?.updateLaunchSettings(target.id, memory, jvmArgs, envVars) == true
+                    editingParams = null
+                    refreshInstances()
+                    launchStatus =
+                        if (ok) {
+                            "已保存 ${target.name} 的启动参数"
+                        } else {
+                            "保存启动参数失败：实例可能已被删除"
+                        }
+                },
+            )
+        }
+
         pendingDelete?.let { target ->
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
@@ -447,6 +513,8 @@ internal fun InstanceCard(
     missingFiles: Boolean = false,
     running: Boolean,
     onLaunch: () -> Unit,
+    onRepair: (() -> Unit)? = null,
+    onEditParams: (() -> Unit)? = null,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -474,9 +542,84 @@ internal fun InstanceCard(
             }
         }
         Button(onClick = onLaunch, enabled = !running) { Text(if (running) "运行中" else "启动") }
+        onRepair?.let { TextButton(onClick = it, enabled = !running) { Text("校验/修复") } }
+        onEditParams?.let { TextButton(onClick = it, enabled = !running) { Text("参数") } }
         TextButton(onClick = onDelete, enabled = !running) { Text("删除") }
     }
 }
 
 /** 实例页的固定页面 id（首页等其它页面跳转用）。 */
 const val INSTANCES_PAGE_ID: String = "dev.mmcl.page.instances"
+
+/** 用系统"另存为"对话框导出日志；取消或不选路径时返回失败原因。 */
+private fun exportLog(text: String): Result<Path> =
+    runCatching {
+        val dialog = FileDialog(null as Frame?, "导出游戏日志", FileDialog.SAVE)
+        dialog.file = "latest.log"
+        dialog.isVisible = true
+        val directory = dialog.directory ?: error("没有选择保存位置")
+        val name = dialog.file ?: error("没有输入文件名")
+        val target = Path.of(directory, name)
+        Files.writeString(target, text)
+        target
+    }
+
+/** 默认堆上限（MB），与 `LaunchRequest` 的缺省值保持一致。 */
+private const val DEFAULT_MEMORY_MB = 2048
+
+/** 把空格分隔的 JVM 参数拆成列表。 */
+internal fun splitJvmArgs(raw: String): List<String> =
+    raw.split(Regex("\\s+")).filter { it.isNotBlank() }
+
+/** 把 `KEY=VALUE` 逐行解析成环境变量；忽略空行、注释与没有 `=` 的行。 */
+internal fun parseEnvVars(raw: String): Map<String, String> =
+    raw.lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains('=') }
+        .associate { line -> line.substringBefore('=').trim() to line.substringAfter('=').trim() }
+        .filterKeys { it.isNotEmpty() }
+
+/** 实例级启动参数编辑：内存上限、额外 JVM 参数、额外环境变量。 */
+@Composable
+private fun LaunchParamsDialog(
+    instance: Instance,
+    onDismiss: () -> Unit,
+    onSave: (memoryMb: Int?, extraJvmArgs: String, envVars: String) -> Unit,
+) {
+    var memoryText by remember(instance) { mutableStateOf(instance.memoryMb?.toString() ?: "") }
+    var jvmArgs by remember(instance) { mutableStateOf(instance.extraJvmArgs) }
+    var envVars by remember(instance) { mutableStateOf(instance.envVars) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("启动参数 · ${instance.name}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
+                OutlinedTextField(
+                    value = memoryText,
+                    onValueChange = { memoryText = it.filter { ch -> ch.isDigit() } },
+                    label = { Text("内存上限（MB，留空用默认 $DEFAULT_MEMORY_MB）") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = jvmArgs,
+                    onValueChange = { jvmArgs = it },
+                    label = { Text("额外 JVM 参数（空格分隔）") },
+                    placeholder = { Text("-XX:+UseG1GC") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = envVars,
+                    onValueChange = { envVars = it },
+                    label = { Text("环境变量（每行 KEY=VALUE）") },
+                    placeholder = { Text("JAVA_TOOL_OPTIONS=-Dfoo=bar") },
+                    minLines = 3,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(memoryText.toIntOrNull(), jvmArgs, envVars) }) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}

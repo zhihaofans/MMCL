@@ -40,6 +40,10 @@ internal fun GameLogPanel(
     running: Boolean,
     exitCode: Int?,
     onClear: () -> Unit,
+    onCopy: (() -> Unit)? = null,
+    onExport: (() -> Unit)? = null,
+    onStop: (() -> Unit)? = null,
+    onForceStop: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -62,7 +66,13 @@ internal fun GameLogPanel(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            onCopy?.let { TextButton(onClick = it, enabled = lines.isNotEmpty()) { Text("复制") } }
+            onExport?.let { TextButton(onClick = it, enabled = lines.isNotEmpty()) { Text("导出…") } }
             TextButton(onClick = onClear, enabled = lines.isNotEmpty()) { Text("清空") }
+            if (running) {
+                onStop?.let { TextButton(onClick = it) { Text("停止") } }
+                onForceStop?.let { TextButton(onClick = it) { Text("强制结束") } }
+            }
         }
 
         val scroll = rememberScrollState()
