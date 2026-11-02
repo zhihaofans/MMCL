@@ -6,10 +6,7 @@
 
 ## 进行中
 
-- [ ] **首次跑通** GitHub Actions 三平台打包（`.github/workflows/package.yml`）
-  - 完成定义：手动 `workflow_dispatch` 后 macOS dmg / Windows msi / Linux deb 三个 artifact 均非空且可下载
-  - 失败时在本条下附 Actions run 链接与失败 job 名
-- [ ] 拿到 MSI 后在 **Windows 11** 实机验证安装 / 升级 / 卸载（依赖上一条）
+- [ ] 拿到 MSI 后在 **Windows 11** 实机验证安装 / 升级 / 卸载（产物来自 CI 的 `MMCL-windows-msi`）
   - 完成定义：干净机安装能开、覆盖安装不丢数据目录、卸载清掉开始菜单项
 
 ## 待办

@@ -10,6 +10,8 @@
 - Windows 安装包配置：`windows { upgradeUuid（固定）, menuGroup, perUserInstall, dirChooser }`
 - GitHub Actions 三平台打包（`.github/workflows/package.yml`）：手动触发或推送版本 tag 时产出
   dmg / msi / deb 并上传 artifact；macOS job 额外用 JDK 27 打包，三个平台版本号一致（`0.0.2`）
+- 三平台安装包首次出包成功：`workflow_dispatch` 运行 `41431690295` 产出 macOS dmg / Windows msi /
+  Linux deb 三个 artifact，均可下载
 
 ### 修复
 
