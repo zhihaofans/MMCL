@@ -45,10 +45,6 @@ jobs:
           java-version: "27"
           cache: gradle
 
-      - name: Install WiX Toolset 3 (Windows MSI)
-        if: runner.os == 'Windows'
-        run: choco install wixtoolset -y --no-progress
-
       - name: Install deb tooling (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fakeroot
@@ -63,3 +59,13 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
           if-no-files-found: error
+
+      # jpackage 的 stderr 只写进这个目录，失败时打到 Actions 日志里才有线索
+      - name: Dump jpackage logs
+        if: failure()
+        shell: bash
+        run: |
+          for f in $(find app/build/compose/logs -name '*.txt' 2>/dev/null); do
+            echo "===== $f"
+            cat "$f"
+          done || true
