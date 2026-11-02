@@ -34,6 +34,38 @@ class InstanceServiceTest {
     }
 
     @Test
+    fun `保存实例级启动参数并持久化`() {
+        val instance = service.create("26.3")
+
+        val ok = service.updateLaunchSettings(instance.id, 4096, "-XX:+UseG1GC -Dfoo=bar", "JAVA_TOOL_OPTIONS=-Dx=1")
+
+        assertTrue(ok)
+        val saved = service.list().single { it.id == instance.id }
+        assertEquals(4096, saved.memoryMb)
+        assertEquals("-XX:+UseG1GC -Dfoo=bar", saved.extraJvmArgs)
+        assertEquals("JAVA_TOOL_OPTIONS=-Dx=1", saved.envVars)
+    }
+
+    @Test
+    fun `对不存在的实例保存启动参数返回 false`() {
+        assertFalse(service.updateLaunchSettings("nope", 1024, "", ""))
+    }
+
+    @Test
+    fun `旧版实例 JSON 没有启动参数字段时按默认值读出`() {
+        Files.writeString(
+            root.resolve("instances.json"),
+            """{"instances":[{"id":"old","name":"old","versionId":"26.3","createdAtEpochMillis":1,"lastLaunchedAtEpochMillis":0}]}""",
+        )
+
+        val instance = service.list().single()
+
+        assertEquals(null, instance.memoryMb)
+        assertEquals("", instance.extraJvmArgs)
+        assertEquals("", instance.envVars)
+    }
+
+    @Test
     fun `创建实例会建目录与子目录并持久化`() {
         val instance = service.create("26.3")
 

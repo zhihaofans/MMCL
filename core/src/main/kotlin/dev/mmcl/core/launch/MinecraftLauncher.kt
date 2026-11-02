@@ -26,12 +26,18 @@ class MinecraftLauncher(
     private val events: EventBus,
     private val logger: Logger,
     private val logFile: (versionId: String) -> Path? = { null },
-    private val processStarter: (List<String>, Path) -> Process = { command, directory ->
-        ProcessBuilder(command)
-            .directory(directory.toFile())
-            .redirectErrorStream(true)
-            .start()
-    },
+    private val processStarter: (List<String>, Path, Map<String, String>) -> Process =
+        { command, directory, environment ->
+            ProcessBuilder(command)
+                .directory(directory.toFile())
+                .redirectErrorStream(true)
+                .apply {
+                    if (environment.isNotEmpty()) {
+                        environment().putAll(environment)
+                    }
+                }
+                .start()
+        },
 ) {
     /**
      * 启动游戏。
@@ -50,7 +56,7 @@ class MinecraftLauncher(
         )
         val process =
             try {
-                processStarter(command.asProcessCommand(), request.instanceDir)
+                processStarter(command.asProcessCommand(), request.instanceDir, request.environment)
             } catch (t: Throwable) {
                 throw LaunchException("启动游戏进程失败：${request.detail.id}", t)
             }
@@ -185,6 +191,16 @@ class LaunchSession(
     /** 请求结束进程（正常关闭游戏窗口）。 */
     fun stop() {
         process.destroy()
+    }
+
+    /**
+     * 强制结束进程：游戏卡死、或 `stop()` 之后迟迟不退出时用。
+     *
+     * 与 [stop] 一样只发信号，不阻塞等待；进程是否真的退出仍以 [isRunning] 为准。
+     */
+    fun forceStop() {
+        process.descendants().forEach { runCatching { it.destroyForcibly() } }
+        process.destroyForcibly()
     }
 
     companion object {

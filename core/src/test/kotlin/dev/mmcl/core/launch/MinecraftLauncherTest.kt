@@ -83,7 +83,7 @@ class MinecraftLauncherTest {
         val lines = CopyOnWriteArrayList<String>()
         // 用一个真实的假进程代替 java/Minecraft：打印一行后以退出码 3 结束
         val launcher =
-            MinecraftLauncher(events, logger) { _, _ ->
+            MinecraftLauncher(events, logger) { _, _, _ ->
                 fakeGameProcess(
                     """
                             System.out.println("hello-mmcl");
@@ -112,7 +112,7 @@ class MinecraftLauncherTest {
         val exited = CountDownLatch(1)
         events.subscribe(GameExited::class) { exited.countDown() }
         val launcher =
-            MinecraftLauncher(events, logger, logFile = { logFile }) { _, _ ->
+            MinecraftLauncher(events, logger, logFile = { logFile }) { _, _, _ ->
                 fakeGameProcess(
                     """
                             Thread.sleep(600);
@@ -144,7 +144,7 @@ class MinecraftLauncherTest {
 
     @Test
     fun `进程拉不起来时抛 LaunchException`() {
-        val launcher = MinecraftLauncher(events, logger) { _, _ -> throw IllegalStateException("boom") }
+        val launcher = MinecraftLauncher(events, logger) { _, _, _ -> throw IllegalStateException("boom") }
 
         assertFailsWith<LaunchException> { launcher.launch(request()) }
     }

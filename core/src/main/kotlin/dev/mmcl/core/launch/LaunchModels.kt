@@ -33,6 +33,8 @@ data class LaunchRequest(
     val launcherName: String = "MMCL",
     val maxMemoryMb: Int = 2048,
     val extraJvmArgs: List<String> = emptyList(),
+    /** 追加给游戏进程的环境变量（会覆盖同名系统变量）。 */
+    val environment: Map<String, String> = emptyMap(),
 )
 
 /** 构建好的启动命令。 */

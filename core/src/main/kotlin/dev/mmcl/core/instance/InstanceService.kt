@@ -50,6 +50,32 @@ class InstanceService(
     fun directoryOf(instance: Instance): Path = instancesDir.resolve(instance.id)
 
     /**
+     * 更新某个实例的启动参数（覆盖默认值）。
+     *
+     * @param memoryMb 堆上限（MB）；`null` 表示回到默认
+     * @param extraJvmArgs 额外 JVM 参数，空格分隔
+     * @param envVars 额外环境变量，每行 `KEY=VALUE`
+     * @return 实例不存在时返回 `false`
+     */
+    fun updateLaunchSettings(
+        id: String,
+        memoryMb: Int?,
+        extraJvmArgs: String,
+        envVars: String,
+    ): Boolean {
+        val existing = store.load()
+        val target = existing.firstOrNull { it.id == id } ?: return false
+        val updated =
+            target.copy(
+                memoryMb = memoryMb,
+                extraJvmArgs = extraJvmArgs.trim(),
+                envVars = envVars.trim(),
+            )
+        store.save(existing.map { if (it.id == id) updated else it })
+        return true
+    }
+
+    /**
      * 新建实例（目录立即创建）。
      *
      * @param versionId 绑定的版本
