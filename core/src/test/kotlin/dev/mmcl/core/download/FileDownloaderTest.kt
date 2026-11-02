@@ -5,6 +5,9 @@ import dev.mmcl.core.net.JdkHttpTransport
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
+import dev.mmcl.core.net.HttpTransport
+import java.io.IOException
+import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.AfterTest
@@ -89,6 +92,49 @@ class FileDownloaderTest {
         assertEquals(0, report.skipped)
         assertEquals(String(okBytes), Files.readString(root.resolve("libraries/a/b.jar")))
         assertFalse(Files.exists(root.resolve("libraries/a/b.jar.mmcl-tmp")))
+    }
+
+    @Test
+    fun `重试时从已下载长度续传`() = runTest {
+        val content = ("hello-mmcl-resume-" + "x".repeat(4000)).toByteArray()
+        val expectedSha = sha1Hex(content)
+        var attempts = 0
+        var resumedFrom = -1L
+        val transport =
+            object : HttpTransport {
+                override suspend fun getText(url: String): String = ""
+
+                override suspend fun downloadTo(url: String, target: Path) {
+                    error("不该整文件重下")
+                }
+
+                override suspend fun downloadTo(url: String, target: Path, onBytes: suspend (Int) -> Unit) {
+                    error("不该整文件重下")
+                }
+
+                override suspend fun resumeTo(url: String, target: Path, onBytes: suspend (Int) -> Unit): Boolean {
+                    attempts++
+                    if (attempts == 1) {
+                        // 第一次只下了一千字节就断网
+                        Files.write(target, content.copyOf(1000))
+                        throw IOException("连接中断")
+                    }
+                    resumedFrom = Files.size(target)
+                    Files.write(target, content.copyOfRange(1000, content.size), StandardOpenOption.APPEND)
+                    onBytes(content.size - 1000)
+                    return true
+                }
+            }
+        val downloader =
+            FileDownloader(transport, logger, concurrency = 1, maxAttempts = 3, retryDelayMillis = { 0 })
+        val file = PlannedFile("big.jar", "https://example.invalid/big.jar", expectedSha, content.size.toLong())
+
+        val report = downloader.download(root, listOf(file))
+
+        assertTrue(report.isSuccess, report.failures.firstOrNull()?.error?.message.orEmpty())
+        assertEquals(2, attempts)
+        assertEquals(1000L, resumedFrom)
+        assertTrue(content.contentEquals(Files.readAllBytes(root.resolve("big.jar"))))
     }
 
     @Test

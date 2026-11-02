@@ -161,13 +161,15 @@ class FileDownloader(
                 lastError = t
                 if (!isRetryable(t) || attempt >= maxAttempts) break
                 val wait = retryDelayMillis(attempt)
+                val partial = runCatching { Files.size(temp) }.getOrDefault(0L)
                 logger.warn(
-                    "下载失败，{} ms 后重试（{}/{}）：{}（{}）",
+                    "下载失败，{} ms 后重试（{}/{}）：{}（{}，已下载 {} 字节）",
                     wait,
                     attempt,
                     maxAttempts,
                     file.relativePath,
                     t.message,
+                    partial,
                 )
                 delay(wait)
             }
@@ -184,17 +186,14 @@ class FileDownloader(
         file: PlannedFile,
         limiter: RateLimiter,
     ) {
-        Files.deleteIfExists(temp)
-        try {
-            transport.downloadTo(file.url, temp) { bytes -> limiter.acquire(bytes) }
-            if (file.sha1.isNotBlank() && !Sha1.matches(temp, file.sha1)) {
-                throw ChecksumMismatchException("SHA-1 校验失败：${file.relativePath}")
-            }
-            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
-        } catch (t: Throwable) {
+        // 不删临时文件：重试时交给 transport 从已写长度续传（断网重来最省流量的做法）
+        transport.resumeTo(file.url, temp) { bytes -> limiter.acquire(bytes) }
+        if (file.sha1.isNotBlank() && !Sha1.matches(temp, file.sha1)) {
+            // 文件是完整的但内容不对：留着只会让下次续传出错，删掉
             runCatching { Files.deleteIfExists(temp) }
-            throw t
+            throw ChecksumMismatchException("SHA-1 校验失败：${file.relativePath}")
         }
+        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
     }
 
     /** 404/403 这类错误重试没意义；网络错误、429、5xx 才重试。 */

@@ -37,6 +37,19 @@ interface HttpTransport {
     suspend fun downloadTo(url: String, target: Path, onBytes: suspend (Int) -> Unit) {
         downloadTo(url, target)
     }
+
+    /**
+     * 续传：`target` 已有部分内容时，从已写长度继续下载并追加。
+     *
+     * 用于重试大文件：断网后不必从头再来。
+     *
+     * @param onBytes 每读到一块数据的回调，调用方在这里做限速
+     * @return 是否真的续传了；返回 `false` 表示从头重下（服务器不支持 Range，或本来就没有部分文件）
+     */
+    suspend fun resumeTo(url: String, target: Path, onBytes: suspend (Int) -> Unit): Boolean {
+        downloadTo(url, target, onBytes)
+        return false
+    }
 }
 
 /**
@@ -86,8 +99,57 @@ class JdkHttpTransport(
         }
     }
 
+    override suspend fun resumeTo(url: String, target: Path, onBytes: suspend (Int) -> Unit): Boolean =
+        withContext(Dispatchers.IO) {
+            val existing = if (java.nio.file.Files.isRegularFile(target)) java.nio.file.Files.size(target) else 0L
+            if (existing <= 0L) {
+                downloadTo(url, target, onBytes)
+                return@withContext false
+            }
+
+            val request =
+                HttpRequest.newBuilder(URI.create(url))
+                    .timeout(timeout)
+                    .header("User-Agent", userAgent)
+                    .header("Range", "bytes=$existing-")
+                    .GET()
+                    .build()
+            val response =
+                try {
+                    client.send(request, HttpResponse.BodyHandlers.ofInputStream())
+                } catch (e: IOException) {
+                    throw IOException("请求失败：$url", e)
+                }
+            val resumed = response.statusCode() == HTTP_PARTIAL_CONTENT
+            if (!resumed && response.statusCode() !in 200..299) {
+                throw IOException("HTTP ${response.statusCode()}：$url")
+            }
+
+            java.nio.file.Files.newOutputStream(
+                target,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.WRITE,
+                if (resumed) java.nio.file.StandardOpenOption.APPEND else java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+            ).use { output ->
+                response.body().use { input ->
+                    val buffer = ByteArray(CHUNK_BYTES)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        if (read == 0) continue
+                        output.write(buffer, 0, read)
+                        onBytes(read)
+                    }
+                }
+            }
+            resumed
+        }
+
     private companion object {
         const val CHUNK_BYTES = 64 * 1024
+
+        /** 206 Partial Content：服务器接受了 Range 请求。 */
+        const val HTTP_PARTIAL_CONTENT = 206
     }
 
     private fun <T> send(url: String, handler: HttpResponse.BodyHandler<T>): HttpResponse<T> {
