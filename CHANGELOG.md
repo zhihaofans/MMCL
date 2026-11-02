@@ -16,6 +16,8 @@
 - Linux「打开插件目录」：优先系统文件管理器（Thunar 等），找不到再退回 `xdg-open`，避免被 `$BROWSER` 当成网页打开
 - 版本映射只在手动 `-PpackageJdk` 指定 JDK < 27 且在 macOS 打包时触发（实测 JDK 21 同样拒绝 0.x）；
   默认 JDK 27 下三平台都不映射
+- Windows MSI 打包失败：安装包元信息里的中文超出 MSI 数据库代码页 1252，`light.exe` 报 LGHT0311；
+  打包用的 `description` 改为 ASCII，界面内中文不受影响
 - `DirectoryLauncherTest` 的期望值改用 `Path.toString()`，Windows 上不再因 `/` 与 `\` 差异失败
 - 运行时来源解析不再静默吞异常：记录来源 id 与原因，且只捕获 `Exception`
 - 安装器对插件提供的 `fileName` 只取 basename 并走路径校验，防止写出临时目录

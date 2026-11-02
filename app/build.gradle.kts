@@ -201,7 +201,9 @@ compose.desktop {
             targetFormats(hostTargetFormat)
             packageName = "MMCL"
             packageVersion = if (needsVersionMapping) bundleVersion else launcherVersion
-            description = "插件化的 Minecraft Java 启动器"
+            // MSI 的数据库代码页是 1252（Latin-1），中文会在这里让 light.exe 报 LGHT0311；
+            // 所以安装包元信息用 ASCII，界面里的中文不受影响
+            description = "MMCL - a plugin-based Minecraft Java launcher"
             vendor = "MMCL"
             macOS {
                 bundleID = "dev.mmcl.launcher"
