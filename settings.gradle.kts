@@ -24,6 +24,7 @@ include(
     ":ui-kit",
     ":core",
     ":app",
+    ":plugins:auth-microsoft",
     ":plugins:auth-offline",
     ":plugins:hello",
     ":plugins:ui-about",

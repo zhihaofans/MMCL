@@ -197,7 +197,7 @@ sources.forEach { it.search("sodium") }
 
 | 接口 | 作用 |
 |---|---|
-| `AuthProvider` | 账户认证方式（`displayName` / `priority` / `createSession`；内置 `auth-offline` 可删除或禁用） |
+| `AuthProvider` | 账户认证方式（`displayName` / `priority` / `isSignedIn` / `createSession`；内置 `auth-offline` 可删除或禁用）。`isSignedIn` 决定启动器会不会选你：装了插件但没登录时返回 `false`，别把离线账户挤掉 |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
 | `UiPage` | 完整页面（导航栏追加一项） |

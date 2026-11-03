@@ -35,6 +35,15 @@
 - macOS 透明标题栏：内容延伸到标题栏，只保留原生红黄绿按钮，缩放 / 阴影 / 全屏仍由系统处理；
   Windows / Linux 保留系统标题栏（无边框自绘的代价太大，暂不做）
 
+### 新增
+
+- `auth-microsoft` 插件：微软账号设备码登录（`XboxLive.signin offline_access`），
+  登录后过 Xbox Live → XSTS → Minecraft Services → 游戏权益 → 档案，拿到的会话注入 `${auth_access_token}`；
+  刷新令牌存插件数据目录（`tokens.properties`，权限 0600、原子替换），过期时启动前静默刷新；
+  新增账户页（配置 client ID、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断
+- `AuthProvider.isSignedIn`（默认 `true`）：启动器只在已登录的认证方式里选，
+  装了微软插件但没登录时不会把离线账户挤掉
+
 ### 修复
 
 - 英文界面残留中文：设置页「未安装下载源插件」提示、字体 / 背景图文件对话框标题、安全模式徽标改为走 i18n；
