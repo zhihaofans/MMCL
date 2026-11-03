@@ -62,7 +62,7 @@ class AppShellRenderTest {
     private val launcher =
         LauncherInfo(
             name = "MMCL",
-            version = "0.0.2",
+            version = "0.0.3",
             os = OperatingSystem.MACOS,
             arch = Architecture.ARM64,
             dataDir = Path.of("/Users/demo/Library/Application Support/MMCL"),

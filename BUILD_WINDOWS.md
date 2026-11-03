@@ -239,7 +239,7 @@ systemProp.https.proxyPort=7890
 #### 4.1.1 JDK 27：编译与打包统一
 
 项目用 `jvmToolchain(27)`：编译、测试、jpackage 都用 **JDK 27**，字节码目标仍是 17。
-三个平台的安装包因此都输出真实版本（例如 `0.0.2`）。
+三个平台的安装包因此都输出真实版本（例如 `0.0.3`）。
 
 历史原因：macOS 的 jpackage 在 JDK < 27 上会拒绝首段为 0 的 app-version（JDK-8380634，JDK 27 已修）。
 早期用 21 编译 + 27 打包，导致 macOS 的 dmg 被映射成 `1.0.x`，与应用内版本不一致。
@@ -247,13 +247,13 @@ systemProp.https.proxyPort=7890
 `-PpackageJdk` 仍保留（调试/特殊环境），逻辑在 `app/build.gradle.kts`：
 
 - 优先 `-PpackageJdk`；否则找 JDK 27 工具链；再否则用当前运行 Gradle 的 JDK
-- 只有「macOS 宿主 + 打包 JDK < 27」时才把 `0.0.2` 映射成 `1.0.2`
+- 只有「macOS 宿主 + 打包 JDK < 27」时才把 `0.0.3` 映射成 `1.0.3`
 - 找不到匹配工具链不再抛配置异常（已用 `runCatching` + `getOrNull` 包住）
 
 | 你的 JDK | 能编译/测试/打包 | Windows/Linux 安装包版本 | macOS 安装包版本 |
 |---|---|---|---|
-| **27（推荐）** | ✅ | `0.0.2` | `0.0.2` |
-| 21 / 24 / 25 / 26 | ✅（toolchain 仍要 27；`-PpackageJdk` 只影响打包 JDK） | `0.0.2` | `1.0.2`（映射） |
+| **27（推荐）** | ✅ | `0.0.3` | `0.0.3` |
+| 21 / 24 / 25 / 26 | ✅（toolchain 仍要 27；`-PpackageJdk` 只影响打包 JDK） | `0.0.3` | `1.0.3`（映射） |
 
 **结论：装 JDK 27 一个就够，编译和打包都不再需要 21。**
 
@@ -495,7 +495,7 @@ app\build\compose\binaries\main\app\MMCL\
 | `windows-latest` | `:app:packageMsi`（自动装 WiX 3） | `MMCL-windows-msi` artifact |
 | `ubuntu-latest` | `:app:packageDeb` | `MMCL-linux-deb` artifact |
 
-版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.2`）。CI 统一安装 JDK 27，
+版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.3`）。CI 统一安装 JDK 27，
 编译与 jpackage 同一个 JDK，不做版本映射。
 
 `windows { }` 里的 `upgradeUuid` 已经固定，**发布后不要改**，否则 MSI 会把新版本当成另一个产品，

@@ -78,7 +78,7 @@ val packagingJdkMajor: Int = packagingJdkHome?.let(::jdkMajorVersion) ?: Runtime
 val hostOsName = System.getProperty("os.name").lowercase()
 
 // 正常构建用 JDK 27，不做映射。只有手动 -PpackageJdk 指向 JDK < 27 且在 macOS 打包时，
-// jpackage 会拒绝首段为 0 的版本号（实测 21/25 都拒），此时才映射 0.0.2 -> 1.0.2。
+// jpackage 会拒绝首段为 0 的版本号（实测 21/25 都拒），此时才映射 0.0.3 -> 1.0.3。
 val needsVersionMapping: Boolean = hostOsName.contains("mac") && packagingJdkMajor < 27
 val bundleVersion: String =
     run {
