@@ -3,6 +3,7 @@ package dev.mmcl.plugin.source.mojang
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.plugin.PluginContext
 import java.io.IOException
 import java.net.URI
@@ -87,6 +88,9 @@ class MojangSourcePlugin : Plugin {
     override val id: String = "dev.mmcl.source.mojang.plugin"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
+    override val title: String = "Mojang 官方源"
+    override val author: String = "MMCL"
+    override val icon: PluginIcon = PluginIcon.SOURCE
 
     override fun onLoad(context: PluginContext) {
         context.services.register(VersionManifestSource::class, MojangVersionSource())

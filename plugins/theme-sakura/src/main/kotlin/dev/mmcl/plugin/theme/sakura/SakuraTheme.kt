@@ -3,6 +3,7 @@ package dev.mmcl.plugin.theme.sakura
 import androidx.compose.ui.graphics.Color
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.ui.kit.MmclPalettes
@@ -38,6 +39,9 @@ class SakuraThemePlugin : Plugin {
     override val id: String = "dev.mmcl.theme.sakura.plugin"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
+    override val title: String = "樱花主题"
+    override val author: String = "MMCL"
+    override val icon: PluginIcon = PluginIcon.THEME
 
     override fun onLoad(context: PluginContext) {
         context.services.register(LauncherTheme::class, SakuraTheme())

@@ -3,6 +3,7 @@ package dev.mmcl.core.plugin
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.LauncherInfo
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.Account
 import dev.mmcl.api.capability.AuthProvider
@@ -46,6 +47,15 @@ class PluginManagerTest {
             optionalDependencies = plugin.optionalDependencies,
             plugin = plugin,
         )
+
+    @Test
+    fun `插件元信息有默认值`() {
+        val plugin = FakePlugin("plain")
+
+        assertEquals("plain", plugin.title, "未提供标题时用 id")
+        assertEquals("", plugin.author)
+        assertEquals(PluginIcon.DEFAULT, plugin.icon)
+    }
 
     @Test
     fun `声明超前 API 的插件被拒绝加载`() {

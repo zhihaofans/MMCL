@@ -17,6 +17,18 @@ interface Plugin {
     /** 语义化版本，例如 `1.0.0`。 */
     val version: String
 
+    /** 展示名（界面上代替 [id] 显示）；不提供时用 [id]。 */
+    val title: String
+        get() = id
+
+    /** 作者名；不提供时界面不显示作者。 */
+    val author: String
+        get() = ""
+
+    /** 图标语义，由 `app` 映射成内置矢量图；默认是通用插件图标。 */
+    val icon: PluginIcon
+        get() = PluginIcon.DEFAULT
+
     /**
      * 编译该插件时使用的 API 级别，见 [dev.mmcl.api.ApiLevel.CURRENT]。
      *

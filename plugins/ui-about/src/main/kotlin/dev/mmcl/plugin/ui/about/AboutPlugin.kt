@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
@@ -50,6 +51,9 @@ class AboutPlugin : Plugin {
     override val id: String = "dev.mmcl.ui.about.plugin"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
+    override val title: String = "关于页面"
+    override val author: String = "MMCL"
+    override val icon: PluginIcon = PluginIcon.UI
 
     override fun onLoad(context: PluginContext) {
         context.services.register(UiPage::class, AboutPage(context.launcher))

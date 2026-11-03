@@ -19,6 +19,7 @@ import dev.mmcl.api.Architecture
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.UiGroup
@@ -92,6 +93,9 @@ class AppShellRenderTest {
                     plugin = object : Plugin {
                         override val id: String = id
                         override val version: String = "0.0.1"
+                        override val title: String = "示例插件 $id"
+                        override val author: String = "MMCL"
+                        override val icon: PluginIcon = PluginIcon.UI
                     },
                 ),
             state = PluginState.ENABLED,

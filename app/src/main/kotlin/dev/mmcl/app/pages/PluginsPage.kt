@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -17,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
@@ -24,6 +27,7 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.core.plugin.LoadedPlugin
 import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.ui.kit.EmptyState
+import dev.mmcl.ui.kit.MmclIcons
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
 
@@ -59,6 +63,7 @@ class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
 
 @Composable
 private fun PluginRow(plugin: LoadedPlugin) {
+    val meta = plugin.descriptor.plugin
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -68,10 +73,24 @@ private fun PluginRow(plugin: LoadedPlugin) {
         horizontalArrangement = Arrangement.spacedBy(MmclSpacing.m),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = MmclIcons.of(meta.icon.toUiIcon()),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = plugin.id, style = MaterialTheme.typography.titleSmall)
+            Text(text = meta.title.ifBlank { plugin.id }, style = MaterialTheme.typography.titleSmall)
             Text(
-                text = "${plugin.version} · ${plugin.descriptor.jar?.fileName ?: "内置"}",
+                text = buildString {
+                    append(plugin.id)
+                    append(" · ")
+                    append(plugin.version)
+                    if (meta.author.isNotBlank()) {
+                        append(" · ")
+                        append(meta.author)
+                    }
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -105,3 +124,16 @@ private fun StateChip(state: PluginState) {
         )
     }
 }
+
+/** 把插件自报的图标语义映射成内置矢量图；未知取值走通用图标。 */
+private fun PluginIcon.toUiIcon(): UiIcon =
+    when (this) {
+        PluginIcon.AUTH -> UiIcon.ACCOUNT
+        PluginIcon.SOURCE -> UiIcon.DOWNLOAD
+        PluginIcon.RUNTIME -> UiIcon.SETTINGS
+        PluginIcon.THEME -> UiIcon.EXTENSION
+        PluginIcon.UI -> UiIcon.PLUGIN
+        PluginIcon.TOOL -> UiIcon.WRENCH
+        PluginIcon.LOCALE -> UiIcon.INFO
+        PluginIcon.DEFAULT -> UiIcon.PLUGIN
+    }

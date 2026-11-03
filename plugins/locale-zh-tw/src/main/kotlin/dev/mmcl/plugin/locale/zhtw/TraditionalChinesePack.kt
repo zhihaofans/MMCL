@@ -3,6 +3,7 @@ package dev.mmcl.plugin.locale.zhtw
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.capability.LocalePack
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.plugin.PluginContext
 import java.util.Properties
 
@@ -37,6 +38,9 @@ class TraditionalChineseLocalePlugin : Plugin {
     override val id: String = "dev.mmcl.locale.zh_tw"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
+    override val title: String = "繁體中文"
+    override val author: String = "MMCL"
+    override val icon: PluginIcon = PluginIcon.LOCALE
 
     override fun onLoad(context: PluginContext) {
         context.services.register(LocalePack::class, TraditionalChinesePack())

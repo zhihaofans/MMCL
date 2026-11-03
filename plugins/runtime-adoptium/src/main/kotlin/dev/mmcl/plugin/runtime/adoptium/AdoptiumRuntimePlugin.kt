@@ -7,6 +7,7 @@ import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.RuntimeDownload
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
+import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.plugin.PluginContext
 
 /**
@@ -19,6 +20,9 @@ class AdoptiumRuntimePlugin : Plugin {
     override val id: String = "dev.mmcl.runtime.adoptium"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
+    override val title: String = "Adoptium Temurin"
+    override val author: String = "MMCL"
+    override val icon: PluginIcon = PluginIcon.RUNTIME
 
     override fun onLoad(context: PluginContext) {
         context.services.register(JavaRuntimeProvider::class, AdoptiumRuntimeProvider())

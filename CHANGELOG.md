@@ -7,6 +7,8 @@
 
 ### 新增
 
+- 插件元信息：`Plugin` 增加 `title`（展示名，缺省用 id）、`author`、`icon`（`PluginIcon` 语义枚举），
+  插件页改为显示「图标 + 展示名 + id · 版本 · 作者」；9 个现有插件补齐元信息
 - 示例插件 `plugins/locale-zh-tw`（不内置）：繁體中文（台灣）语言包，覆盖当前全部 key，
   演示 `LocalePack` 扩展点；缺译时回退到内置简体中文、再回退英文
 - 插件 API 级别：`api` 新增 `ApiLevel.CURRENT` 与 `Plugin.apiLevel`，插件声明自己按哪一级 API 编译；
