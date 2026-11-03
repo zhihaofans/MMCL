@@ -3,6 +3,7 @@ package dev.mmcl.app.shell
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,7 +62,9 @@ fun AppShell(
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val widthClass = shellWidthClass(maxWidth)
+        Column(modifier = Modifier.fillMaxSize()) {
         val widgetsBySlot = widgets.groupBy { it.slot }
         TopBar(
             title = current.title,
@@ -75,7 +78,11 @@ fun AppShell(
         )
         HorizontalDivider()
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            NavRail(pages = pages, currentPageId = current.id) { navigator.select(it) }
+            NavRail(
+                widthClass = widthClass,
+                pages = pages,
+                currentPageId = current.id,
+            ) { navigator.select(it) }
             Divider()
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 current.Content(navigator)
@@ -91,6 +98,7 @@ fun AppShell(
             widgets = widgetsBySlot[UiSlot.STATUS_BAR].orEmpty(),
             navigator = navigator,
         )
+        }
     }
 }
 
@@ -149,10 +157,17 @@ private fun TopBar(
 }
 
 @Composable
-private fun NavRail(pages: List<UiPage>, currentPageId: String, onSelect: (String) -> Unit) {
+private fun NavRail(
+    widthClass: ShellWidthClass,
+    pages: List<UiPage>,
+    currentPageId: String,
+    onSelect: (String) -> Unit,
+) {
+    val railWidth =
+        if (widthClass == ShellWidthClass.COMPACT) ShellMetrics.RAIL_WIDTH_COMPACT else ShellMetrics.RAIL_WIDTH_FULL
     Column(
         modifier = Modifier
-            .width(76.dp)
+            .width(railWidth)
             .fillMaxHeight()
             .background(MaterialTheme.colorScheme.surface)
             .padding(vertical = MmclSpacing.s),
@@ -168,14 +183,19 @@ private fun NavRail(pages: List<UiPage>, currentPageId: String, onSelect: (Strin
             }
             rendered = true
             for (page in groupPages) {
-                RailItem(page = page, selected = page.id == currentPageId, onClick = { onSelect(page.id) })
+                RailItem(
+                    page = page,
+                    selected = page.id == currentPageId,
+                    showLabel = widthClass != ShellWidthClass.COMPACT,
+                    onClick = { onSelect(page.id) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun RailItem(page: UiPage, selected: Boolean, onClick: () -> Unit) {
+private fun RailItem(page: UiPage, selected: Boolean, showLabel: Boolean, onClick: () -> Unit) {
     val background = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     val contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     Column(
@@ -195,13 +215,15 @@ private fun RailItem(page: UiPage, selected: Boolean, onClick: () -> Unit) {
             tint = contentColor,
             modifier = Modifier.size(22.dp),
         )
-        Text(
-            text = page.title,
-            style = MaterialTheme.typography.labelSmall,
-            color = contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (showLabel) {
+            Text(
+                text = page.title,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

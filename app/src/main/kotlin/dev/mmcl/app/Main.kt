@@ -4,6 +4,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -30,6 +31,7 @@ import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
 import dev.mmcl.app.shell.SavedWindowState
 import dev.mmcl.app.shell.WindowStateStore
+import dev.mmcl.app.shell.minimumWindowSize
 import dev.mmcl.app.shell.toSavedWindowState
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.builtin.BuiltinPluginSync
@@ -258,6 +260,16 @@ fun main(args: Array<String>) {
             title = "MMCL ${launcher.version}",
             state = windowState,
         ) {
+            // 最小尺寸随屏幕可用工作区变化：高缩小小屏上不能比屏幕还大
+            val density = LocalDensity.current
+            LaunchedEffect(Unit) {
+                val minimum = minimumWindowSize()
+                window.minimumSize =
+                    java.awt.Dimension(
+                        with(density) { minimum.width.roundToPx() },
+                        with(density) { minimum.height.roundToPx() },
+                    )
+            }
             if (macChrome) {
                 // 内容延伸到标题栏，只保留原生红黄绿；缩放 / 阴影 / 全屏仍由系统处理
                 LaunchedEffect(Unit) {

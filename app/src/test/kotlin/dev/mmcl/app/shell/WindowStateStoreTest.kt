@@ -1,17 +1,20 @@
 package dev.mmcl.app.shell
 
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import dev.mmcl.core.settings.InMemorySettingsService
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class WindowStateStoreTest {
     private val settings = InMemorySettingsService()
     private val screen = Rectangle(0, 0, 1920, 1080)
 
     private fun store(vararg screens: Rectangle) =
-        WindowStateStore(settings) { screens.toList() }
+        WindowStateStore(settings, screenBounds = { screens.toList() })
 
     @Test
     fun `没有保存过时用默认尺寸并居中`() {
@@ -81,6 +84,22 @@ class WindowStateStoreTest {
         val large = store(screen).load()
         assertEquals(WindowStateStore.MAX_WIDTH, large.width)
         assertEquals(WindowStateStore.MAX_HEIGHT, large.height)
+    }
+
+    @Test
+    fun `可用工作区更小时尺寸被压低`() {
+        // 高缩小小屏：工作区只有 900×600 dp，默认 1280×800 放不下
+        val store =
+            WindowStateStore(
+                settings,
+                screenBounds = { listOf(screen) },
+                availableSize = { DpSize(900.dp, 600.dp) },
+            )
+
+        val state = store.load()
+
+        assertTrue(state.width <= 900, "宽度应被压低：${state.width}")
+        assertTrue(state.height <= 600, "高度应被压低：${state.height}")
     }
 
     @Test

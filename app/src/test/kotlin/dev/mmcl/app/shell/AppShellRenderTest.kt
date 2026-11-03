@@ -180,10 +180,13 @@ class AppShellRenderTest {
         screen: List<UiPage> = pages(themeController),
         widgets: List<UiWidget> = emptyList(),
         titleBarInset: Dp = 0.dp,
+        width: Int = 1100,
+        height: Int = 720,
+        density: Float = 1f,
     ) {
         Files.createDirectories(screenshots)
         val scene =
-            ImageComposeScene(width = 1100, height = 720, density = Density(1f)) {
+            ImageComposeScene(width = width, height = height, density = Density(density)) {
                 AppRoot(themeController) {
                     AppShell(
                         pages = screen,
@@ -278,6 +281,20 @@ class AppShellRenderTest {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
         // 78dp 是红黄绿按钮占用的宽度，顶栏内容要整体右移
         render("shell-macos-chrome", controller, titleBarInset = 78.dp)
+    }
+
+    @Test
+    fun `渲染窄窗口时导航折叠`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        // 820dp 宽落在 COMPACT 档：导航栏只剩图标
+        render("shell-compact", controller, width = 820, height = 620)
+    }
+
+    @Test
+    fun `渲染 1_5 倍缩放`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        // 1100px / 1.5 = 733dp，同样落进 COMPACT 档，用来抓缩放下的挤压
+        render("shell-density-1_5", controller, density = 1.5f)
     }
 
     @Test

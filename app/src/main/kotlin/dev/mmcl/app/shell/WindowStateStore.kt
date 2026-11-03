@@ -1,5 +1,6 @@
 package dev.mmcl.app.shell
 
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import dev.mmcl.api.service.SettingsService
@@ -29,11 +30,18 @@ data class SavedWindowState(
 class WindowStateStore(
     private val settings: SettingsService?,
     private val screenBounds: () -> List<Rectangle> = ::currentScreenBounds,
+    private val availableSize: () -> DpSize? = ::screenWorkArea,
 ) {
     /** 读取并修正保存的窗口状态。 */
     fun load(): SavedWindowState {
-        val width = intOf(KEY_WIDTH)?.coerceIn(MIN_WIDTH, MAX_WIDTH) ?: DEFAULT_WIDTH
-        val height = intOf(KEY_HEIGHT)?.coerceIn(MIN_HEIGHT, MAX_HEIGHT) ?: DEFAULT_HEIGHT
+        // 上限优先服从当前屏幕的可用工作区：高缩小小屏上 1280dp 可能根本放不下
+        val available = availableSize()
+        val maxWidth = available?.width?.value?.toInt()?.coerceAtMost(MAX_WIDTH) ?: MAX_WIDTH
+        val maxHeight = available?.height?.value?.toInt()?.coerceAtMost(MAX_HEIGHT) ?: MAX_HEIGHT
+        val width =
+            (intOf(KEY_WIDTH) ?: DEFAULT_WIDTH).coerceIn(minOf(MIN_WIDTH, maxWidth), maxWidth)
+        val height =
+            (intOf(KEY_HEIGHT) ?: DEFAULT_HEIGHT).coerceIn(minOf(MIN_HEIGHT, maxHeight), maxHeight)
         val savedX = intOf(KEY_X)
         val savedY = intOf(KEY_Y)
         val position =
