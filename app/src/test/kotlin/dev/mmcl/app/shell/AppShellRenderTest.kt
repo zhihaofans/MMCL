@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.OperatingSystem
@@ -177,6 +179,7 @@ class AppShellRenderTest {
         themeController: ThemeController,
         screen: List<UiPage> = pages(themeController),
         widgets: List<UiWidget> = emptyList(),
+        titleBarInset: Dp = 0.dp,
     ) {
         Files.createDirectories(screenshots)
         val scene =
@@ -188,6 +191,7 @@ class AppShellRenderTest {
                         safeMode = false,
                         pluginCount = plugins.size,
                         widgets = widgets,
+                        titleBarInset = titleBarInset,
                     )
                 }
             }
@@ -268,6 +272,13 @@ class AppShellRenderTest {
                 arch: Architecture,
             ): RuntimeDownload? = null
         }
+
+    @Test
+    fun `渲染 macOS 透明标题栏留白`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        // 78dp 是红黄绿按钮占用的宽度，顶栏内容要整体右移
+        render("shell-macos-chrome", controller, titleBarInset = 78.dp)
+    }
 
     @Test
     fun `渲染插件页`() {

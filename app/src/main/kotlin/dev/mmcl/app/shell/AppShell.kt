@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.ui.UiGroup
@@ -55,6 +56,7 @@ fun AppShell(
     pluginCount: Int,
     downloads: DownloadsService? = null,
     widgets: List<UiWidget> = emptyList(),
+    titleBarInset: Dp = 0.dp,
 ) {
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
@@ -69,6 +71,7 @@ fun AppShell(
             onBack = { navigator.back() },
             widgets = widgetsBySlot[UiSlot.TOP_BAR].orEmpty(),
             navigator = navigator,
+            insetStart = titleBarInset,
         )
         HorizontalDivider()
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -100,9 +103,13 @@ private fun TopBar(
     onBack: () -> Unit,
     widgets: List<UiWidget> = emptyList(),
     navigator: AppNavigator? = null,
+    insetStart: Dp = 0.dp,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = MmclSpacing.l),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .padding(start = MmclSpacing.l + insetStart, end = MmclSpacing.l),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
     ) {

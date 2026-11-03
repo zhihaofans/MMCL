@@ -1,7 +1,16 @@
 package dev.mmcl.app
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.AuthProvider
@@ -19,6 +28,9 @@ import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
 import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
+import dev.mmcl.app.shell.SavedWindowState
+import dev.mmcl.app.shell.WindowStateStore
+import dev.mmcl.app.shell.toSavedWindowState
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.builtin.BuiltinPluginSync
 import dev.mmcl.core.platform.DirectoryLauncher
@@ -37,6 +49,9 @@ import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.net.JdkHttpTransport
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import dev.mmcl.core.download.DownloadsService
@@ -46,6 +61,12 @@ import java.nio.file.Files
 import org.slf4j.LoggerFactory
 
 private const val SAFE_MODE_ARG = "--safe-mode"
+
+/** macOS 透明标题栏左侧留给红黄绿按钮的宽度。 */
+private val MAC_TITLE_BAR_INSET = 78.dp
+
+/** 窗口几何写盘前的合并窗口（毫秒）。 */
+private const val SAVE_DEBOUNCE_MILLIS = 300L
 private const val SAFE_MODE_ENV = "MMCL_SAFE_MODE"
 
 /**
@@ -211,14 +232,54 @@ fun main(args: Array<String>) {
         plugins.count { it.state == PluginState.ENABLED },
     )
 
+    // 窗口几何跨启动保留（UI_DESIGN.md P5）
+    val windowStateStore = WindowStateStore(settings)
+    val macChrome = launcher.os == OperatingSystem.MACOS
+
     application {
+        val savedWindow = remember { windowStateStore.load() }
+        val windowState =
+            rememberWindowState(
+                placement = if (savedWindow.maximized) WindowPlacement.Maximized else WindowPlacement.Floating,
+                position =
+                    if (savedWindow.x != null && savedWindow.y != null) {
+                        WindowPosition(savedWindow.x.dp, savedWindow.y.dp)
+                    } else {
+                        WindowPosition(Alignment.Center)
+                    },
+                size = DpSize(savedWindow.width.dp, savedWindow.height.dp),
+            )
         Window(
             onCloseRequest = {
+                windowStateStore.save(windowState.toSavedWindowState())
                 manager.close()
                 exitApplication()
             },
             title = "MMCL ${launcher.version}",
+            state = windowState,
         ) {
+            if (macChrome) {
+                // 内容延伸到标题栏，只保留原生红黄绿；缩放 / 阴影 / 全屏仍由系统处理
+                LaunchedEffect(Unit) {
+                    window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+                    window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+                    window.rootPane.putClientProperty("apple.awt.draggableWindowBackground", true)
+                }
+            }
+            LaunchedEffect(windowState) {
+                // 拖动 / 缩放会连续触发，用 collectLatest + delay 合并成一次写盘
+                var lastNormal: SavedWindowState? = null
+                snapshotFlow { windowState.toSavedWindowState() }
+                    .distinctUntilChanged()
+                    .collectLatest { current ->
+                        delay(SAVE_DEBOUNCE_MILLIS)
+                        if (!current.maximized) lastNormal = current
+                        // 最大化时窗口尺寸等于屏幕尺寸，不能覆盖还原后的大小
+                        windowStateStore.save(
+                            if (current.maximized) (lastNormal ?: current).copy(maximized = true) else current,
+                        )
+                    }
+            }
             AppRoot(themeController) {
                 AppShell(
                     pages = pages,
@@ -227,6 +288,7 @@ fun main(args: Array<String>) {
                     pluginCount = plugins.size,
                     downloads = downloads,
                     widgets = registry.widgets,
+                    titleBarInset = if (macChrome) MAC_TITLE_BAR_INSET else 0.dp,
                 )
             }
         }
