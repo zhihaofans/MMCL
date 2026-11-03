@@ -42,6 +42,9 @@ import androidx.compose.ui.text.font.FontFamily
 import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.loadBackgroundBitmap
 import dev.mmcl.app.appearance.loadFontFamily
+import dev.mmcl.app.i18n.LocaleController
+import dev.mmcl.app.i18n.LocalStrings
+import dev.mmcl.app.i18n.Strings
 import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.version.VersionManifestService
@@ -69,9 +72,12 @@ class SettingsPage(
     private val appearance: AppearanceStore? = null,
     private val onFontFamilyChanged: (FontFamily?) -> Unit = {},
     private val onBackgroundChanged: (ImageBitmap?) -> Unit = {},
+    private val localeController: LocaleController? = null,
+    private val onLocaleChanged: (Strings) -> Unit = {},
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
+    override val titleKey: String = "page.settings.title"
     override val icon: UiIcon = UiIcon.SETTINGS
     override val group: UiGroup = UiGroup.SYSTEM
     override val order: Int = 30
@@ -94,19 +100,20 @@ class SettingsPage(
     @Composable
     override fun Content(navigator: AppNavigator) {
         val scope = rememberCoroutineScope()
-        PageScaffold(title = "设置", subtitle = "外观与运行信息") {
+        val strings = LocalStrings.current
+        PageScaffold(title = strings.t("settings.title"), subtitle = strings.t("settings.subtitle")) {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
             ) {
-                SectionTitle("外观")
+                SectionTitle(strings.t("settings.section.appearance"))
                 val currentId = themeController.current.id
                 themeController.all().forEach { theme ->
                     ThemeRow(theme = theme, selected = theme.id == currentId) { themeController.apply(theme.id) }
                 }
                 if (safeMode) {
                     Text(
-                        text = "安全模式已开启：已跳过全部插件主题与插件页面。去掉 --safe-mode 与 MMCL_SAFE_MODE 后重启即可恢复。",
+                        text = strings.t("settings.safe_mode"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(top = MmclSpacing.s),
@@ -122,9 +129,9 @@ class SettingsPage(
                     horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("字体", style = MaterialTheme.typography.titleSmall)
+                        Text(strings.t("settings.font.title"), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            text = fontLabel ?: "跟随系统默认",
+                            text = fontLabel ?: strings.t("settings.font.default"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -136,10 +143,10 @@ class SettingsPage(
                             val family = loadFontFamily(picked)
                             onFontFamilyChanged(family)
                             fontLabel =
-                                if (family != null) picked.fileName.toString() else "字体无效（已退回默认）"
+                                if (family != null) picked.fileName.toString() else strings.t("settings.font.invalid")
                         },
                         enabled = appearance != null,
-                    ) { Text("选择…") }
+                    ) { Text(strings.t("settings.font.choose")) }
                     if (fontLabel != null) {
                         TextButton(
                             onClick = {
@@ -147,11 +154,11 @@ class SettingsPage(
                                 onFontFamilyChanged(null)
                                 fontLabel = null
                             },
-                        ) { Text("恢复默认") }
+                        ) { Text(strings.t("settings.font.reset")) }
                     }
                 }
                 Text(
-                    text = "支持 .ttf / .otf / .ttc；换字体后界面立即重排，不用重启。",
+                    text = strings.t("settings.font.hint"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -165,9 +172,9 @@ class SettingsPage(
                     horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("背景图", style = MaterialTheme.typography.titleSmall)
+                        Text(strings.t("settings.background.title"), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            text = backgroundLabel ?: "跟随主题（无背景图）",
+                            text = backgroundLabel ?: strings.t("settings.background.default"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -179,10 +186,10 @@ class SettingsPage(
                             val bitmap = loadBackgroundBitmap(picked)
                             onBackgroundChanged(bitmap)
                             backgroundLabel =
-                                if (bitmap != null) picked.fileName.toString() else "图片无效（已退回主题）"
+                                if (bitmap != null) picked.fileName.toString() else strings.t("settings.background.invalid")
                         },
                         enabled = appearance != null,
-                    ) { Text("选择…") }
+                    ) { Text(strings.t("settings.background.choose")) }
                     if (backgroundLabel != null) {
                         TextButton(
                             onClick = {
@@ -190,16 +197,44 @@ class SettingsPage(
                                 onBackgroundChanged(null)
                                 backgroundLabel = null
                             },
-                        ) { Text("清除") }
+                        ) { Text(strings.t("settings.background.clear")) }
                     }
                 }
                 Text(
-                    text = "支持 .png / .jpg / .jpeg / .webp；铺满窗口，面板会变半透明保证文字可读。",
+                    text = strings.t("settings.background.hint"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                SectionTitle("下载源")
+                SectionTitle(strings.t("settings.language.title"))
+                val selectedLocale = localeController?.selected() ?: LocaleController.AUTO
+                ChoiceRow(
+                    title = strings.t("settings.language.auto"),
+                    subtitle = localeController?.currentLocale().orEmpty(),
+                    selected = selectedLocale == LocaleController.AUTO,
+                    onClick = {
+                        localeController?.select(LocaleController.AUTO)
+                        localeController?.let { onLocaleChanged(it.strings()) }
+                    },
+                )
+                localeController?.options()?.forEach { option ->
+                    ChoiceRow(
+                        title = option.displayName,
+                        subtitle = option.locale,
+                        selected = selectedLocale.equals(option.locale, ignoreCase = true),
+                        onClick = {
+                            localeController.select(option.locale)
+                            onLocaleChanged(localeController.strings())
+                        },
+                    )
+                }
+                Text(
+                    text = strings.t("settings.language.hint"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                SectionTitle(strings.t("settings.section.sources"))
                 val sources = manifests?.orderedSources().orEmpty()
                 if (sources.isEmpty()) {
                     Text(
@@ -220,18 +255,17 @@ class SettingsPage(
                         )
                     }
                     Text(
-                        text = "缓存来源：${manifests?.cachedSourceId() ?: "无"}；选中后下一次刷新生效",
+                        text = strings.t("settings.sources.cached", manifests?.cachedSourceId() ?: strings.t("settings.sources.none")),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
-                SectionTitle("Java 运行时来源")
+                SectionTitle(strings.t("settings.section.java"))
                 val providers = javaSources?.all().orEmpty()
                 if (providers.isEmpty()) {
                     Text(
-                        text = "未安装 Java 运行时来源插件。缺少 Java 时，装一个运行时来源插件" +
-                            "（如 runtime-adoptium / runtime-foojay）再重启。",
+                        text = strings.t("settings.java.empty"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -240,8 +274,8 @@ class SettingsPage(
                         mutableStateOf(javaSources?.selectedId())
                     }
                     ChoiceRow(
-                        title = "自动",
-                        subtitle = "按优先级依次尝试，镜像缺包时自动换下一个",
+                        title = strings.t("settings.java.auto"),
+                        subtitle = strings.t("settings.java.auto_hint"),
                         selected = selectedJavaSourceId == null,
                         onClick = {
                             selectedJavaSourceId = null
@@ -259,14 +293,13 @@ class SettingsPage(
                         )
                     }
                     Text(
-                        text = "下载 Java 时用选中的来源；不选则按优先级自动挑。" +
-                            "已装好的运行时仍按「手动指定 → 自带 runtime → JAVA_HOME → PATH」探测。",
+                        text = strings.t("settings.java.hint"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
-                SectionTitle("插件")
+                SectionTitle(strings.t("settings.section.plugins"))
                 var pluginDirMessage by remember { mutableStateOf<String?>(null) }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -279,12 +312,12 @@ class SettingsPage(
                                 val result = withContext(Dispatchers.IO) { directoryLauncher.open(pluginsDir) }
                                 pluginDirMessage =
                                     result.fold(
-                                        onSuccess = { "已在文件管理器中打开" },
-                                        onFailure = { "打开失败：${it.message ?: it::class.simpleName}" },
+                                        onSuccess = { strings.t("settings.plugins.opened") },
+                                        onFailure = { strings.t("settings.plugins.open_failed", it.message ?: it::class.simpleName) },
                                     )
                             }
                         },
-                    ) { Text("打开插件目录") }
+                    ) { Text(strings.t("settings.plugins.open")) }
                     Text(
                         text = pluginsDir.toString(),
                         style = MaterialTheme.typography.bodySmall,
@@ -299,7 +332,7 @@ class SettingsPage(
                     )
                 }
 
-                SectionTitle("下载")
+                SectionTitle(strings.t("settings.section.download"))
                 var limitText by remember(settings) {
                     mutableStateOf(settings?.getString(LIMIT_KEY)?.takeIf { it.isNotBlank() } ?: "0")
                 }
@@ -315,7 +348,7 @@ class SettingsPage(
                             limitText = value.filter { it.isDigit() }
                             limitSaved = false
                         },
-                        label = { Text("限速（KB/s，0 = 不限）") },
+                        label = { Text(strings.t("settings.download.limit")) },
                         singleLine = true,
                         modifier = Modifier.width(240.dp),
                     )
@@ -325,18 +358,18 @@ class SettingsPage(
                             limitSaved = true
                         },
                         enabled = settings != null,
-                    ) { Text(if (limitSaved) "已保存" else "保存") }
+                    ) { Text(if (limitSaved) strings.t("settings.download.saved") else strings.t("settings.download.save")) }
                 }
                 Text(
-                    text = "所有并发下载共享这个总速率；改动在下次下载开始时生效。",
+                    text = strings.t("settings.download.hint"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                SectionTitle("关于")
-                InfoRow("版本", launcher.version)
-                InfoRow("平台", "${launcher.os} / ${launcher.arch}")
-                InfoRow("数据目录", launcher.dataDir.toString())
+                SectionTitle(strings.t("settings.section.about"))
+                InfoRow(strings.t("settings.about.version"), launcher.version)
+                InfoRow(strings.t("settings.about.platform"), "${launcher.os} / ${launcher.arch}")
+                InfoRow(strings.t("settings.about.data_dir"), launcher.dataDir.toString())
             }
         }
     }
@@ -344,6 +377,7 @@ class SettingsPage(
 
 @Composable
 private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick: () -> Unit) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -364,7 +398,7 @@ private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick:
         Column(modifier = Modifier.weight(1f)) {
             Text(text = source.displayName, style = MaterialTheme.typography.titleSmall)
             Text(
-                text = "${source.id} · 优先级 ${source.priority}",
+                text = strings.t("settings.priority", source.id, source.priority),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -374,9 +408,10 @@ private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick:
 
 @Composable
 private fun JavaSourceRow(provider: JavaRuntimeProvider, selected: Boolean, onClick: () -> Unit) {
+    val strings = LocalStrings.current
     ChoiceRow(
         title = provider.displayName,
-        subtitle = "${provider.id} · 优先级 ${provider.priority}",
+        subtitle = strings.t("settings.priority", provider.id, provider.priority),
         selected = selected,
         onClick = onClick,
     )
@@ -385,6 +420,7 @@ private fun JavaSourceRow(provider: JavaRuntimeProvider, selected: Boolean, onCl
 /** 单选行：自动选项与具体来源共用。 */
 @Composable
 private fun ChoiceRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -425,6 +461,7 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun ThemeRow(theme: LauncherTheme, selected: Boolean, onClick: () -> Unit) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -443,7 +480,14 @@ private fun ThemeRow(theme: LauncherTheme, selected: Boolean, onClick: () -> Uni
     ) {
         RadioButton(selected = selected, onClick = onClick)
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = theme.displayName, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = when (theme.id) {
+                    "builtin.dark" -> strings.t("settings.theme.builtin_dark")
+                    "builtin.light" -> strings.t("settings.theme.builtin_light")
+                    else -> theme.displayName
+                },
+                style = MaterialTheme.typography.titleSmall,
+            )
             Text(
                 text = theme.id,
                 style = MaterialTheme.typography.bodySmall,
@@ -451,7 +495,7 @@ private fun ThemeRow(theme: LauncherTheme, selected: Boolean, onClick: () -> Uni
             )
         }
         Text(
-            text = if (theme.dark) "深色" else "浅色",
+            text = strings.t(if (theme.dark) "settings.theme.dark" else "settings.theme.light"),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

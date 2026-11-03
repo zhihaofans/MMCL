@@ -1,6 +1,7 @@
 package dev.mmcl.app
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -17,6 +18,7 @@ import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.AuthProvider
 import dev.mmcl.api.capability.JavaRuntimeProvider
+import dev.mmcl.api.capability.LocalePack
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
@@ -34,6 +36,8 @@ import dev.mmcl.app.shell.SavedWindowState
 import dev.mmcl.app.shell.WindowStateStore
 import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.loadBackgroundBitmap
+import dev.mmcl.app.i18n.LocaleController
+import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.app.appearance.loadFontFamily
 import dev.mmcl.app.shell.applyUiScaleOverride
 import dev.mmcl.app.shell.minimumWindowSize
@@ -162,6 +166,14 @@ fun main(args: Array<String>) {
     val pluginThemes: List<LauncherTheme> =
         if (safeMode) emptyList() else manager.services.getAll(LauncherTheme::class)
     val themeController = ThemeController(settings, pluginThemes)
+    // 语言：内置 en / zh-CN，插件可注册额外语言包
+    val localeController =
+        LocaleController(
+            settings = settings,
+            packs = { manager.services.getAll(LocalePack::class) },
+        )
+    val strings = mutableStateOf(localeController.strings { key -> logger.debug("缺少文案 key：{}", key) })
+
     // 用户自选字体：设置页选完立即重排，不用重启
     val appearanceStore = AppearanceStore(settings)
     val customFontFamily = mutableStateOf(loadFontFamily(appearanceStore.load().fontFile))
@@ -236,6 +248,8 @@ fun main(args: Array<String>) {
                 appearance = appearanceStore,
                 onFontFamilyChanged = { family -> customFontFamily.value = family },
                 onBackgroundChanged = { bitmap -> customBackground.value = bitmap },
+                localeController = localeController,
+                onLocaleChanged = { updated -> strings.value = updated },
             ),
         )
     val pluginPages: List<UiPage> =
@@ -313,6 +327,7 @@ fun main(args: Array<String>) {
                         )
                     }
             }
+            CompositionLocalProvider(LocalStrings provides strings.value) {
             AppRoot(
                 themeController,
                 fontFamily = customFontFamily.value,
@@ -327,6 +342,7 @@ fun main(args: Array<String>) {
                     widgets = registry.widgets,
                     titleBarInset = if (macChrome) MAC_TITLE_BAR_INSET else 0.dp,
                 )
+            }
             }
         }
     }

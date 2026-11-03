@@ -279,6 +279,28 @@ interface JavaRuntimeProvider {
 - 装了多个来源时，core 按顺序逐个调 `resolve`，用**第一个给出下载信息**的：
   某个来源不支持该平台或抛异常就换下一个，镜像站缺包不会让用户卡在"该来源不支持"
 
+- 语言包（`LocalePack`，不内置）：应用自带 `en` / `zh-CN`，插件可以补其它语言：
+
+```kotlin
+class JapanesePack : LocalePack {
+    override val locale = "ja-JP"
+    override val displayName = "日本語"
+    override fun strings(): Map<String, String> = mapOf("settings.title" to "設定")
+}
+
+class JapanesePlugin : Plugin {
+    override val id = "dev.mmcl.locale.ja"
+    override val version = "0.0.1"
+    override fun onLoad(context: PluginContext) {
+        context.services.register(LocalePack::class, JapanesePack())
+    }
+}
+```
+
+- key 用层级命名（`page.settings.title`、`settings.section.appearance`），缺的 key 回退到内置英文；
+  插件语言包只写自己翻了的 key，不必抄全表
+- 插件自己的页面文案自己负责：读设置 `ui.locale`（`auto` 表示跟随系统）再决定显示什么
+
 - UI 插件还可以注册 `UiWidget` 往固定插槽加内容（`UiSlot.TOP_BAR` / `STATUS_BAR` / `HOME`）：
 
 ```kotlin

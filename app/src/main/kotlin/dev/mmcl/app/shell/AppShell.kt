@@ -40,6 +40,7 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiSlot
 import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.core.download.DownloadTask
+import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.ui.kit.MmclIcons
 import dev.mmcl.ui.kit.MmclSpacing
@@ -61,13 +62,15 @@ fun AppShell(
 ) {
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
+    val strings = LocalStrings.current
+    val currentTitle = current.titleKey?.let(strings::t) ?: current.title
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val widthClass = shellWidthClass(maxWidth)
         Column(modifier = Modifier.fillMaxSize()) {
         val widgetsBySlot = widgets.groupBy { it.slot }
         TopBar(
-            title = current.title,
+            title = currentTitle,
             launcher = launcher,
             safeMode = safeMode,
             canGoBack = navigator.canGoBack(),
@@ -125,7 +128,7 @@ private fun TopBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = MmclIcons.of(UiIcon.BACK),
-                    contentDescription = "返回",
+                    contentDescription = LocalStrings.current.t("shell.back"),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -196,6 +199,7 @@ private fun NavRail(
 
 @Composable
 private fun RailItem(page: UiPage, selected: Boolean, showLabel: Boolean, onClick: () -> Unit) {
+    val label = page.titleKey?.let(LocalStrings.current::t) ?: page.title
     val background = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     val contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     Column(
@@ -211,13 +215,13 @@ private fun RailItem(page: UiPage, selected: Boolean, showLabel: Boolean, onClic
     ) {
         Icon(
             imageVector = MmclIcons.of(page.icon),
-            contentDescription = page.title,
+            contentDescription = label,
             tint = contentColor,
             modifier = Modifier.size(22.dp),
         )
         if (showLabel) {
             Text(
-                text = page.title,
+                text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = contentColor,
                 maxLines = 1,
@@ -261,7 +265,7 @@ private fun StatusBar(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = "插件 $pluginCount · 页面 $pageCount",
+            text = LocalStrings.current.t("shell.status.count", pluginCount, pageCount),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -273,9 +277,9 @@ private fun StatusBar(
             val progress = active.progress
             Text(
                 text = if (progress != null) {
-                    "下载 ${progress.completed}/${progress.total}"
+                    LocalStrings.current.t("shell.status.download", progress.completed, progress.total)
                 } else {
-                    "下载 ${active.state.name.lowercase()}"
+                    LocalStrings.current.t("shell.status.download_state", active.state.name.lowercase())
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,

@@ -70,6 +70,7 @@ class DownloadsPage(
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "下载"
+    override val titleKey: String = "page.downloads.title"
     override val icon: UiIcon = UiIcon.DOWNLOAD
     override val group: UiGroup = UiGroup.MAIN
     override val order: Int = 10

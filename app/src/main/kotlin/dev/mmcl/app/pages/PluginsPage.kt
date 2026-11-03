@@ -31,6 +31,7 @@ import dev.mmcl.ui.kit.PageScaffold
 class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "插件"
+    override val titleKey: String = "page.plugins.title"
     override val icon: UiIcon = UiIcon.PLUGIN
     override val group: UiGroup = UiGroup.SYSTEM
     override val order: Int = 20

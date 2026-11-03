@@ -99,6 +99,7 @@ class InstancesPage(
 ) : UiPage {
     override val id: String = INSTANCES_PAGE_ID
     override val title: String = "游戏"
+    override val titleKey: String = "page.instances.title"
     override val icon: UiIcon = UiIcon.GAME
     override val group: UiGroup = UiGroup.MAIN
     override val order: Int = 0

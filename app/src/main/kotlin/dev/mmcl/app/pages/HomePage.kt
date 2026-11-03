@@ -55,6 +55,7 @@ class HomePage(
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "首页"
+    override val titleKey: String = "page.home.title"
     override val icon: UiIcon = UiIcon.HOME
     override val group: UiGroup = UiGroup.MAIN
     override val order: Int = -1

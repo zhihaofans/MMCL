@@ -3,6 +3,7 @@ package dev.mmcl.app.shell
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.graphics.ImageBitmap
@@ -25,6 +26,12 @@ import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiSlot
 import dev.mmcl.api.ui.UiWidget
+import dev.mmcl.app.appearance.AppearanceStore
+import dev.mmcl.app.i18n.BuiltinStrings
+import dev.mmcl.app.i18n.LocaleController
+import dev.mmcl.app.i18n.LocalStrings
+import dev.mmcl.app.i18n.MapStrings
+import dev.mmcl.app.i18n.Strings
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.GameLogPanel
@@ -180,6 +187,12 @@ class AppShellRenderTest {
             },
         )
 
+    private fun chineseStrings(): Strings =
+        MapStrings(listOf(BuiltinStrings.simplifiedChinese, BuiltinStrings.english))
+
+    private fun englishStrings(): Strings =
+        MapStrings(listOf(BuiltinStrings.english))
+
     private fun render(
         name: String,
         themeController: ThemeController,
@@ -187,6 +200,7 @@ class AppShellRenderTest {
         widgets: List<UiWidget> = emptyList(),
         titleBarInset: Dp = 0.dp,
         background: ImageBitmap? = null,
+        strings: Strings = chineseStrings(),
         width: Int = 1100,
         height: Int = 720,
         density: Float = 1f,
@@ -194,6 +208,7 @@ class AppShellRenderTest {
         Files.createDirectories(screenshots)
         val scene =
             ImageComposeScene(width = width, height = height, density = Density(density)) {
+                CompositionLocalProvider(LocalStrings provides strings) {
                 AppRoot(themeController, background = background) {
                     AppShell(
                         pages = screen,
@@ -203,6 +218,7 @@ class AppShellRenderTest {
                         widgets = widgets,
                         titleBarInset = titleBarInset,
                     )
+                }
                 }
             }
         try {
@@ -288,6 +304,23 @@ class AppShellRenderTest {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
         // 78dp 是红黄绿按钮占用的宽度，顶栏内容要整体右移
         render("shell-macos-chrome", controller, titleBarInset = 78.dp)
+    }
+
+    @Test
+    fun `渲染英文界面`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        val pageSettings = InMemorySettingsService()
+        val settingsPage =
+            SettingsPage(
+                launcher,
+                controller,
+                safeMode = false,
+                manifests = manifestStub,
+                settings = pageSettings,
+                appearance = AppearanceStore(pageSettings),
+                localeController = LocaleController(pageSettings),
+            )
+        render("shell-settings-en", controller, listOf(settingsPage, InstancesPage()), strings = englishStrings())
     }
 
     @Test

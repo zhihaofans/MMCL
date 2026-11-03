@@ -37,8 +37,16 @@ interface UiPage {
     /** 全局唯一标识，例如 `dev.mmcl.ui.about`。 */
     val id: String
 
-    /** 导航栏与页面标题。 */
+    /** 导航栏与页面标题；没有 [titleKey] 时用这个原文。 */
     val title: String
+
+    /**
+     * 标题对应的 i18n key，例如 `page.settings.title`。
+     *
+     * 内置页面提供该 key；插件页面留空即可，直接显示 [title]。
+     */
+    val titleKey: String?
+        get() = null
 
     /** 导航图标。 */
     val icon: UiIcon

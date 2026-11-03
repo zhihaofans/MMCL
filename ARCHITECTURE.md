@@ -199,6 +199,7 @@ app ──► core ──► api
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
 | `JavaRuntimeProvider` | Java 运行时下载来源（`priority` 选择，用户可在设置里指定） |
+| `LocalePack` | 界面语言包（内置 `en` / `zh-CN`，插件补其它语言） |
 | `UiContribution` | UI 面板/标签页（占位契约，P1 替换为 `UiPage`，见 `UI_DESIGN.md`） |
 
 ---
