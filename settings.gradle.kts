@@ -31,5 +31,6 @@ include(
     ":plugins:runtime-adoptium",
     ":plugins:runtime-foojay",
     ":plugins:runtime-mirror",
+    ":plugins:locale-zh-tw",
     ":plugins:source-mojang",
 )

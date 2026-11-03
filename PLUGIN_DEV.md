@@ -299,6 +299,7 @@ class JapanesePlugin : Plugin {
 ```
 
 - key 用层级命名（`page.settings.title`、`settings.section.appearance`），缺的 key 回退到内置英文；
+- 现成示例：`plugins/locale-zh-tw`（繁體中文，**不内置**），覆盖当前全部 key
   插件语言包只写自己翻了的 key，不必抄全表
 - 插件自己的页面文案自己负责：读设置 `ui.locale`（`auto` 表示跟随系统）再决定显示什么
 
