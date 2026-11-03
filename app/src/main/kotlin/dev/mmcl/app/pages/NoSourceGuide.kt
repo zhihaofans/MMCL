@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import dev.mmcl.app.i18n.LocalStrings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +42,7 @@ fun NoSourceGuide(
     folder: PluginFolder?,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     val clipboard = LocalClipboardManager.current
     var actionMessage by remember { mutableStateOf<String?>(null) }
 
@@ -49,21 +51,20 @@ fun NoSourceGuide(
         verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
     ) {
         Text(
-            text = "还没有安装下载源插件",
+            text = strings.t("no_source.title"),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.error,
         )
         Text(
-            text = "本应用不内置任何下载地址：版本清单和游戏文件都来自插件。" +
-                "装一个 source-mojang（或其它源插件）之后才能拉取版本。",
+            text = strings.t("no_source.body"),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Text("三步安装", style = MaterialTheme.typography.titleSmall)
-        StepRow("1", "编译插件（项目根目录）", BUILD_COMMAND, mono = true)
-        StepRow("2", "把生成的 JAR 复制到插件目录", folder?.path?.toString() ?: "<数据目录>/plugins/")
-        StepRow("3", "重启启动器", "插件只在启动时扫描一次")
+        Text(strings.t("no_source.steps"), style = MaterialTheme.typography.titleSmall)
+        StepRow("1", strings.t("no_source.step1"), BUILD_COMMAND, mono = true)
+        StepRow("2", strings.t("no_source.step2"), folder?.path?.toString() ?: "<data>/plugins/")
+        StepRow("3", strings.t("no_source.step3"), strings.t("no_source.step3_hint"))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -74,19 +75,23 @@ fun NoSourceGuide(
                     val result = folder?.open()
                     actionMessage =
                         when {
-                            result == null -> "这里没有插件目录信息"
-                            result.isSuccess -> "已在文件管理器中打开"
-                            else -> "打开失败：${result.exceptionOrNull()?.message ?: "未知原因"}"
+                            result == null -> strings.t("no_source.no_folder")
+                            result.isSuccess -> strings.t("no_source.opened")
+                            else ->
+                                strings.t(
+                                    "no_source.open_failed",
+                                    result.exceptionOrNull()?.message ?: strings.t("no_source.unknown_reason"),
+                                )
                         }
                 },
                 enabled = folder != null,
-            ) { Text("打开插件目录") }
+            ) { Text(strings.t("no_source.open")) }
             OutlinedButton(
                 onClick = {
                     clipboard.setText(AnnotatedString(BUILD_COMMAND))
-                    actionMessage = "命令已复制"
+                    actionMessage = strings.t("no_source.copied")
                 },
-            ) { Text("复制命令") }
+            ) { Text(strings.t("no_source.copy")) }
         }
 
         actionMessage?.let { message ->

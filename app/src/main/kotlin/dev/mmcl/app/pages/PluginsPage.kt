@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
@@ -47,9 +48,14 @@ class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
 
     @Composable
     override fun Content(navigator: AppNavigator) {
-        PageScaffold(title = "插件", subtitle = "共 ${plugins.size} 个，数据目录下的 plugins/ 与内置插件同一条加载路径") {
+        val strings = LocalStrings.current
+        PageScaffold(title = strings.t("page.plugins.title"), subtitle = strings.t("plugins.subtitle", plugins.size)) {
             if (plugins.isEmpty()) {
-                EmptyState(icon = UiIcon.PLUGIN, text = "没有发现插件", hint = "把插件 JAR 放进 <数据目录>/plugins/ 后重启")
+                EmptyState(
+                    icon = UiIcon.PLUGIN,
+                    text = strings.t("plugins.empty.title"),
+                    hint = strings.t("plugins.empty.hint"),
+                )
                 return@PageScaffold
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {

@@ -328,6 +328,12 @@ class AppShellRenderTest {
     }
 
     @Test
+    fun `渲染英文首页`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        render("home-en", controller, strings = englishStrings())
+    }
+
+    @Test
     fun `渲染壁纸背景`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
         // 渐变壁纸 + 半透明面板：确认文字仍然清楚、导航栏能透出底色

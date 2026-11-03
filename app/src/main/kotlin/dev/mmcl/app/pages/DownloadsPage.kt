@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import dev.mmcl.app.i18n.LocalStrings
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +78,7 @@ class DownloadsPage(
 
     @Composable
     override fun Content(navigator: AppNavigator) {
+        val strings = LocalStrings.current
         var state by remember { mutableStateOf<ManifestUiState>(ManifestUiState.Idle) }
         var focusedVersion by remember { mutableStateOf<String?>(null) }
         var autoCreateInstance by remember { mutableStateOf(true) }
@@ -96,9 +98,9 @@ class DownloadsPage(
                     try {
                         ManifestUiState.Loaded(service.load(forceRefresh = force))
                     } catch (t: NoVersionSourceException) {
-                        ManifestUiState.Failed("未安装下载源插件：把下载源插件放进 <数据目录>/plugins/ 后重启")
+                        ManifestUiState.Failed(strings.t("downloads.error.no_source"))
                     } catch (t: Throwable) {
-                        ManifestUiState.Failed(t.message ?: t::class.simpleName ?: "未知错误")
+                        ManifestUiState.Failed(t.message ?: t::class.simpleName ?: strings.t("downloads.error.unknown"))
                     }
             }
         }
@@ -123,15 +125,15 @@ class DownloadsPage(
         }
 
         PageScaffold(
-            title = "下载",
-            subtitle = "版本与共享文件",
+            title = strings.t("page.downloads.title"),
+            subtitle = strings.t("downloads.subtitle"),
             actions = {
                 if (hasSource) {
                     OutlinedButton(
                         onClick = { refresh(force = true) },
                         enabled = state != ManifestUiState.Loading,
                     ) {
-                        Text(if (state == ManifestUiState.Loading) "获取中…" else "刷新版本清单")
+                        Text(if (state == ManifestUiState.Loading) strings.t("downloads.loading") else strings.t("downloads.refresh"))
                     }
                 }
             },
@@ -141,8 +143,8 @@ class DownloadsPage(
                     if (hasSource) {
                         EmptyState(
                             icon = UiIcon.DOWNLOAD,
-                            text = "还没有载入版本清单",
-                            hint = "点右上角「刷新版本清单」，选择版本安装",
+                            text = strings.t("downloads.empty.title"),
+                            hint = strings.t("downloads.empty.hint"),
                         )
                     } else {
                         NoSourceGuide(
@@ -161,11 +163,11 @@ class DownloadsPage(
 
                 is ManifestUiState.Failed -> Column {
                     Text(
-                        text = "版本清单获取失败：${current.message}",
+                        text = strings.t("downloads.error", current.message),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    TextButton(onClick = { refresh(force = true) }) { Text("重试") }
+                    TextButton(onClick = { refresh(force = true) }) { Text(strings.t("downloads.retry")) }
                 }
 
                 is ManifestUiState.Loaded -> {
@@ -185,11 +187,11 @@ class DownloadsPage(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = "来自游戏页：先安装或修复 $version",
+                                    text = strings.t("downloads.focused", version),
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f),
                                 )
-                                TextButton(onClick = { focusedVersion = null }) { Text("知道了") }
+                                TextButton(onClick = { focusedVersion = null }) { Text(strings.t("downloads.focused.dismiss")) }
                             }
                         }
 
@@ -198,13 +200,13 @@ class DownloadsPage(
                                 FilterChip(
                                     selected = filter == option,
                                     onClick = { filter = option },
-                                    label = { Text(option.label) },
+                                    label = { Text(strings.t(option.labelKey)) },
                                 )
                                 Spacer(modifier = Modifier.size(MmclSpacing.xs))
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
-                                text = "只支持最新正式版系列（$supportedSeries）",
+                                text = strings.t("downloads.supported_only", supportedSeries),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -212,7 +214,7 @@ class DownloadsPage(
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(checked = autoCreateInstance, onCheckedChange = { autoCreateInstance = it })
-                            Text("安装完成后自动创建实例", style = MaterialTheme.typography.bodySmall)
+                            Text(strings.t("downloads.auto_instance"), style = MaterialTheme.typography.bodySmall)
                         }
 
                         val visibleVersions =
@@ -227,7 +229,7 @@ class DownloadsPage(
                                 .take(MAX_ROWS)
                         if (visibleVersions.isEmpty()) {
                             Text(
-                                text = "这个分类下没有版本",
+                                text = strings.t("downloads.category.empty"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -251,10 +253,10 @@ class DownloadsPage(
         }
     }
 
-    private enum class VersionFilter(val label: String) {
-        RELEASE("正式版"),
-        SNAPSHOT("快照"),
-        ALL("全部"),
+    private enum class VersionFilter(val labelKey: String) {
+        RELEASE("downloads.filter.release"),
+        SNAPSHOT("downloads.filter.snapshot"),
+        ALL("downloads.filter.all"),
     }
 
     companion object {
@@ -274,6 +276,7 @@ private fun VersionRow(
     onInstall: () -> Unit,
     onCancel: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val active = task?.state?.isActive == true
     Column(
         modifier = Modifier
@@ -296,16 +299,22 @@ private fun VersionRow(
             )
             Spacer(modifier = Modifier.size(MmclSpacing.s))
             Text(
-                text = if (supported) entry.type else "${entry.type} · 不受支持",
+                text = if (supported) entry.type else strings.t("downloads.row.unsupported", entry.type),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.weight(1f))
             if (active) {
-                TextButton(onClick = onCancel) { Text("取消") }
+                TextButton(onClick = onCancel) { Text(strings.t("downloads.cancel")) }
             } else {
                 Button(onClick = onInstall, enabled = supported) {
-                    Text(if (task?.state == DownloadTaskState.COMPLETED) "修复" else "安装")
+                    Text(
+                        if (task?.state == DownloadTaskState.COMPLETED) {
+                            strings.t("downloads.repair")
+                        } else {
+                            strings.t("downloads.install")
+                        },
+                    )
                 }
             }
         }
@@ -316,9 +325,10 @@ private fun VersionRow(
 
 @Composable
 private fun TaskLine(task: DownloadTask) {
+    val strings = LocalStrings.current
     when (task.state) {
-        DownloadTaskState.QUEUED -> Text("排队中…", style = MaterialTheme.typography.labelSmall)
-        DownloadTaskState.PLANNING -> Text("正在规划文件…", style = MaterialTheme.typography.labelSmall)
+        DownloadTaskState.QUEUED -> Text(strings.t("downloads.task.queued"), style = MaterialTheme.typography.labelSmall)
+        DownloadTaskState.PLANNING -> Text(strings.t("downloads.task.planning"), style = MaterialTheme.typography.labelSmall)
         DownloadTaskState.DOWNLOADING -> {
             val progress = task.progress
             if (progress != null) {
@@ -328,37 +338,60 @@ private fun TaskLine(task: DownloadTask) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                val phase =
+                    if (progress.phase == "assets") {
+                        strings.t("downloads.phase.assets")
+                    } else {
+                        strings.t("downloads.phase.files")
+                    }
                 Text(
-                    text = "${if (progress.phase == "assets") "资源" else "文件"} ${progress.completed}/${progress.total}" +
-                        if (progress.current.isNotBlank()) "：${progress.current}" else "",
+                    text =
+                        if (progress.current.isNotBlank()) {
+                            strings.t(
+                                "downloads.task.progress_with_current",
+                                phase,
+                                progress.completed,
+                                progress.total,
+                                progress.current,
+                            )
+                        } else {
+                            strings.t("downloads.task.progress", phase, progress.completed, progress.total)
+                        },
                     style = MaterialTheme.typography.labelSmall,
                 )
             } else {
-                Text("下载中…", style = MaterialTheme.typography.labelSmall)
+                Text(strings.t("downloads.task.downloading"), style = MaterialTheme.typography.labelSmall)
             }
         }
         DownloadTaskState.COMPLETED -> {
             val report = task.result?.report
             Text(
-                text = "完成：下载 ${report?.downloaded ?: 0}，跳过 ${report?.skipped ?: 0}，失败 ${report?.failures?.size ?: 0}",
+                text =
+                    strings.t(
+                        "downloads.task.done",
+                        report?.downloaded ?: 0,
+                        report?.skipped ?: 0,
+                        report?.failures?.size ?: 0,
+                    ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         DownloadTaskState.FAILED ->
             Text(
-                text = "失败：${task.error ?: "未知错误"}",
+                text = strings.t("downloads.task.failed", task.error ?: strings.t("downloads.error.unknown")),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
             )
         DownloadTaskState.CANCELLED ->
-            Text("已取消", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            Text(strings.t("downloads.task.cancelled"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
     }
 }
 
 /** 版本清单摘要：最新正式版/快照 + 支持范围 + 前几个版本。 */
 @Composable
 internal fun ManifestSummary(manifest: VersionManifest) {
+    val strings = LocalStrings.current
     val supportedSeries = VersionSupport.latestSeries(manifest)
     Column(
         modifier = Modifier
@@ -368,15 +401,15 @@ internal fun ManifestSummary(manifest: VersionManifest) {
             .padding(MmclSpacing.l),
         verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
     ) {
-        Text(text = "Mojang 版本清单", style = MaterialTheme.typography.titleSmall)
+        Text(text = strings.t("downloads.manifest.title"), style = MaterialTheme.typography.titleSmall)
         Text(
-            text = "只支持最新正式版系列（$supportedSeries）；其余仅展示，不可下载或启动",
+            text = strings.t("downloads.manifest.hint", supportedSeries),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        ManifestRow("最新正式版", manifest.latest.release)
-        ManifestRow("最新快照", manifest.latest.snapshot)
-        ManifestRow("版本总数", manifest.versions.size.toString())
+        ManifestRow(strings.t("downloads.manifest.latest_release"), manifest.latest.release)
+        ManifestRow(strings.t("downloads.manifest.latest_snapshot"), manifest.latest.snapshot)
+        ManifestRow(strings.t("downloads.manifest.count"), manifest.versions.size.toString())
         HorizontalDivider(modifier = Modifier.padding(vertical = MmclSpacing.xs))
         manifest.versions.take(6).forEach { entry ->
             val supported = VersionSupport.isSupported(entry, supportedSeries)
@@ -388,7 +421,12 @@ internal fun ManifestSummary(manifest: VersionManifest) {
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = if (supported) "${entry.type} · 支持" else "${entry.type} · 不受支持",
+                    text =
+                        if (supported) {
+                            strings.t("downloads.row.supported", entry.type)
+                        } else {
+                            strings.t("downloads.row.unsupported", entry.type)
+                        },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (supported) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
                 )

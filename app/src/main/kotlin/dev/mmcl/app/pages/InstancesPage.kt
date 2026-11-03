@@ -19,6 +19,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import dev.mmcl.app.i18n.LocalStrings
+import dev.mmcl.app.i18n.Strings
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -111,6 +113,7 @@ class InstancesPage(
 
     @Composable
     override fun Content(navigator: AppNavigator) {
+        val strings = LocalStrings.current
         var state by remember { mutableStateOf<ManifestUiState>(ManifestUiState.Idle) }
         var launchStatus by remember { mutableStateOf<String?>(null) }
         var instances by remember { mutableStateOf<List<Instance>>(emptyList()) }
@@ -142,9 +145,9 @@ class InstancesPage(
                     try {
                         ManifestUiState.Loaded(service.load(forceRefresh = force))
                     } catch (t: NoVersionSourceException) {
-                        ManifestUiState.Failed("未安装下载源插件：把下载源插件放进 <数据目录>/plugins/ 后重启")
+                        ManifestUiState.Failed(strings.t("downloads.error.no_source"))
                     } catch (t: Throwable) {
-                        ManifestUiState.Failed(t.message ?: t::class.simpleName ?: "未知错误")
+                        ManifestUiState.Failed(t.message ?: t::class.simpleName ?: strings.t("downloads.error.unknown"))
                     }
             }
         }
@@ -163,13 +166,13 @@ class InstancesPage(
         fun repairInstance(instance: Instance) {
             val queue = downloads
             if (queue == null) {
-                launchStatus = "下载队列未接线，无法校验"
+                launchStatus = strings.t("instances.launch.no_queue")
                 return
             }
             val manifest = (state as? ManifestUiState.Loaded)?.manifest
             val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
             queue.enqueue(entry, forceRefresh = true)
-            launchStatus = "已加入校验/修复队列：${instance.versionId}，进度见「下载」页"
+            launchStatus = strings.t("instances.launch.queued", instance.versionId)
         }
 
         fun launchInstance(instance: Instance) {
@@ -180,21 +183,21 @@ class InstancesPage(
             val service = instanceService
             val manifest = (state as? ManifestUiState.Loaded)?.manifest
             if (details == null || detector == null || process == null || context == null || service == null) {
-                launchStatus = "启动器未接线，无法启动"
+                launchStatus = strings.t("instances.launch.no_launcher")
                 return
             }
             if (!hasFiles(instance)) {
-                launchStatus = "共享文件缺失：去「下载」页安装或修复 ${instance.versionId} 后再启动"
+                launchStatus = strings.t("instances.launch.missing_files", instance.versionId)
                 return
             }
             val provider = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
             if (provider == null) {
-                launchStatus = "缺少账户插件：安装 auth-offline（内置）后重启启动器"
+                launchStatus = strings.t("instances.launch.no_auth")
                 return
             }
             // 没有清单源时退回空 URL：详情服务会优先读本地缓存
             val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
-            launchStatus = "正在启动 ${instance.name}…"
+            launchStatus = strings.t("instances.launch.starting", instance.name)
             scope.launch {
                 try {
                     val detail = details.load(entry)
@@ -203,7 +206,7 @@ class InstancesPage(
                     if (runtime == null) {
                         missingJava = required
                         pendingJavaInstance = instance
-                        launchStatus = "缺少 Java ≥$required，无法启动 ${instance.name}；可用下面的按钮下载"
+                        launchStatus = strings.t("instances.launch.missing_java", required, instance.name)
                         return@launch
                     }
                     val auth = provider.createSession(context.playerName)
@@ -229,9 +232,9 @@ class InstancesPage(
                     logOwnerName = instance.name
                     runningSession = session
                     runningInstanceId = instance.id
-                    launchStatus = "${instance.name} 已启动（pid ${session.pid}）"
+                    launchStatus = strings.t("instances.launch.started", instance.name, session.pid)
                 } catch (t: Throwable) {
-                    launchStatus = "启动失败：${t.message ?: t::class.simpleName}"
+                    launchStatus = strings.t("instances.launch.failed", t.message ?: t::class.simpleName)
                     runningSession = null
                     runningInstanceId = null
                 }
@@ -258,7 +261,7 @@ class InstancesPage(
             while (session.isRunning) delay(500)
             logLines = session.snapshot()
             exitedCode = session.process.exitValue()
-            launchStatus = "游戏已退出（code ${exitedCode}）"
+            launchStatus = strings.t("instances.launch.exited", exitedCode)
             runningSession = null
             runningInstanceId = null
         }
@@ -268,52 +271,52 @@ class InstancesPage(
             val context = launchContext
             val sources = javaSources
             if (installer == null || context == null || sources == null) {
-                javaMessage = "没有可用的运行时来源插件：去「设置」安装后重启"
+                javaMessage = strings.t("instances.java.no_source")
                 return
             }
             javaBusy = true
-            javaMessage = "正在解析 Java $required…"
+            javaMessage = strings.t("instances.java.parsing", required)
             scope.launch {
                 try {
                     // 镜像站常缺某个平台/版本；安装期失败（例如错平台的包）也会自动换下一个来源
                     val installed =
                         sources.installFirst(required, context.os, context.arch, installer) { bytes ->
-                            javaMessage = "已下载 ${bytes / 1024 / 1024} MB…"
+                            javaMessage = strings.t("instances.java.downloaded", bytes / 1024 / 1024)
                         }
                             ?: error(
                                 if (sources.hasProvider()) {
-                                    "没有来源支持 ${context.os} / ${context.arch}"
+                                    strings.t("instances.java.unsupported", context.os, context.arch)
                                 } else {
-                                    "没有可用的运行时来源插件：去「设置」安装后重启"
+                                    strings.t("instances.java.no_source")
                                 },
                             )
                     val (provider, home) = installed
-                    javaMessage = "${provider.displayName} 的 Java $required 已安装"
+                    javaMessage = strings.t("instances.java.installed", provider.displayName, required)
                     missingJava = null
                     javaBusy = false
                     pendingJavaInstance?.let { launchInstance(it) }
                     pendingJavaInstance = null
                 } catch (t: Throwable) {
                     javaBusy = false
-                    javaMessage = "下载 Java 失败：${t.message ?: t::class.simpleName}"
+                    javaMessage = strings.t("instances.java.failed", t.message ?: t::class.simpleName)
                 }
             }
         }
 
         PageScaffold(
-            title = "游戏",
-            subtitle = "实例、启动与日志",
+            title = strings.t("page.instances.title"),
+            subtitle = strings.t("instances.subtitle"),
             actions = {
                 if (hasSource) {
                     OutlinedButton(
                         onClick = { refresh(force = true) },
                         enabled = state != ManifestUiState.Loading,
                     ) {
-                        Text(if (state == ManifestUiState.Loading) "获取中…" else "刷新版本清单")
+                        Text(if (state == ManifestUiState.Loading) strings.t("downloads.loading") else strings.t("downloads.refresh"))
                     }
                 }
                 if (instanceService != null) {
-                    Button(onClick = { openDownloads() }) { Text("安装新版本") }
+                    Button(onClick = { openDownloads() }) { Text(strings.t("home.install_new")) }
                 }
             },
         ) {
@@ -322,9 +325,9 @@ class InstancesPage(
             Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
                 Text(
                     text = if (account == null) {
-                        "账户：未安装认证插件（游戏无法启动）"
+                        strings.t("instances.account.none")
                     } else {
-                        "账户：${account.displayName} · ${launchContext?.playerName ?: "Player"}"
+                        strings.t("instances.account", account.displayName, launchContext?.playerName ?: "Player")
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -333,7 +336,7 @@ class InstancesPage(
                 if (!hasSource) {
                     NoSourceGuide(folder = pluginFolder)
                     Text(
-                        text = "没有下载源时仍可启动本机已装好的实例。",
+                        text = strings.t("instances.no_source_hint"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -349,22 +352,22 @@ class InstancesPage(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "有 ${missing.size} 个实例缺少共享文件，启动会被拦下",
+                            text = strings.t("instances.missing_files", missing.size),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f),
                         )
-                        Button(onClick = { openDownloads(missing.first().versionId) }) { Text("去下载") }
+                        Button(onClick = { openDownloads(missing.first().versionId) }) { Text(strings.t("instances.action.go_downloads")) }
                     }
                 }
 
                 if (instances.isEmpty()) {
                     EmptyState(
                         icon = UiIcon.GAME,
-                        text = "还没有实例",
+                        text = strings.t("instances.empty.title"),
                         hint = if (hasSource) {
-                            "点右上角「安装新版本」，在下载页选版本安装"
+                            strings.t("instances.empty.hint_install")
                         } else {
-                            "先安装版本源插件，再安装游戏版本"
+                            strings.t("instances.empty.hint_no_source")
                         },
                     )
                 } else {
@@ -383,29 +386,29 @@ class InstancesPage(
 
                 if (logOwnerName != null && (logLines.isNotEmpty() || runningSession != null || exitedCode != null)) {
                     GameLogPanel(
-                        title = "游戏日志 · ${logOwnerName}",
+                        title = strings.t("instances.log.title", logOwnerName),
                         lines = logLines,
                         running = runningSession != null,
                         exitCode = exitedCode,
                         onClear = { logLines = emptyList() },
                         onCopy = {
                             clipboard.setText(AnnotatedString(logLines.joinToString("\n")))
-                            launchStatus = "日志已复制到剪贴板"
+                            launchStatus = strings.t("instances.log.copied")
                         },
                         onExport = {
                             launchStatus =
-                                exportLog(logLines.joinToString("\n")).fold(
-                                    onSuccess = { "日志已导出到 $it" },
-                                    onFailure = { "导出失败：${it.message ?: it::class.simpleName}" },
+                                exportLog(logLines.joinToString("\n"), strings).fold(
+                                    onSuccess = { strings.t("instances.log.exported", it) },
+                                    onFailure = { strings.t("instances.log.export_failed", it.message ?: it::class.simpleName) },
                                 )
                         },
                         onStop = {
                             runningSession?.stop()
-                            launchStatus = "已请求停止游戏"
+                            launchStatus = strings.t("instances.log.stop_requested")
                         },
                         onForceStop = {
                             runningSession?.forceStop()
-                            launchStatus = "已强制结束游戏进程"
+                            launchStatus = strings.t("instances.log.force_stopped")
                         },
                     )
                 }
@@ -430,15 +433,15 @@ class InstancesPage(
                     ) {
                         Text(
                             text = if (provider == null) {
-                                "缺少 Java ≥$required：去「设置」安装运行时来源插件"
+                                strings.t("instances.java.missing_hint", required)
                             } else {
-                                "缺少 Java ≥$required（来源：${provider.displayName}）"
+                                strings.t("instances.java.missing_from", required, provider.displayName)
                             },
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f),
                         )
                         Button(onClick = { downloadJava(required) }, enabled = provider != null && !javaBusy) {
-                            Text(if (javaBusy) "下载中…" else "下载 Java $required")
+                            Text(if (javaBusy) strings.t("downloads.task.downloading") else strings.t("instances.java.download", required))
                         }
                     }
                 }
@@ -455,11 +458,11 @@ class InstancesPage(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.size(MmclSpacing.s))
-                            Text("正在获取版本清单…", style = MaterialTheme.typography.labelSmall)
+                            Text(strings.t("instances.manifest.loading"), style = MaterialTheme.typography.labelSmall)
                         }
                     is ManifestUiState.Failed ->
                         Text(
-                            text = "版本清单获取失败：${current.message}",
+                            text = strings.t("instances.manifest.failed", current.message),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -478,9 +481,9 @@ class InstancesPage(
                     refreshInstances()
                     launchStatus =
                         if (ok) {
-                            "已保存 ${target.name} 的启动参数"
+                            strings.t("instances.params.saved", target.name)
                         } else {
-                            "保存启动参数失败：实例可能已被删除"
+                            strings.t("instances.params.save_failed")
                         }
                 },
             )
@@ -489,19 +492,19 @@ class InstancesPage(
         pendingDelete?.let { target ->
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
-                title = { Text("删除实例") },
-                text = { Text("会连同「${target.name}」的存档、配置与 mods 一起删除，且不可恢复。共享文件不受影响。") },
+                title = { Text(strings.t("instances.delete.title")) },
+                text = { Text(strings.t("instances.delete.body", target.name)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
                             instanceService?.delete(target.id)
                             refreshInstances()
                             pendingDelete = null
-                            launchStatus = "已删除实例 ${target.name}"
+                            launchStatus = strings.t("instances.delete.done", target.name)
                         },
-                    ) { Text("删除") }
+                    ) { Text(strings.t("instances.action.delete")) }
                 },
-                dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text(strings.t("instances.action.cancel")) } },
             )
         }
     }
@@ -518,6 +521,7 @@ internal fun InstanceCard(
     onEditParams: (() -> Unit)? = null,
     onDelete: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -530,22 +534,24 @@ internal fun InstanceCard(
         Column(modifier = Modifier.weight(1f)) {
             Text(text = instance.name, style = MaterialTheme.typography.titleSmall)
             Text(
-                text = "版本 ${instance.versionId} · instances/${instance.id}",
+                text = strings.t("instances.card.version", instance.versionId, instance.id),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (missingFiles) {
                 Text(
-                    text = "缺共享文件 · 去下载页安装或修复",
+                    text = strings.t("instances.card.missing"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
             }
         }
-        Button(onClick = onLaunch, enabled = !running) { Text(if (running) "运行中" else "启动") }
-        onRepair?.let { TextButton(onClick = it, enabled = !running) { Text("校验/修复") } }
-        onEditParams?.let { TextButton(onClick = it, enabled = !running) { Text("参数") } }
-        TextButton(onClick = onDelete, enabled = !running) { Text("删除") }
+        Button(onClick = onLaunch, enabled = !running) {
+            Text(if (running) strings.t("instances.action.running") else strings.t("instances.action.launch"))
+        }
+        onRepair?.let { TextButton(onClick = it, enabled = !running) { Text(strings.t("instances.action.repair")) } }
+        onEditParams?.let { TextButton(onClick = it, enabled = !running) { Text(strings.t("instances.action.params")) } }
+        TextButton(onClick = onDelete, enabled = !running) { Text(strings.t("instances.action.delete")) }
     }
 }
 
@@ -553,13 +559,13 @@ internal fun InstanceCard(
 const val INSTANCES_PAGE_ID: String = "dev.mmcl.page.instances"
 
 /** 用系统"另存为"对话框导出日志；取消或不选路径时返回失败原因。 */
-private fun exportLog(text: String): Result<Path> =
+private fun exportLog(text: String, strings: Strings): Result<Path> =
     runCatching {
-        val dialog = FileDialog(null as Frame?, "导出游戏日志", FileDialog.SAVE)
+        val dialog = FileDialog(null as Frame?, strings.t("instances.log.dialog_title"), FileDialog.SAVE)
         dialog.file = "latest.log"
         dialog.isVisible = true
-        val directory = dialog.directory ?: error("没有选择保存位置")
-        val name = dialog.file ?: error("没有输入文件名")
+        val directory = dialog.directory ?: error(strings.t("instances.log.no_directory"))
+        val name = dialog.file ?: error(strings.t("instances.log.no_name"))
         val target = Path.of(directory, name)
         Files.writeString(target, text)
         target
@@ -587,40 +593,41 @@ private fun LaunchParamsDialog(
     onDismiss: () -> Unit,
     onSave: (memoryMb: Int?, extraJvmArgs: String, envVars: String) -> Unit,
 ) {
+    val strings = LocalStrings.current
     var memoryText by remember(instance) { mutableStateOf(instance.memoryMb?.toString() ?: "") }
     var jvmArgs by remember(instance) { mutableStateOf(instance.extraJvmArgs) }
     var envVars by remember(instance) { mutableStateOf(instance.envVars) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("启动参数 · ${instance.name}") },
+        title = { Text(strings.t("instances.params.title", instance.name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
                 OutlinedTextField(
                     value = memoryText,
                     onValueChange = { memoryText = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("内存上限（MB，留空用默认 $DEFAULT_MEMORY_MB）") },
+                    label = { Text(strings.t("instances.params.memory", DEFAULT_MEMORY_MB)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = jvmArgs,
                     onValueChange = { jvmArgs = it },
-                    label = { Text("额外 JVM 参数（空格分隔）") },
+                    label = { Text(strings.t("instances.params.jvm")) },
                     placeholder = { Text("-XX:+UseG1GC") },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = envVars,
                     onValueChange = { envVars = it },
-                    label = { Text("环境变量（每行 KEY=VALUE）") },
+                    label = { Text(strings.t("instances.params.env")) },
                     placeholder = { Text("JAVA_TOOL_OPTIONS=-Dfoo=bar") },
                     minLines = 3,
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(memoryText.toIntOrNull(), jvmArgs, envVars) }) { Text("保存") }
+            TextButton(onClick = { onSave(memoryText.toIntOrNull(), jvmArgs, envVars) }) { Text(strings.t("instances.action.save")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(strings.t("instances.action.cancel")) } },
     )
 }

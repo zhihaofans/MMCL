@@ -1,6 +1,6 @@
 # UI_DESIGN.md — 界面外壳与主题化方案
 
-> 状态：**P1–P4 已实现**（外壳、主题、真实数据、部件插槽，对应 0.0.3）；P5 待做。实现进度以 `TODO.md` 为准，规则见 `AGENTS.md`。
+> 状态：**P1–P5 已实现**（外壳、主题、真实数据、部件插槽、深化：窗口状态/标题栏/字体/背景图/i18n）。后续以上手路径（向导、账户区）为主，进度以 `TODO.md` 为准。
 > 目标：做一套清晰分区的桌面界面，同时让**页面、部件、主题都能由插件替换**，三平台一致。
 
 ---
@@ -250,7 +250,7 @@ app/src/main/kotlin/dev/mmcl/app/
 | **P2 主题** | `ui-kit` + `LauncherTheme` + `SettingsService` + 主题选择页 + 安全阀 | `ui-kit` 模块；`ThemeController`；`plugins/theme-sakura` 示例 | 切换即时生效、重启保持；`--safe-mode` 可用 | ✅ 已完成 |
 | **P3 真实数据** | 实例页接 core 的实例与账户服务，启动按钮；下载页接版本清单与安装队列；首页总览 | core 的三个读接口 + app 卡片网格 + `DownloadsService` + `HomePage` | 能列出本机实例并点启动；下载页能安装/修复；首页可一键启动最近实例 | ✅ 已完成 |
 | **P4 部件** | Widget Slot（顶栏/状态栏/首页卡片）+ 任务进度 | `UiWidget`/`UiSlot`；首页卡片示例 | 插件卡片出现在首页，状态栏显示下载进度 | ✅ 已完成 |
-| **P5 深化** | i18n 剩余页面（壳层与设置页已完成；窗口状态、标题栏、字体、背景图已完成） | 视需求 | 三平台观感一致 | ⏳ |
+| **P5 深化** | 窗口状态记忆、macOS 透明标题栏、自定义字体与背景图、i18n（含插件语言包扩展点） | `WindowStateStore`、`AppearanceStore`、`LocaleController`、`LocalePack` | 三平台观感一致 | ✅ 已完成 |
 
 预估：P1 一轮、P2 一到两轮、P3 取决于启动链进度、P4 一轮、P5 按需。
 
@@ -279,7 +279,7 @@ app/src/main/kotlin/dev/mmcl/app/
 | 插件在后台线程改 UI 状态 | 约定：生命周期回调只注册；运行时更新走 `StateFlow` | 文档约定 |
 | 坏主题/坏页面导致进不去界面 | `--safe-mode`（或 `MMCL_SAFE_MODE=1`）跳过全部插件主题与页面；主题 id 不存在自动回退内置深色 | ✅ 已实现 |
 | 主题把布局改崩 | app 负责 `MaterialTheme`，主题只提供配色 + 可选 `Decorate` | ✅ 已实现 |
-| 图标/字体资源不便打包 | 图标走 `UiIcon` 枚举 → `MmclIcons` 内置矢量图（`material-icons-core` 的 40 个图标，不引 extended）；字体留到 P5 | ✅ 已实现 |
+| 图标/字体资源不便打包 | 图标走 `UiIcon` 枚举 → `MmclIcons` 内置矢量图（`material-icons-core` 的 40 个图标，不引 extended）；字体改为用户自选，不打包进仓库 | ✅ 已实现 |
 | macOS 标题栏与 Windows 差异 | P1 用系统默认标题栏；P5 再评估无边框 + 拖拽区域 | 按计划 |
 | 组合期异常无法隔离 | 文档明确限制 + 安全阀；不承诺"主题插件永不崩" | 已知限制 |
 

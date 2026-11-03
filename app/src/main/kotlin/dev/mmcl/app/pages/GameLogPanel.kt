@@ -1,5 +1,6 @@
 package dev.mmcl.app.pages
 
+import dev.mmcl.app.i18n.LocalStrings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ internal fun GameLogPanel(
     onForceStop: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -59,19 +61,19 @@ internal fun GameLogPanel(
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = when {
-                    running -> "运行中"
-                    exitCode != null -> "已退出 · code $exitCode"
-                    else -> "未启动"
+                    running -> strings.t("log.status.running")
+                    exitCode != null -> strings.t("log.status.exited", exitCode)
+                    else -> strings.t("log.status.not_started")
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            onCopy?.let { TextButton(onClick = it, enabled = lines.isNotEmpty()) { Text("复制") } }
-            onExport?.let { TextButton(onClick = it, enabled = lines.isNotEmpty()) { Text("导出…") } }
-            TextButton(onClick = onClear, enabled = lines.isNotEmpty()) { Text("清空") }
+            onCopy?.let { TextButton(onClick = it, enabled = lines.isNotEmpty()) { Text(strings.t("log.action.copy")) } }
+            onExport?.let { TextButton(onClick = it, enabled = lines.isNotEmpty()) { Text(strings.t("log.action.export")) } }
+            TextButton(onClick = onClear, enabled = lines.isNotEmpty()) { Text(strings.t("log.action.clear")) }
             if (running) {
-                onStop?.let { TextButton(onClick = it) { Text("停止") } }
-                onForceStop?.let { TextButton(onClick = it) { Text("强制结束") } }
+                onStop?.let { TextButton(onClick = it) { Text(strings.t("log.action.stop")) } }
+                onForceStop?.let { TextButton(onClick = it) { Text(strings.t("log.action.force_stop")) } }
             }
         }
 
@@ -89,7 +91,7 @@ internal fun GameLogPanel(
         ) {
             if (lines.isEmpty()) {
                 Text(
-                    text = "（暂无输出）",
+                    text = strings.t("log.empty"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                 )

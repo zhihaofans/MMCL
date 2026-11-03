@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.mmcl.api.capability.AuthProvider
+import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
@@ -62,6 +63,7 @@ class HomePage(
 
     @Composable
     override fun Content(navigator: AppNavigator) {
+        val strings = LocalStrings.current
         var recent by remember { mutableStateOf<List<Instance>>(emptyList()) }
 
         LaunchedEffect(Unit) {
@@ -71,7 +73,7 @@ class HomePage(
         val account = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
         val sourceCount = manifests?.orderedSources()?.size ?: 0
 
-        PageScaffold(title = "首页", subtitle = "账户、下载源与最近实例") {
+        PageScaffold(title = strings.t("page.home.title"), subtitle = strings.t("home.subtitle")) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -83,17 +85,21 @@ class HomePage(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "账户：${account?.displayName ?: "未安装认证插件"} · $playerName",
+                        text = strings.t(
+                    "home.account",
+                    account?.displayName ?: strings.t("home.account.no_auth"),
+                    playerName,
+                ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = if (sourceCount > 0) "下载源：已安装 $sourceCount 个" else "下载源：未安装（只能启动已有的实例）",
+                        text = if (sourceCount > 0) strings.t("home.sources.installed", sourceCount) else strings.t("home.sources.none"),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (sourceCount > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                     )
                 }
-                TextButton(onClick = { navigator.navigate(SettingsPage.PAGE_ID) }) { Text("设置") }
+                TextButton(onClick = { navigator.navigate(SettingsPage.PAGE_ID) }) { Text(strings.t("settings.title")) }
             }
 
             if (sourceCount == 0) {
@@ -103,14 +109,14 @@ class HomePage(
             if (recent.isEmpty()) {
                 EmptyState(
                     icon = UiIcon.GAME,
-                    text = "还没有实例",
-                    hint = "去「下载」页安装一个版本，装完可以自动创建实例",
+                    text = strings.t("home.empty.title"),
+                    hint = strings.t("home.empty.hint"),
                 )
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("最近实例", style = MaterialTheme.typography.titleSmall)
+                    Text(strings.t("home.recent"), style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.weight(1f))
-                    TextButton(onClick = { navigator.navigate(InstancesPage.PAGE_ID) }) { Text("全部实例") }
+                    TextButton(onClick = { navigator.navigate(InstancesPage.PAGE_ID) }) { Text(strings.t("home.all_instances")) }
                 }
                 recent.forEach { instance ->
                     RecentInstanceRow(
@@ -123,16 +129,16 @@ class HomePage(
                 }
             }
 
-            Text("快捷入口", style = MaterialTheme.typography.titleSmall)
+            Text(strings.t("home.shortcuts"), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
-                Button(onClick = { navigator.navigate(DownloadsPage.PAGE_ID) }) { Text("安装新版本") }
-                OutlinedButton(onClick = { navigator.navigate(DownloadsPage.PAGE_ID) }) { Text("下载") }
-                OutlinedButton(onClick = { navigator.navigate(PluginsPage.PAGE_ID) }) { Text("插件") }
+                Button(onClick = { navigator.navigate(DownloadsPage.PAGE_ID) }) { Text(strings.t("home.install_new")) }
+                OutlinedButton(onClick = { navigator.navigate(DownloadsPage.PAGE_ID) }) { Text(strings.t("page.downloads.title")) }
+                OutlinedButton(onClick = { navigator.navigate(PluginsPage.PAGE_ID) }) { Text(strings.t("page.plugins.title")) }
             }
 
             val homeWidgets = widgets.filter { it.slot == UiSlot.HOME }.sortedBy { it.order }
             if (homeWidgets.isNotEmpty()) {
-                Text("插件卡片", style = MaterialTheme.typography.titleSmall)
+                Text(strings.t("home.widgets"), style = MaterialTheme.typography.titleSmall)
                 homeWidgets.forEach { widget ->
                     Column(
                         modifier = Modifier
@@ -158,6 +164,7 @@ class HomePage(
 
 @Composable
 private fun RecentInstanceRow(instance: Instance, onLaunch: () -> Unit) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -169,11 +176,19 @@ private fun RecentInstanceRow(instance: Instance, onLaunch: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = instance.name, style = MaterialTheme.typography.bodyMedium)
             Text(
-                text = "版本 ${instance.versionId}" + if (instance.lastLaunchedAtEpochMillis > 0) " · 最近启动过" else " · 还没启动过",
+                text = strings.t(
+                    "home.instance.version",
+                    instance.versionId,
+                    if (instance.lastLaunchedAtEpochMillis > 0) {
+                        strings.t("home.instance.recent")
+                    } else {
+                        strings.t("home.instance.never")
+                    },
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Button(onClick = onLaunch) { Text("启动") }
+        Button(onClick = onLaunch) { Text(strings.t("home.instance.launch")) }
     }
 }
