@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-11-03
+
 ### 新增
 
 - 插件可跟随语言：`PluginContext.locale` 给非 UI 插件读当前语言；`api-ui` 新增 `LocalLauncherLocale`，
