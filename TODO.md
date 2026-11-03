@@ -70,6 +70,10 @@
 - [ ] 插件加载测试覆盖循环依赖／缺失依赖／异常隔离的完整矩阵
 - [ ] 独立 `CFBundleVersion`：jpackage 不支持，需打包后改 plist + 重签（自动更新前必须做）
 - [ ] Compose UI 点击／路由冒烟（`UI_DESIGN` 曾列，P4 后评估）
+- [ ] 退出清理覆盖 macOS ⌘Q：⌘Q 走 Compose 的 `exitApplication()`，绕过 `onCloseRequest`，
+      `manager.close()` 不执行（插件 `onDisable`、下载队列落盘都拿不到机会）；
+      补 JVM shutdown hook 或菜单代理，保证退出路径都清理
+      - 验收：⌘Q 与关窗两种退出，日志都有「插件 xxx 已禁用」且无未完成下载残留
 
 ## 阻塞 / 待用户决定
 
