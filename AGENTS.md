@@ -2,7 +2,8 @@
 
 > 面向 AI 编码 Agent。动手前先读第 1、2、3、6、7、8 节。
 > 架构细节见 `ARCHITECTURE.md`，插件开发见 `PLUGIN_DEV.md`。
-> 三者冲突时，以 `ARCHITECTURE.md` 为准，并在同一次改动里直接修正文档（本仓库暂无远程 PR 流程，不需要“提 PR”）。
+> 三者冲突时，以 `ARCHITECTURE.md` 为准，并在同一次改动里直接修正文档（仓库已托管在 GitHub
+> `zhihaofans/MMCL`，但日常改动直接提交 `main`，暂无 PR 评审流程）。
 
 ---
 
@@ -18,7 +19,8 @@
 - 游戏版本：只支持**最新正式版 + 同主版本系列**（例如最新是 `26.3` 时支持 `26.x`）；
   快照 / old_beta / old_alpha / 旧大版本不保证，清单里标注"不受支持"，不提供下载或启动
 - mod 加载器插件（Fabric / Forge / NeoForge）只针对最新正式版所属系列维护
-- 仓库形态：本地 git 仓库；**任何 git 操作都必须先经用户允许**，见第 7 节
+- 仓库形态：GitHub 仓库 `zhihaofans/MMCL`（默认分支 `main`，CI 见 `.github/workflows/package.yml`），
+  当前 `origin` 即该仓库；**任何 git 操作都必须先经用户允许**，见第 7 节
 - 发布形态：**应用不内置任何下载源/下载地址**。版本清单从哪拉、游戏文件从哪下，全部由用户安装的插件决定
   （`source-mojang` 等只以独立插件分发）。没有源插件时启动器只能启动本机已装好的实例
 - 版本阶段约定：`0.x` 阶段允许 API 破坏性变更，但必须在提交说明里标注 `API-BREAK:`；`1.0.0` 起严格执行 6.1 节的兼容规则
@@ -145,9 +147,11 @@
 ### 5.5 本机开发环境（已就绪，勿重复安装）
 
 1. 操作系统：macOS 27.x，Apple Silicon（`arm64`）
-2. JDK：**Temurin 27（arm64）** 作为 Gradle toolchain，同时用于 jpackage 打包；
-   另有 Zulu 25 只用来启动 Gradle（`JAVA_HOME` 指向 25 也可以）
-3. 校验：`/usr/libexec/java_home -V` 应列出 8 / 21 / 25 / 27；`./gradlew -version` 应显示 wrapper 版本与 `Launcher JVM`
+2. JDK：**Temurin 27（arm64，装在 `~/Library/Java/JavaVirtualMachines/temurin-27.jdk`）**
+   既作 Gradle toolchain，也用于 jpackage 打包；另有 Zulu 25 只用来启动 Gradle
+   （`JAVA_HOME` 指向 25 也可以）。**本机没有 JDK 21，也不影响构建**
+3. 校验：`/usr/libexec/java_home -V` 应列出 25 与 27（本机现状 8 / 25 / 27）；
+   `./gradlew -version` 应显示 wrapper 版本与 `Launcher JVM`
 4. Gradle：**只用 `./gradlew`**（版本以 `gradle/wrapper/gradle-wrapper.properties` 为准），不要 `brew install gradle`
 5. 首次构建会联网下载依赖；网络受限时用 `./gradlew build --offline`（依赖须已在 `~/.gradle/caches`）
 6. 三平台验证：`./gradlew build`（字节码跨平台一致）+ `./gradlew :app:run`（本机冒烟），打包见 `ARCHITECTURE.md` §13
@@ -254,3 +258,7 @@
 - **jlink 会裁掉运行时要用的模块**：打包后必须显式 `modules("java.naming", "java.sql", "java.net.http",
   "jdk.crypto.ec", "jdk.unsupported")`，否则 logback（javax.naming）或 HttpClient 会在启动时报
   `NoClassDefFoundError` —— 这个坑只在打包产物里出现，`:app:run` 不会暴露
+- **`/usr/bin/git` 可能直接报错**：本机 `xcode-select -p` 指向 `/Applications/Xcode.app/Contents/Developer`，
+  该路径缺 `xcodebuild` 时 `/usr/bin/git` 报 `unable to locate xcodebuild`。改用
+  `/Library/Developer/CommandLineTools/usr/bin/git`（2.54），或
+  `sudo xcode-select -s /Library/Developer/CommandLineTools` 一次性修好
