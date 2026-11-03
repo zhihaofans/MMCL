@@ -39,6 +39,7 @@ import dev.mmcl.api.capability.AuthProvider
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
+import dev.mmcl.app.auth.activeAccount
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
@@ -190,7 +191,7 @@ class InstancesPage(
                 launchStatus = strings.t("instances.launch.missing_files", instance.versionId)
                 return
             }
-            val provider = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
+            val provider = authProviders.activeAccount()
             if (provider == null) {
                 launchStatus = strings.t("instances.launch.no_auth")
                 return
@@ -320,7 +321,7 @@ class InstancesPage(
                 }
             },
         ) {
-            val account = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
+            val account = authProviders.activeAccount()
             val missing = instances.filter { !hasFiles(it) }
             Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
                 Text(

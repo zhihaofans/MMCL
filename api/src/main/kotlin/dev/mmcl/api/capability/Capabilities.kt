@@ -30,6 +30,14 @@ interface AuthProvider {
     /** 选择优先级，数值越小越优先。 */
     val priority: Int get() = 100
 
+    /**
+     * 当前是否已有可用账户。
+     *
+     * 启动器只在已登录的认证方式里挑优先级最高的那个：装了正版登录插件但还没登录时，
+     * 它不应该把离线账户挤掉。默认 `true`，旧插件行为不变。
+     */
+    val isSignedIn: Boolean get() = true
+
     /** 执行登录并返回账户；实现方必须自行处理刷新与持久化。 */
     suspend fun login(): Account
 

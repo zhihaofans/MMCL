@@ -28,6 +28,7 @@ import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
+import dev.mmcl.app.auth.activeAccount
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiSlot
 import dev.mmcl.api.ui.UiWidget
@@ -70,7 +71,7 @@ class HomePage(
             recent = instances?.recent(RECENT_LIMIT).orEmpty()
         }
 
-        val account = authProviders.minWithOrNull(compareBy({ it.priority }, { it.id }))
+        val account = authProviders.activeAccount()
         val sourceCount = manifests?.orderedSources()?.size ?: 0
 
         PageScaffold(title = strings.t("page.home.title"), subtitle = strings.t("home.subtitle")) {
