@@ -20,6 +20,9 @@ enum class PluginState {
     /** 处于循环依赖中，未加载。 */
     CYCLE,
 
+    /** 插件声明的 API 级别高于当前启动器，拒绝加载。 */
+    INCOMPATIBLE_API,
+
     /** 生命周期回调抛出异常，已隔离。 */
     FAILED,
 }

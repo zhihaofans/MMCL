@@ -5,6 +5,7 @@ import dev.mmcl.api.OperatingSystem
 import dev.mmcl.api.capability.ArchiveFormat
 import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.RuntimeDownload
+import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
 import dev.mmcl.api.plugin.PluginContext
 import java.io.IOException
@@ -33,6 +34,7 @@ import kotlinx.serialization.json.jsonPrimitive
 class FoojayRuntimePlugin : Plugin {
     override val id: String = "dev.mmcl.runtime.foojay"
     override val version: String = "0.0.1"
+    override val apiLevel: Int = ApiLevel.CURRENT
 
     override fun onLoad(context: PluginContext) {
         for (spec in FoojayDistributions.ALL) {

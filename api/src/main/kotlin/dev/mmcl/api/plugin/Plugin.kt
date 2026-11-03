@@ -17,6 +17,16 @@ interface Plugin {
     /** 语义化版本，例如 `1.0.0`。 */
     val version: String
 
+    /**
+     * 编译该插件时使用的 API 级别，见 [dev.mmcl.api.ApiLevel.CURRENT]。
+     *
+     * 新插件请写 `override val apiLevel: Int = ApiLevel.CURRENT`；
+     * `0` 表示未声明（旧插件），按兼容处理并打一条告警；
+     * 声明值高于启动器当前级别时，插件会被拒绝加载（`INCOMPATIBLE_API`）。
+     */
+    val apiLevel: Int
+        get() = 0
+
     /** 硬依赖：缺失时本插件不会被加载。 */
     val dependencies: List<String>
         get() = emptyList()

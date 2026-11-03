@@ -247,6 +247,7 @@ class MojangVersionSource : VersionManifestSource {
 class MojangSourcePlugin : Plugin {
     override val id = "dev.mmcl.source.mojang.plugin"
     override val version = "0.0.1"
+    override val apiLevel = ApiLevel.CURRENT   // 按哪一级 API 编译，见 §10.4
     override fun onLoad(context: PluginContext) {
         context.services.register(VersionManifestSource::class, MojangVersionSource())
     }
@@ -430,6 +431,15 @@ class MyPlugin : Plugin {
 
 新增内置插件只需要在 `settings.gradle.kts` 注册模块，并在 `app/build.gradle.kts` 里加一行
 `builtinPlugins(project(":plugins:<name>"))`。
+
+### 10.x API 级别
+
+`Plugin.apiLevel` 声明插件按哪一级 API 编译（[`dev.mmcl.api.ApiLevel.CURRENT`](api/src/main/kotlin/dev/mmcl/api/ApiLevel.kt)）：
+
+- 启动器拒绝加载 `apiLevel` **高于**当前版本的插件（状态 `INCOMPATIBLE_API`，日志写明需要的级别），
+  所以插件不会在启动器太旧时跑到一半抛 `NoSuchMethodError`
+- 没声明的旧插件（`apiLevel = 0`）按兼容处理，日志里会有一条告警
+- 启动器只在**删改已有接口/签名**时才把 `ApiLevel.CURRENT` +1；新增带默认实现的方法不需要动
 
 ### 10.3 手动安装（macOS 27）
 

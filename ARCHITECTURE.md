@@ -223,6 +223,7 @@ app ──► core ──► api
 - 事件订阅回调异常同样隔离，记录后继续分发
 - 缺失依赖：该插件标记为 `MISSING_DEP` 并跳过
 - 循环依赖：全部标记为 `CYCLE` 并跳过
+- API 级别不匹配：插件声明的 `apiLevel` 高于当前 `ApiLevel.CURRENT` 时标记 `INCOMPATIBLE_API` 并跳过，依赖它的插件按 `MISSING_DEP` 处理
 
 ---
 

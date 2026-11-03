@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import dev.mmcl.api.LauncherInfo
+import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.ui.AppNavigator
@@ -48,6 +49,7 @@ class AboutPage(private val launcher: LauncherInfo) : UiPage {
 class AboutPlugin : Plugin {
     override val id: String = "dev.mmcl.ui.about.plugin"
     override val version: String = "0.0.1"
+    override val apiLevel: Int = ApiLevel.CURRENT
 
     override fun onLoad(context: PluginContext) {
         context.services.register(UiPage::class, AboutPage(context.launcher))

@@ -1,5 +1,6 @@
 package dev.mmcl.core.plugin
 
+import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.event.EventBus
 import dev.mmcl.api.event.PluginDisabled
@@ -76,8 +77,44 @@ class PluginManager(
             logger.warn("插件 {} 处于循环依赖中，已跳过", id)
         }
 
+        // 先拦掉"要的 API 比当前启动器新"的插件：宁可明确拒绝，也不要跑到一半抛 NoSuchMethodError
+        val incompatible = mutableSetOf<String>()
         for (id in result.order) {
             val descriptor = byId.getValue(id)
+            val required = descriptor.plugin.apiLevel
+            when {
+                required > ApiLevel.CURRENT -> {
+                    incompatible += id
+                    loaded[id] = LoadedPlugin(descriptor, PluginState.INCOMPATIBLE_API)
+                    logger.error(
+                        "插件 {} 需要 API {}，当前启动器是 {}，已拒绝加载（请更新启动器或换用旧版插件）",
+                        id,
+                        required,
+                        ApiLevel.CURRENT,
+                    )
+                    events.publish(PluginFailed(id, "api"))
+                }
+
+                required == 0 ->
+                    logger.warn("插件 {} 未声明 API 级别（按兼容处理），建议升级到声明 apiLevel 的版本", id)
+            }
+        }
+
+        // 依赖了被拒绝插件的，按缺失依赖处理，避免半启动
+        for (id in result.order) {
+            if (id in incompatible) continue
+            val descriptor = byId.getValue(id)
+            val blocked = descriptor.dependencies.filter { dependency -> dependency in incompatible }
+            if (blocked.isNotEmpty()) {
+                loaded[id] = LoadedPlugin(descriptor, PluginState.MISSING_DEP)
+                logger.warn("插件 {} 依赖不受支持的插件 {}，已跳过", id, blocked)
+            }
+        }
+
+        for (id in result.order) {
+            val descriptor = byId.getValue(id)
+            if (loaded[id]?.state == PluginState.INCOMPATIBLE_API) continue
+            if (loaded[id]?.state == PluginState.MISSING_DEP) continue
             try {
                 descriptor.plugin.onLoad(createContext(descriptor))
                 loaded[id] = LoadedPlugin(descriptor, PluginState.LOADED)

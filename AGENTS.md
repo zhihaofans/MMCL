@@ -182,6 +182,8 @@
 - 不删除、不改签名、不改语义（`0.x` 阶段例外，须标注 `API-BREAK`）
 - 数据类新增字段必须给默认值
 - `api` 的公开类型只增不改；失效接口用 `@Deprecated` 标记并保留至少一个 MINOR 周期
+- **破坏兼容时必须升 `ApiLevel.CURRENT`**（`api` 的 `dev.mmcl.api.ApiLevel`）：删改签名或语义时 +1，并在提交里标 `API-BREAK`；只加带默认实现的方法不动它
+- core 会拒绝加载 `apiLevel` 高于当前启动器的插件（状态 `INCOMPATIBLE_API`）；没声明的旧插件按兼容处理并告警
 
 ---
 

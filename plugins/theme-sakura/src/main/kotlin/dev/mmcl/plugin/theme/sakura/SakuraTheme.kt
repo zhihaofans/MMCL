@@ -1,6 +1,7 @@
 package dev.mmcl.plugin.theme.sakura
 
 import androidx.compose.ui.graphics.Color
+import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.ui.LauncherTheme
@@ -36,6 +37,7 @@ class SakuraTheme : LauncherTheme by SimpleLauncherTheme(
 class SakuraThemePlugin : Plugin {
     override val id: String = "dev.mmcl.theme.sakura.plugin"
     override val version: String = "0.0.1"
+    override val apiLevel: Int = ApiLevel.CURRENT
 
     override fun onLoad(context: PluginContext) {
         context.services.register(LauncherTheme::class, SakuraTheme())

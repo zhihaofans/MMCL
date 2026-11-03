@@ -2,6 +2,7 @@ package dev.mmcl.plugin.hello
 
 import dev.mmcl.api.event.PluginEnabled
 import dev.mmcl.api.event.Subscription
+import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
 import dev.mmcl.api.plugin.PluginContext
 
@@ -14,6 +15,7 @@ import dev.mmcl.api.plugin.PluginContext
 class HelloPlugin : Plugin {
     override val id: String = "dev.mmcl.plugin.hello"
     override val version: String = "0.0.1"
+    override val apiLevel: Int = ApiLevel.CURRENT
 
     private var context: PluginContext? = null
     private var subscription: Subscription? = null

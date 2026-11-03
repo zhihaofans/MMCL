@@ -1,5 +1,6 @@
 package dev.mmcl.core.plugin
 
+import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.OperatingSystem
@@ -45,6 +46,46 @@ class PluginManagerTest {
             optionalDependencies = plugin.optionalDependencies,
             plugin = plugin,
         )
+
+    @Test
+    fun `声明超前 API 的插件被拒绝加载`() {
+        val plugin = FakePlugin("future", apiLevel = ApiLevel.CURRENT + 1)
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(plugin)))
+
+        val loaded = manager.plugins.single()
+        assertEquals(PluginState.INCOMPATIBLE_API, loaded.state)
+        assertEquals(0, plugin.loadCount, "被拒绝的插件不应执行 onLoad")
+        manager.close()
+    }
+
+    @Test
+    fun `未声明 API 级别的旧插件仍可加载`() {
+        val plugin = FakePlugin("legacy", apiLevel = 0)
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(plugin)))
+
+        assertEquals(PluginState.ENABLED, manager.plugins.single().state)
+        assertEquals(1, plugin.loadCount)
+        manager.close()
+    }
+
+    @Test
+    fun `依赖被拒插件的插件按缺失依赖处理`() {
+        val future = FakePlugin("future", apiLevel = ApiLevel.CURRENT + 1)
+        val dependent = FakePlugin("dependent", dependencies = listOf("future"))
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(future), descriptor(dependent)))
+
+        val byId = manager.plugins.associateBy { it.id }
+        assertEquals(PluginState.INCOMPATIBLE_API, byId.getValue("future").state)
+        assertEquals(PluginState.MISSING_DEP, byId.getValue("dependent").state)
+        assertEquals(0, dependent.loadCount, "依赖不可用时不应执行 onLoad")
+        manager.close()
+    }
 
     @Test
     fun `onLoad 抛异常不会影响其它插件`() {
