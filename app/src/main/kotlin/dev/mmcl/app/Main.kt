@@ -31,6 +31,7 @@ import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
 import dev.mmcl.app.shell.SavedWindowState
 import dev.mmcl.app.shell.WindowStateStore
+import dev.mmcl.app.shell.applyUiScaleOverride
 import dev.mmcl.app.shell.minimumWindowSize
 import dev.mmcl.app.shell.toSavedWindowState
 import dev.mmcl.app.theme.ThemeController
@@ -79,6 +80,8 @@ private const val SAFE_MODE_ENV = "MMCL_SAFE_MODE"
  */
 fun main(args: Array<String>) {
     val logger = LoggerFactory.getLogger("dev.mmcl.app")
+    // 必须在任何 AWT / Compose 初始化之前设置，Linux 分数缩放靠它兜底
+    applyUiScaleOverride()?.let { scale -> logger.info("界面缩放覆盖：{} 倍（{}）", scale, "MMCL_UI_SCALE") }
     val safeMode = args.contains(SAFE_MODE_ARG) || System.getenv(SAFE_MODE_ENV)?.trim() == "1"
     if (safeMode) logger.warn("安全模式已开启：忽略全部插件主题与插件页面")
 

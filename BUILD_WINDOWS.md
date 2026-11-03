@@ -594,6 +594,15 @@ Copy-Item plugins\source-mojang\build\libs\*.jar "$env:APPDATA\MMCL\plugins" -Fo
   - macOS：`~/Library/Application Support/MMCL/`
   - Linux：`$XDG_DATA_HOME/mmcl` 或 `~/.local/share/mmcl`
 - 一次性产出三平台安装包需要 GitHub Actions 三平台矩阵（每个平台在自己的 runner 上构建）
+- **Linux 分数缩放（125% / 150%）**：JDK 对 GTK 分数缩放经常只报整数倍，界面会偏小或发糊。
+  JDK 没有可靠的自动修法，用环境变量显式覆盖即可（必须在启动前设置，重启终端生效）：
+
+  ```bash
+  MMCL_UI_SCALE=1.25 ./MMCL          # 或者 java -Dmmcl.uiScale=1.25 -jar ...
+  ```
+
+  接受 0.5–4.0 之间的值，`1.25` 与 `1,25` 都认；非法值会被忽略并打一条日志。
+  Windows / macOS 一般由系统 DPI 自动处理，不需要设置
 
 ---
 

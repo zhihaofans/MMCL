@@ -291,6 +291,13 @@ class AppShellRenderTest {
     }
 
     @Test
+    fun `渲染窄窗口的实例卡片`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        // 820dp + 4 个操作按钮，检查会不会把标题挤没
+        render("instance-card-compact", controller, listOf(InstanceDemoPage(), InstancesPage()), width = 820, height = 620)
+    }
+
+    @Test
     fun `渲染 1_5 倍缩放`() {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
         // 1100px / 1.5 = 733dp，同样落进 COMPACT 档，用来抓缩放下的挤压
@@ -427,6 +434,8 @@ class AppShellRenderTest {
                     instance = Instance(id = "26.3", name = "26.3", versionId = "26.3", createdAtEpochMillis = 0),
                     running = false,
                     onLaunch = {},
+                    onRepair = {},
+                    onEditParams = {},
                     onDelete = {},
                 )
                 InstanceCard(
