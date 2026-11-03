@@ -53,6 +53,7 @@
       （目前用的是 Compose 默认图标）
 - [ ] macOS 签名 + 公证：Developer ID Application 证书、`notarytool` 提交与 stapling（未签名版已可本地运行）
 - [ ] 自动更新通道
+- [ ] 可选：自定义 WiX `resource-dir`，安装时检测并卸载旧的 per-machine 版本（只影响 0.0.2 用户，先观察是否需要）
 - [ ] Linux 发行形态写清范围：当前目标 deb；若要 AppImage／rpm／Flatpak 需单独拍板后再开项
 - [ ] CI 冒烟：package workflow 成功后校验 artifact 存在；可选再跑 `:app:test`
 

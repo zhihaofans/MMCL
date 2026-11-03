@@ -517,6 +517,31 @@ jpackage **不支持**直接产出 exe 安装器（`.exe` 只能作为**应用�
 
 ---
 
+### 5.7 安装位置与升级
+
+当前 MSI 是 **per-user 安装**（`perUserInstall = true`），不需要管理员：
+
+```
+%LOCALAPPDATA%\MMCL\   # 程序本体
+%APPDATA%\MMCL\        # 数据目录：实例、设置、插件都在这里
+```
+
+安装向导里有目录选择（`dirChooser = true`），用户改过路径的话以实际安装位置为准。
+
+升级靠 `upgradeUuid`（`app/build.gradle.kts` 的 `windows { upgradeUuid }`，**发布后不要改**）识别同一产品，
+同上下文的新版本会覆盖安装，数据目录不受影响。
+
+> **0.0.2 → 0.0.3 需要手动卸载一次**
+>
+> `0.0.2` 的 MSI 没有 `windows {}` 配置，jpackage 默认按 **per-machine** 装进了
+> `C:\Program Files\MMCL`。Windows Installer 把 per-machine 与 per-user 视为不同安装上下文，
+> 所以 `0.0.3` 检测不到旧版、会并排装一份新的。
+>
+> 处理办法：先在「设置 → 应用 → 已安装的应用」（或 `winget uninstall MMCL`）里卸载 0.0.2，再装 0.0.3。
+> **不要删 `%APPDATA%\MMCL`**——实例、设置和插件都在那里，卸载程序不会动它。
+>
+> `0.0.3` 及以后版本之间升级正常，这个坑只影响从 `0.0.2` 跨过来的那一次。
+
 ## 6. 常用命令速查
 
 ```powershell
