@@ -63,7 +63,7 @@ fun AppShell(
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
     val strings = LocalStrings.current
-    val currentTitle = current.titleKey?.let(strings::t) ?: current.title
+    val currentTitle = current.LocalizedTitle() ?: current.titleKey?.let(strings::t) ?: current.title
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val widthClass = shellWidthClass(maxWidth)
@@ -199,7 +199,7 @@ private fun NavRail(
 
 @Composable
 private fun RailItem(page: UiPage, selected: Boolean, showLabel: Boolean, onClick: () -> Unit) {
-    val label = page.titleKey?.let(LocalStrings.current::t) ?: page.title
+    val label = page.LocalizedTitle() ?: page.titleKey?.let(LocalStrings.current::t) ?: page.title
     val background = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     val contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     Column(

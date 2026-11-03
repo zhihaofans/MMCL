@@ -94,4 +94,12 @@ class AboutPluginTest {
             if (value == null) values.remove(key) else values[key] = value
         }
     }
+
+    @Test
+    fun `文案跟随语言`() {
+        assertEquals("About", aboutTexts("en").pageTitle)
+        assertEquals("关于", aboutTexts("zh-CN").pageTitle)
+        assertEquals("关于", aboutTexts("zh-TW").pageTitle)
+        assertEquals("About", aboutTexts("ja").pageTitle)
+    }
 }

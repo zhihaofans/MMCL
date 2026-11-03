@@ -7,6 +7,9 @@
 
 ### 新增
 
+- 插件可跟随语言：`PluginContext.locale` 给非 UI 插件读当前语言；`api-ui` 新增 `LocalLauncherLocale`，
+  UI 插件在组合中读取即可随语言切换重组；`UiPage.LocalizedTitle()` 支持插件页面标题本地化
+  （内置 `ui-about` 插件已按此本地化关于页、首页卡片与状态栏标记）
 - 插件元信息：`Plugin` 增加 `title`（展示名，缺省用 id）、`author`、`icon`（`PluginIcon` 语义枚举），
   插件页改为显示「图标 + 展示名 + id · 版本 · 作者」；9 个现有插件补齐元信息
 - 示例插件 `plugins/locale-zh-tw`（不内置）：繁體中文（台灣）语言包，覆盖当前全部 key，

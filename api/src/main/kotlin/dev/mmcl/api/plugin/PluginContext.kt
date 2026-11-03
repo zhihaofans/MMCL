@@ -33,4 +33,14 @@ interface PluginContext {
 
     /** 只读的启动器信息（名称、版本、平台、数据目录）。 */
     val launcher: LauncherInfo
+
+    /**
+     * 当前界面语言（BCP-47，例如 `en`、`zh-CN`）。
+     *
+     * `ui.locale` 的 `auto` 已经被解析成具体语言；语言在设置里切换后这里立刻读到新值。
+     * 非 UI 插件可以据此决定日志、数据或自己生成的文案用哪种语言；
+     * UI 插件请看 `dev.mmcl.api.ui.LocalLauncherLocale`（会随语言变化触发重组）。
+     */
+    val locale: String
+        get() = "en"
 }

@@ -48,6 +48,14 @@ interface UiPage {
     val titleKey: String?
         get() = null
 
+    /**
+     * 可选的本地化标题；语言切换后会自动重新求值。
+     *
+     * 插件页面用它返回当前语言下的标题，返回 `null` 时回退到 [title]。
+     */
+    @Composable
+    fun LocalizedTitle(): String? = null
+
     /** 导航图标。 */
     val icon: UiIcon
         get() = UiIcon.EXTENSION

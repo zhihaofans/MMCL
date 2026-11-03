@@ -2,6 +2,7 @@ package dev.mmcl.app.i18n
 
 import dev.mmcl.api.capability.LocalePack
 import dev.mmcl.api.service.SettingsService
+import dev.mmcl.core.i18n.Locales
 import java.util.Locale
 
 /** 设置页里的一个语言选项。 */
@@ -48,11 +49,7 @@ class LocaleController(
         settings?.getString(SETTING_KEY)?.takeIf { it.isNotBlank() } ?: AUTO
 
     /** 真正生效的语言标签。 */
-    fun currentLocale(): String {
-        val chosen = selected()
-        if (chosen != AUTO) return chosen
-        return if (systemLanguageTag().lowercase().startsWith("zh")) CHINESE else ENGLISH
-    }
+    fun currentLocale(): String = Locales.resolve(settings?.getString(SETTING_KEY), systemLanguageTag())
 
     /** 记住选择；传 [AUTO] 恢复跟随系统。 */
     fun select(locale: String) {
@@ -76,15 +73,15 @@ class LocaleController(
 
     companion object {
         /** 设置键：界面语言；`auto` 表示跟随系统。 */
-        const val SETTING_KEY: String = "ui.locale"
+        const val SETTING_KEY: String = Locales.KEY
 
         /** 跟随系统。 */
-        const val AUTO: String = "auto"
+        const val AUTO: String = Locales.AUTO
 
         /** 英文。 */
-        const val ENGLISH: String = "en"
+        const val ENGLISH: String = Locales.ENGLISH
 
         /** 简体中文。 */
-        const val CHINESE: String = "zh-CN"
+        const val CHINESE: String = Locales.CHINESE
     }
 }

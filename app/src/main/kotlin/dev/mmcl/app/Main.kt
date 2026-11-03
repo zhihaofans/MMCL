@@ -22,6 +22,7 @@ import dev.mmcl.api.capability.LocalePack
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.LauncherTheme
+import dev.mmcl.api.ui.LocalLauncherLocale
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.app.pages.DownloadsPage
@@ -173,6 +174,7 @@ fun main(args: Array<String>) {
             packs = { manager.services.getAll(LocalePack::class) },
         )
     val strings = mutableStateOf(localeController.strings { key -> logger.debug("缺少文案 key：{}", key) })
+    val currentLocale = mutableStateOf(localeController.currentLocale())
 
     // 用户自选字体：设置页选完立即重排，不用重启
     val appearanceStore = AppearanceStore(settings)
@@ -249,7 +251,10 @@ fun main(args: Array<String>) {
                 onFontFamilyChanged = { family -> customFontFamily.value = family },
                 onBackgroundChanged = { bitmap -> customBackground.value = bitmap },
                 localeController = localeController,
-                onLocaleChanged = { updated -> strings.value = updated },
+                onLocaleChanged = { updated ->
+                    strings.value = updated
+                    currentLocale.value = localeController.currentLocale()
+                },
             ),
         )
     val pluginPages: List<UiPage> =
@@ -327,7 +332,10 @@ fun main(args: Array<String>) {
                         )
                     }
             }
-            CompositionLocalProvider(LocalStrings provides strings.value) {
+            CompositionLocalProvider(
+                LocalStrings provides strings.value,
+                LocalLauncherLocale provides currentLocale.value,
+            ) {
             AppRoot(
                 themeController,
                 fontFamily = customFontFamily.value,

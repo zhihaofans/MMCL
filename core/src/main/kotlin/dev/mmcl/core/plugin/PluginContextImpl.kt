@@ -5,6 +5,7 @@ import dev.mmcl.api.event.EventBus
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.service.ServiceRegistry
 import dev.mmcl.api.service.SettingsService
+import dev.mmcl.core.i18n.Locales
 import java.nio.file.Path
 import org.slf4j.Logger
 
@@ -21,4 +22,8 @@ internal class PluginContextImpl(
     override val services: ServiceRegistry,
     override val settings: SettingsService,
     override val launcher: LauncherInfo,
-) : PluginContext
+) : PluginContext {
+    /** 每次读都会重新解析：语言在设置里切换后插件立刻拿到新值。 */
+    override val locale: String
+        get() = Locales.resolve(settings.getString(Locales.KEY))
+}

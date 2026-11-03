@@ -14,6 +14,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import dev.mmcl.core.settings.InMemorySettingsService
 import org.slf4j.LoggerFactory
 
 class PluginManagerTest {
@@ -47,6 +48,19 @@ class PluginManagerTest {
             optionalDependencies = plugin.optionalDependencies,
             plugin = plugin,
         )
+
+    @Test
+    fun `插件上下文暴露当前语言`() {
+        var seen: String? = null
+        val plugin = FakePlugin("locale-probe", onLoadHook = { context -> seen = context.locale })
+        val settings = InMemorySettingsService().also { it.putString("ui.locale", "zh-CN") }
+        val manager = PluginManager(launcherInfo(), logger, settings = settings)
+
+        manager.start(listOf(descriptor(plugin)))
+
+        assertEquals("zh-CN", seen)
+        manager.close()
+    }
 
     @Test
     fun `插件元信息有默认值`() {

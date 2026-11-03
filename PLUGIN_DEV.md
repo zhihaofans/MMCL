@@ -280,6 +280,11 @@ interface JavaRuntimeProvider {
 - 装了多个来源时，core 按顺序逐个调 `resolve`，用**第一个给出下载信息**的：
   某个来源不支持该平台或抛异常就换下一个，镜像站缺包不会让用户卡在"该来源不支持"
 
+- 跟随启动器语言：
+  - 非 UI 插件用 `PluginContext.locale`（`auto` 已解析成 `en` / `zh-CN` 等，切语言后立刻读到新值）
+  - UI 插件在 `@Composable` 里读 `dev.mmcl.api.ui.LocalLauncherLocale`，切语言会触发重组；
+    页面标题可以覆盖 `UiPage.LocalizedTitle()` 返回当前语言的标题（缺省回退 `title`）
+  - 内置示例 `plugins/ui-about`（关于页 / 首页卡片 / 状态栏标记）就是按这个模式本地化的
 - 插件元信息：`title`（展示名，缺省用 `id`）、`author`、`icon`（`PluginIcon` 枚举，由 `app` 映射成内置矢量图，
   插件不能自带图片）；`Plugin` 接口里都有默认实现，旧插件不受影响
 - 语言包（`LocalePack`，不内置）：应用自带 `en` / `zh-CN`，插件可以补其它语言：
