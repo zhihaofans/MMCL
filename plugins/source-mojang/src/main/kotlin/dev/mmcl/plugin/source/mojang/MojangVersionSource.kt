@@ -33,9 +33,11 @@ class MojangVersionSource(
             .connectTimeout(timeout)
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build(),
+    private val localeProvider: () -> String = { ENGLISH },
 ) : VersionManifestSource {
     override val id: String = "mojang"
-    override val displayName: String = "Mojang 官方"
+    override val displayName: String
+        get() = if (isChinese(localeProvider())) "Mojang 官方" else "Mojang official"
     override val priority: Int = 100
 
     override suspend fun fetchManifestJson(): String =
@@ -88,12 +90,26 @@ class MojangSourcePlugin : Plugin {
     override val id: String = "dev.mmcl.source.mojang.plugin"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
-    override val title: String = "Mojang 官方源"
+    override val title: String
+        get() = if (isChinese(localeProvider())) "Mojang 官方源" else "Mojang official source"
     override val author: String = "MMCL"
     override val icon: PluginIcon = PluginIcon.SOURCE
 
+    /** `onLoad` 之前不读语言，先按英文兜底。 */
+    private var localeProvider: () -> String = { ENGLISH }
+
     override fun onLoad(context: PluginContext) {
-        context.services.register(VersionManifestSource::class, MojangVersionSource())
+        localeProvider = { context.locale }
+        context.services.register(
+            VersionManifestSource::class,
+            MojangVersionSource(localeProvider = { context.locale }),
+        )
         context.logger.info("Mojang 官方版本源已注册")
     }
 }
+
+/** 缺省语言：`onLoad` 之前用英文兜底。 */
+private const val ENGLISH = "en"
+
+/** 界面语言是否为中文；插件展示名跟随 `PluginContext.locale`，不写死。 */
+private fun isChinese(locale: String): Boolean = locale.lowercase().startsWith("zh")

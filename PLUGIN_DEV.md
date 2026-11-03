@@ -287,6 +287,9 @@ interface JavaRuntimeProvider {
   - 内置示例 `plugins/ui-about`（关于页 / 首页卡片 / 状态栏标记）就是按这个模式本地化的
 - 插件元信息：`title`（展示名，缺省用 `id`）、`author`、`icon`（`PluginIcon` 枚举，由 `app` 映射成内置矢量图，
   插件不能自带图片）；`Plugin` 接口里都有默认实现，旧插件不受影响
+- 展示名不要写死：`title`、`AuthProvider.displayName`、`LauncherTheme.displayName` 这类会进界面的字符串，
+  用 `get() = if (ctx.locale.startsWith("zh")) "中文" else "English"` 现取（`ctx.locale` 切换语言后立刻是新值）；
+  写成 `val displayName = "中文"` 在英文界面下就是一条漏网的中文
 - 语言包（`LocalePack`，不内置）：应用自带 `en` / `zh-CN`，插件可以补其它语言：
 
 ```kotlin

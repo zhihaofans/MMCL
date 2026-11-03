@@ -21,7 +21,8 @@ class MojangVersionSourceTest {
         val source = MojangVersionSource()
 
         assertEquals("mojang", source.id)
-        assertEquals("Mojang 官方", source.displayName)
+        assertEquals("Mojang official", source.displayName)
+        assertEquals("Mojang 官方", MojangVersionSource(localeProvider = { "zh-CN" }).displayName)
         assertEquals(100, source.priority)
         assertTrue(MojangVersionSource.DEFAULT_MANIFEST_URL.endsWith("version_manifest_v2.json"))
     }

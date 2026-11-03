@@ -33,14 +33,20 @@ class MirrorRuntimePlugin : Plugin {
     override val id: String = "dev.mmcl.runtime.mirror"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
-    override val title: String = "国内镜像来源"
+    override val title: String
+        get() = if (isChinese(localeProvider())) "国内镜像来源" else "China mirrors"
     override val author: String = "MMCL"
     override val icon: PluginIcon = PluginIcon.RUNTIME
 
+    /** `onLoad` 之前不读语言，先按英文兜底。 */
+    private var localeProvider: () -> String = { ENGLISH }
+
     override fun onLoad(context: PluginContext) {
-        context.services.register(JavaRuntimeProvider::class, TunaTemurinProvider())
-        context.services.register(JavaRuntimeProvider::class, UstcTemurinProvider())
-        context.services.register(JavaRuntimeProvider::class, HuaweiOpenJdkProvider())
+        localeProvider = { context.locale }
+        val locale = { context.locale }
+        context.services.register(JavaRuntimeProvider::class, TunaTemurinProvider(localeProvider = locale))
+        context.services.register(JavaRuntimeProvider::class, UstcTemurinProvider(localeProvider = locale))
+        context.services.register(JavaRuntimeProvider::class, HuaweiOpenJdkProvider(localeProvider = locale))
         context.logger.info("国内镜像运行时来源已注册：清华 TUNA / 中科大 USTC / 华为云")
     }
 }
@@ -49,9 +55,11 @@ class MirrorRuntimePlugin : Plugin {
 class TunaTemurinProvider(
     override val priority: Int = 20,
     private val fetchText: suspend (String) -> String = ::httpGetText,
+    private val localeProvider: () -> String = { ENGLISH },
 ) : JavaRuntimeProvider {
     override val id: String = "tuna:temurin"
-    override val displayName: String = "Temurin（清华 TUNA 镜像）"
+    override val displayName: String
+        get() = if (isChinese(localeProvider())) "Temurin（清华 TUNA 镜像）" else "Temurin (TUNA mirror)"
 
     override suspend fun resolve(
         majorVersion: Int,
@@ -80,9 +88,11 @@ class TunaTemurinProvider(
 class UstcTemurinProvider(
     override val priority: Int = 25,
     private val fetchText: suspend (String) -> String = ::httpGetText,
+    private val localeProvider: () -> String = { ENGLISH },
 ) : JavaRuntimeProvider {
     override val id: String = "ustc:temurin"
-    override val displayName: String = "Temurin（中科大 USTC 镜像）"
+    override val displayName: String
+        get() = if (isChinese(localeProvider())) "Temurin（中科大 USTC 镜像）" else "Temurin (USTC mirror)"
 
     override suspend fun resolve(
         majorVersion: Int,
@@ -115,9 +125,11 @@ class UstcTemurinProvider(
 class HuaweiOpenJdkProvider(
     override val priority: Int = 30,
     private val fetchText: suspend (String) -> String = ::httpGetText,
+    private val localeProvider: () -> String = { ENGLISH },
 ) : JavaRuntimeProvider {
     override val id: String = "huawei:openjdk"
-    override val displayName: String = "OpenJDK（华为云镜像）"
+    override val displayName: String
+        get() = if (isChinese(localeProvider())) "OpenJDK（华为云镜像）" else "OpenJDK (Huawei Cloud mirror)"
 
     override suspend fun resolve(
         majorVersion: Int,
@@ -231,5 +243,11 @@ internal suspend fun httpGetText(url: String): String =
     }
 
 private const val USER_AGENT = "MMCL"
+
+/** 缺省语言：`onLoad` 之前用英文兜底。 */
+private const val ENGLISH = "en"
+
+/** 界面语言是否为中文；插件展示名跟随 `PluginContext.locale`，不写死。 */
+private fun isChinese(locale: String): Boolean = locale.lowercase().startsWith("zh")
 
 private val TIMEOUT: Duration = Duration.ofSeconds(20)

@@ -21,7 +21,8 @@ class SakuraThemeTest {
         val theme = SakuraTheme()
 
         assertEquals("dev.mmcl.theme.sakura", theme.id)
-        assertEquals("樱花", theme.displayName)
+        assertEquals("Sakura", theme.displayName)
+        assertEquals("樱花", SakuraTheme(localeProvider = { "zh-CN" }).displayName)
         assertFalse(theme.dark)
     }
 

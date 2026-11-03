@@ -144,7 +144,7 @@ private fun TopBar(
                 shape = RoundedCornerShape(percent = 50),
             ) {
                 Text(
-                    text = "安全模式",
+                    text = LocalStrings.current.t("shell.safe_mode"),
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,

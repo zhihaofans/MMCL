@@ -17,15 +17,20 @@ class HelloPlugin : Plugin {
     override val id: String = "dev.mmcl.plugin.hello"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
-    override val title: String = "Hello 示例"
+    override val title: String
+        get() = if (isChinese(localeProvider())) "Hello 示例" else "Hello sample"
     override val author: String = "MMCL"
     override val icon: PluginIcon = PluginIcon.TOOL
+
+    /** `onLoad` 之前不读语言，先按英文兜底。 */
+    private var localeProvider: () -> String = { ENGLISH }
 
     private var context: PluginContext? = null
     private var subscription: Subscription? = null
 
     override fun onLoad(context: PluginContext) {
         this.context = context
+        localeProvider = { context.locale }
         context.logger.info("Hello 插件已加载，数据目录：{}", context.dataDir)
     }
 
@@ -46,3 +51,9 @@ class HelloPlugin : Plugin {
         context?.logger?.info("Hello 插件已禁用")
     }
 }
+
+/** 缺省语言：`onLoad` 之前用英文兜底。 */
+private const val ENGLISH = "en"
+
+/** 界面语言是否为中文；插件展示名跟随 `PluginContext.locale`，不写死。 */
+private fun isChinese(locale: String): Boolean = locale.lowercase().startsWith("zh")

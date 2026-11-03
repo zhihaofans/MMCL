@@ -35,4 +35,10 @@ class OfflineAuthProviderTest {
 
         assertEquals("Notch", provider.login().name)
     }
+
+    @Test
+    fun `展示名跟随界面语言`() {
+        assertEquals("离线账户", OfflineAuthProvider(localeProvider = { "zh-CN" }).displayName)
+        assertEquals("Offline account", OfflineAuthProvider(localeProvider = { "en" }).displayName)
+    }
 }

@@ -36,11 +36,16 @@ class FoojayRuntimePlugin : Plugin {
     override val id: String = "dev.mmcl.runtime.foojay"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
-    override val title: String = "foojay 多发行版"
+    override val title: String
+        get() = if (isChinese(localeProvider())) "foojay 多发行版" else "foojay distributions"
     override val author: String = "MMCL"
     override val icon: PluginIcon = PluginIcon.RUNTIME
 
+    /** `onLoad` 之前不读语言，先按英文兜底。 */
+    private var localeProvider: () -> String = { ENGLISH }
+
     override fun onLoad(context: PluginContext) {
+        localeProvider = { context.locale }
         for (spec in FoojayDistributions.ALL) {
             context.services.register(
                 JavaRuntimeProvider::class,
@@ -189,5 +194,11 @@ private suspend fun httpGet(url: String): String =
     }
 
 private const val USER_AGENT = "MMCL"
+
+/** 缺省语言：`onLoad` 之前用英文兜底。 */
+private const val ENGLISH = "en"
+
+/** 界面语言是否为中文；插件展示名跟随 `PluginContext.locale`，不写死。 */
+private fun isChinese(locale: String): Boolean = locale.lowercase().startsWith("zh")
 
 private val TIMEOUT: Duration = Duration.ofSeconds(20)

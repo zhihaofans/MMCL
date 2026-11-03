@@ -138,7 +138,7 @@ class SettingsPage(
                     }
                     Button(
                         onClick = {
-                            val picked = chooseFontFile() ?: return@Button
+                            val picked = chooseFontFile(strings.t("settings.font.dialog")) ?: return@Button
                             appearance?.setFontFile(picked)
                             val family = loadFontFamily(picked)
                             onFontFamilyChanged(family)
@@ -181,7 +181,7 @@ class SettingsPage(
                     }
                     Button(
                         onClick = {
-                            val picked = chooseImageFile() ?: return@Button
+                            val picked = chooseImageFile(strings.t("settings.background.dialog")) ?: return@Button
                             appearance?.setBackgroundImage(picked)
                             val bitmap = loadBackgroundBitmap(picked)
                             onBackgroundChanged(bitmap)
@@ -238,7 +238,7 @@ class SettingsPage(
                 val sources = manifests?.orderedSources().orEmpty()
                 if (sources.isEmpty()) {
                     Text(
-                        text = "未安装下载源插件。本应用不内置任何下载地址：把下载源插件放进 <数据目录>/plugins/ 后重启。",
+                        text = strings.t("settings.sources.empty"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -519,9 +519,9 @@ private fun InfoRow(label: String, value: String) {
 }
 
 /** 选一个字体文件；取消或无图形界面时返回 null。 */
-private fun chooseFontFile(): Path? =
+private fun chooseFontFile(title: String): Path? =
     runCatching {
-        val dialog = FileDialog(null as Frame?, "选择字体文件", FileDialog.LOAD)
+        val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
         dialog.setFilenameFilter { _, name ->
             val lower = name.lowercase()
             AppearanceStore.SUPPORTED_EXTENSIONS.any { lower.endsWith(".\$it") }
@@ -533,9 +533,9 @@ private fun chooseFontFile(): Path? =
     }.getOrNull()
 
 /** 选一张背景图；取消或无图形界面时返回 null。 */
-private fun chooseImageFile(): Path? =
+private fun chooseImageFile(title: String): Path? =
     runCatching {
-        val dialog = FileDialog(null as Frame?, "选择背景图", FileDialog.LOAD)
+        val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
         dialog.setFilenameFilter { _, name ->
             val lower = name.lowercase()
             AppearanceStore.SUPPORTED_IMAGE_EXTENSIONS.any { lower.endsWith(".\$it") }

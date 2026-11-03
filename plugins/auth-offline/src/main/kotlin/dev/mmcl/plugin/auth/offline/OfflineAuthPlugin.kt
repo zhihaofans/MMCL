@@ -19,14 +19,22 @@ class OfflineAuthPlugin : Plugin {
     override val id: String = "dev.mmcl.auth.offline"
     override val version: String = "0.0.1"
     override val apiLevel: Int = ApiLevel.CURRENT
-    override val title: String = "离线账户"
+    override val title: String
+        get() = if (isChinese(localeProvider())) "离线账户" else OFFLINE_ACCOUNT_EN
     override val author: String = "MMCL"
     override val icon: PluginIcon = PluginIcon.AUTH
 
+    /** `onLoad` 之前不读语言，先按英文兜底。 */
+    private var localeProvider: () -> String = { ENGLISH }
+
     override fun onLoad(context: PluginContext) {
+        localeProvider = { context.locale }
         context.services.register(
             AuthProvider::class,
-            OfflineAuthProvider { context.settings.getString(PLAYER_NAME_KEY) ?: "Player" },
+            OfflineAuthProvider(
+                localeProvider = { context.locale },
+                configuredName = { context.settings.getString(PLAYER_NAME_KEY) ?: "Player" },
+            ),
         )
         context.logger.info("离线账户插件已加载（player.name 缺省为 Player）")
     }
@@ -39,13 +47,16 @@ class OfflineAuthPlugin : Plugin {
 /**
  * 离线会话实现。
  *
+ * @param localeProvider 当前界面语言；展示名跟随启动器语言，缺省英文
  * @param configuredName 读取当前配置的玩家名（插件在构造时注入，便于测试）
  */
 class OfflineAuthProvider(
+    private val localeProvider: () -> String = { ENGLISH },
     private val configuredName: () -> String = { "Player" },
 ) : AuthProvider {
     override val id: String = "offline"
-    override val displayName: String = "离线账户"
+    override val displayName: String
+        get() = if (isChinese(localeProvider())) "离线账户" else OFFLINE_ACCOUNT_EN
 
     /** 离线实现永远让位于真实认证插件。 */
     override val priority: Int = 1000
@@ -62,3 +73,12 @@ class OfflineAuthProvider(
         )
     }
 }
+
+/** 英文界面下的账户名。 */
+private const val OFFLINE_ACCOUNT_EN = "Offline account"
+
+/** 缺省语言：`onLoad` 之前用英文兜底。 */
+private const val ENGLISH = "en"
+
+/** 界面语言是否为中文；插件展示名跟随 `PluginContext.locale`，不写死。 */
+private fun isChinese(locale: String): Boolean = locale.lowercase().startsWith("zh")
