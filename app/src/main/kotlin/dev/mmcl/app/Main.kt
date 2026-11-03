@@ -1,6 +1,7 @@
 package dev.mmcl.app
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -31,6 +32,9 @@ import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
 import dev.mmcl.app.shell.SavedWindowState
 import dev.mmcl.app.shell.WindowStateStore
+import dev.mmcl.app.appearance.AppearanceStore
+import dev.mmcl.app.appearance.loadBackgroundBitmap
+import dev.mmcl.app.appearance.loadFontFamily
 import dev.mmcl.app.shell.applyUiScaleOverride
 import dev.mmcl.app.shell.minimumWindowSize
 import dev.mmcl.app.shell.toSavedWindowState
@@ -158,6 +162,10 @@ fun main(args: Array<String>) {
     val pluginThemes: List<LauncherTheme> =
         if (safeMode) emptyList() else manager.services.getAll(LauncherTheme::class)
     val themeController = ThemeController(settings, pluginThemes)
+    // 用户自选字体：设置页选完立即重排，不用重启
+    val appearanceStore = AppearanceStore(settings)
+    val customFontFamily = mutableStateOf(loadFontFamily(appearanceStore.load().fontFile))
+    val customBackground = mutableStateOf(loadBackgroundBitmap(appearanceStore.load().backgroundImage))
 
     val javaDetector = JavaRuntimeDetector(launcher.dataDir, launcher.os, launcher.arch, settings, logger)
     // 来源插件可能随时被安装/卸载，这里每次求值；用户在设置里选中的来源优先
@@ -218,7 +226,17 @@ fun main(args: Array<String>) {
                 pluginFolder = pluginFolder,
             ),
             PluginsPage(plugins),
-            SettingsPage(launcher, themeController, safeMode, manifestService, settings, javaSources),
+            SettingsPage(
+                launcher,
+                themeController,
+                safeMode,
+                manifestService,
+                settings,
+                javaSources,
+                appearance = appearanceStore,
+                onFontFamilyChanged = { family -> customFontFamily.value = family },
+                onBackgroundChanged = { bitmap -> customBackground.value = bitmap },
+            ),
         )
     val pluginPages: List<UiPage> =
         if (safeMode) emptyList() else manager.services.getAll(UiPage::class)
@@ -295,7 +313,11 @@ fun main(args: Array<String>) {
                         )
                     }
             }
-            AppRoot(themeController) {
+            AppRoot(
+                themeController,
+                fontFamily = customFontFamily.value,
+                background = customBackground.value,
+            ) {
                 AppShell(
                     pages = pages,
                     launcher = launcher,

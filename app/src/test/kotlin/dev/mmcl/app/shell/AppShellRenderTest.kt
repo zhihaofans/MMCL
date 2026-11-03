@@ -5,6 +5,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.graphics.ImageBitmap
+import java.awt.GradientPaint
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import javax.imageio.ImageIO
+import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -180,6 +186,7 @@ class AppShellRenderTest {
         screen: List<UiPage> = pages(themeController),
         widgets: List<UiWidget> = emptyList(),
         titleBarInset: Dp = 0.dp,
+        background: ImageBitmap? = null,
         width: Int = 1100,
         height: Int = 720,
         density: Float = 1f,
@@ -187,7 +194,7 @@ class AppShellRenderTest {
         Files.createDirectories(screenshots)
         val scene =
             ImageComposeScene(width = width, height = height, density = Density(density)) {
-                AppRoot(themeController) {
+                AppRoot(themeController, background = background) {
                     AppShell(
                         pages = screen,
                         launcher = launcher,
@@ -281,6 +288,24 @@ class AppShellRenderTest {
         val controller = ThemeController(InMemorySettingsService(), emptyList())
         // 78dp 是红黄绿按钮占用的宽度，顶栏内容要整体右移
         render("shell-macos-chrome", controller, titleBarInset = 78.dp)
+    }
+
+    @Test
+    fun `渲染壁纸背景`() {
+        val controller = ThemeController(InMemorySettingsService(), emptyList())
+        // 渐变壁纸 + 半透明面板：确认文字仍然清楚、导航栏能透出底色
+        render("shell-wallpaper", controller, background = gradientBackground())
+    }
+
+    private fun gradientBackground(): ImageBitmap {
+        val image = BufferedImage(800, 500, BufferedImage.TYPE_INT_RGB)
+        val graphics = image.createGraphics()
+        graphics.paint = GradientPaint(0f, 0f, java.awt.Color(0x2A4D69), 800f, 500f, java.awt.Color(0xE07A5F))
+        graphics.fillRect(0, 0, 800, 500)
+        graphics.dispose()
+        val bytes = ByteArrayOutputStream()
+        ImageIO.write(image, "png", bytes)
+        return loadImageBitmap(bytes.toByteArray().inputStream())
     }
 
     @Test

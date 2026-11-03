@@ -250,7 +250,7 @@ app/src/main/kotlin/dev/mmcl/app/
 | **P2 主题** | `ui-kit` + `LauncherTheme` + `SettingsService` + 主题选择页 + 安全阀 | `ui-kit` 模块；`ThemeController`；`plugins/theme-sakura` 示例 | 切换即时生效、重启保持；`--safe-mode` 可用 | ✅ 已完成 |
 | **P3 真实数据** | 实例页接 core 的实例与账户服务，启动按钮；下载页接版本清单与安装队列；首页总览 | core 的三个读接口 + app 卡片网格 + `DownloadsService` + `HomePage` | 能列出本机实例并点启动；下载页能安装/修复；首页可一键启动最近实例 | ✅ 已完成 |
 | **P4 部件** | Widget Slot（顶栏/状态栏/首页卡片）+ 任务进度 | `UiWidget`/`UiSlot`；首页卡片示例 | 插件卡片出现在首页，状态栏显示下载进度 | ✅ 已完成 |
-| **P5 深化** | 背景图主题、字体、i18n（窗口状态记忆与 macOS 透明标题栏已完成） | 视需求 | 三平台观感一致 | ⏳ |
+| **P5 深化** | i18n（窗口状态记忆、macOS 透明标题栏、自定义字体与背景图已完成） | 视需求 | 三平台观感一致 | ⏳ |
 
 预估：P1 一轮、P2 一到两轮、P3 取决于启动链进度、P4 一轮、P5 按需。
 

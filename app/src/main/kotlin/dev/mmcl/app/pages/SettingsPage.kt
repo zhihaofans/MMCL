@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,11 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.app.theme.ThemeController
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.font.FontFamily
+import dev.mmcl.app.appearance.AppearanceStore
+import dev.mmcl.app.appearance.loadBackgroundBitmap
+import dev.mmcl.app.appearance.loadFontFamily
 import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.version.VersionManifestService
@@ -44,6 +50,8 @@ import dev.mmcl.ui.kit.PageScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.awt.FileDialog
+import java.awt.Frame
 import java.nio.file.Path
 
 /**
@@ -58,6 +66,9 @@ class SettingsPage(
     private val manifests: VersionManifestService? = null,
     private val settings: SettingsService? = null,
     private val javaSources: JavaRuntimeSources? = null,
+    private val appearance: AppearanceStore? = null,
+    private val onFontFamilyChanged: (FontFamily?) -> Unit = {},
+    private val onBackgroundChanged: (ImageBitmap?) -> Unit = {},
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
@@ -101,6 +112,92 @@ class SettingsPage(
                         modifier = Modifier.padding(top = MmclSpacing.s),
                     )
                 }
+
+                var fontLabel by remember(appearance) {
+                    mutableStateOf(appearance?.fontFile()?.fileName?.toString())
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = MmclSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("字体", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = fontLabel ?: "跟随系统默认",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val picked = chooseFontFile() ?: return@Button
+                            appearance?.setFontFile(picked)
+                            val family = loadFontFamily(picked)
+                            onFontFamilyChanged(family)
+                            fontLabel =
+                                if (family != null) picked.fileName.toString() else "字体无效（已退回默认）"
+                        },
+                        enabled = appearance != null,
+                    ) { Text("选择…") }
+                    if (fontLabel != null) {
+                        TextButton(
+                            onClick = {
+                                appearance?.setFontFile(null)
+                                onFontFamilyChanged(null)
+                                fontLabel = null
+                            },
+                        ) { Text("恢复默认") }
+                    }
+                }
+                Text(
+                    text = "支持 .ttf / .otf / .ttc；换字体后界面立即重排，不用重启。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                var backgroundLabel by remember(appearance) {
+                    mutableStateOf(appearance?.backgroundImage()?.fileName?.toString())
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = MmclSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("背景图", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = backgroundLabel ?: "跟随主题（无背景图）",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val picked = chooseImageFile() ?: return@Button
+                            appearance?.setBackgroundImage(picked)
+                            val bitmap = loadBackgroundBitmap(picked)
+                            onBackgroundChanged(bitmap)
+                            backgroundLabel =
+                                if (bitmap != null) picked.fileName.toString() else "图片无效（已退回主题）"
+                        },
+                        enabled = appearance != null,
+                    ) { Text("选择…") }
+                    if (backgroundLabel != null) {
+                        TextButton(
+                            onClick = {
+                                appearance?.setBackgroundImage(null)
+                                onBackgroundChanged(null)
+                                backgroundLabel = null
+                            },
+                        ) { Text("清除") }
+                    }
+                }
+                Text(
+                    text = "支持 .png / .jpg / .jpeg / .webp；铺满窗口，面板会变半透明保证文字可读。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
                 SectionTitle("下载源")
                 val sources = manifests?.orderedSources().orEmpty()
@@ -376,3 +473,31 @@ private fun InfoRow(label: String, value: String) {
         Text(text = value, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+/** 选一个字体文件；取消或无图形界面时返回 null。 */
+private fun chooseFontFile(): Path? =
+    runCatching {
+        val dialog = FileDialog(null as Frame?, "选择字体文件", FileDialog.LOAD)
+        dialog.setFilenameFilter { _, name ->
+            val lower = name.lowercase()
+            AppearanceStore.SUPPORTED_EXTENSIONS.any { lower.endsWith(".\$it") }
+        }
+        dialog.isVisible = true
+        val directory = dialog.directory
+        val file = dialog.file
+        if (directory == null || file == null) null else Path.of(directory, file)
+    }.getOrNull()
+
+/** 选一张背景图；取消或无图形界面时返回 null。 */
+private fun chooseImageFile(): Path? =
+    runCatching {
+        val dialog = FileDialog(null as Frame?, "选择背景图", FileDialog.LOAD)
+        dialog.setFilenameFilter { _, name ->
+            val lower = name.lowercase()
+            AppearanceStore.SUPPORTED_IMAGE_EXTENSIONS.any { lower.endsWith(".\$it") }
+        }
+        dialog.isVisible = true
+        val directory = dialog.directory
+        val file = dialog.file
+        if (directory == null || file == null) null else Path.of(directory, file)
+    }.getOrNull()

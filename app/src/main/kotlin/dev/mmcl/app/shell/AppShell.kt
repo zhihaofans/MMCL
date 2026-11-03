@@ -169,7 +169,7 @@ private fun NavRail(
         modifier = Modifier
             .width(railWidth)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface.onWallpaper())
             .padding(vertical = MmclSpacing.s),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(MmclSpacing.xs),
@@ -250,7 +250,7 @@ private fun StatusBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(28.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceVariant.onWallpaper())
             .padding(horizontal = MmclSpacing.l),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(MmclSpacing.l),
