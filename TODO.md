@@ -54,7 +54,8 @@
 - [ ] 自动更新通道
 - [ ] 可选：自定义 WiX `resource-dir`，安装时检测并卸载旧的 per-machine 版本（只影响 0.0.2 用户，先观察是否需要）
 - [ ] Linux 发行形态写清范围：当前目标 deb；若要 AppImage／rpm／Flatpak 需单独拍板后再开项
-- [ ] CI 冒烟：package workflow 成功后校验 artifact 存在；可选再跑 `:app:test`
+- [ ] CI 冒烟：package workflow 成功后校验 artifact 存在；打包前至少跑 `:app:test`
+      （0.0.3 的 `WindowStateStoreTest` 依赖宿主屏幕，本地 Retina 真实失败、CI 却没跑测试，已在本轮修掉测试隔离）
 
 ### 1.0.0 — 稳定版
 

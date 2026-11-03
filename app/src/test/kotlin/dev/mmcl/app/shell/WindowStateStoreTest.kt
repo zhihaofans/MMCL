@@ -14,7 +14,13 @@ class WindowStateStoreTest {
     private val screen = Rectangle(0, 0, 1920, 1080)
 
     private fun store(vararg screens: Rectangle) =
-        WindowStateStore(settings, screenBounds = { screens.toList() })
+        WindowStateStore(
+            settings,
+            screenBounds = { screens.toList() },
+            // 不注入工作区就会读到宿主真机分辨率（Retina 2x 下 1512px → 756dp），
+            // 默认尺寸会被夹到 756，断言随机器变化。测试统一声明「没有工作区信息」。
+            availableSize = { null },
+        )
 
     @Test
     fun `没有保存过时用默认尺寸并居中`() {
@@ -104,7 +110,7 @@ class WindowStateStoreTest {
 
     @Test
     fun `没有设置服务时只返回默认值`() {
-        val store = WindowStateStore(settings = null)
+        val store = WindowStateStore(settings = null, availableSize = { null })
 
         val state = store.load()
 
