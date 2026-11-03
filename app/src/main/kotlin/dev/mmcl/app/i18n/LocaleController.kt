@@ -51,6 +51,13 @@ class LocaleController(
     /** 真正生效的语言标签。 */
     fun currentLocale(): String = Locales.resolve(settings?.getString(SETTING_KEY), systemLanguageTag())
 
+    /**
+     * 「跟随系统」这一项实际会用到的语言，与当前选择无关。
+     *
+     * 设置页用它做副标题：这个值只随系统语言变，不会因为用户切了英文就跟着变成 `en`。
+     */
+    fun systemLocale(): String = Locales.resolve(null, systemLanguageTag())
+
     /** 记住选择；传 [AUTO] 恢复跟随系统。 */
     fun select(locale: String) {
         settings?.putString(SETTING_KEY, locale)

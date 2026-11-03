@@ -210,7 +210,7 @@ class SettingsPage(
                 val selectedLocale = localeController?.selected() ?: LocaleController.AUTO
                 ChoiceRow(
                     title = strings.t("settings.language.auto"),
-                    subtitle = localeController?.currentLocale().orEmpty(),
+                    subtitle = localeController?.systemLocale().orEmpty(),
                     selected = selectedLocale == LocaleController.AUTO,
                     onClick = {
                         localeController?.select(LocaleController.AUTO)

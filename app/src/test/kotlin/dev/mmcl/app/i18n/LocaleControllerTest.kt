@@ -46,6 +46,16 @@ class LocaleControllerTest {
     }
 
     @Test
+    fun `跟随系统行的副标题固定为系统语言`() {
+        val controller = controller(system = "zh-Hans-CN")
+        controller.select(LocaleController.ENGLISH)
+
+        // 当前界面是英文，但"跟随系统"这一项的含义始终是系统语言
+        assertEquals(LocaleController.ENGLISH, controller.currentLocale())
+        assertEquals(LocaleController.CHINESE, controller.systemLocale())
+    }
+
+    @Test
     fun `中文界面能取到中文文案，缺的 key 回退英文`() {
         val strings = controller(system = "zh-CN").strings()
 
