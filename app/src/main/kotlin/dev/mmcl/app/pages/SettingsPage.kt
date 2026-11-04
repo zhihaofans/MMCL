@@ -397,6 +397,13 @@ private fun SourceRow(source: VersionManifestSource, selected: Boolean, onClick:
         RadioButton(selected = selected, onClick = onClick)
         Column(modifier = Modifier.weight(1f)) {
             Text(text = source.displayName, style = MaterialTheme.typography.titleSmall)
+            source.attribution?.let { attribution ->
+                Text(
+                    text = attribution,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Text(
                 text = strings.t("settings.priority", source.id, source.priority),
                 style = MaterialTheme.typography.bodySmall,

@@ -29,7 +29,13 @@ object GameFilePlanner {
      * @param os 目标平台，用于解析库的 `rules`
      * @param arch 目标架构，用于剔除 `natives-*-arm64` / `natives-*-x86_64` 里不匹配的变体
      */
-    fun plan(detail: VersionDetail, os: OperatingSystem, arch: Architecture): Plan {
+    fun plan(
+        detail: VersionDetail,
+        os: OperatingSystem,
+        arch: Architecture,
+        /** 下载地址改写钩子；`null` 表示按 JSON 原地址下载。 */
+        resolveUrl: (String) -> String? = { null },
+    ): Plan {
         val files = mutableListOf<PlannedFile>()
         val warnings = mutableListOf<String>()
 
@@ -37,7 +43,7 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "versions/${detail.id}/${detail.id}.jar",
-                    url = client.url,
+                    url = resolveUrl(client.url) ?: client.url,
                     sha1 = client.sha1,
                     size = client.size,
                 )
@@ -47,7 +53,7 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "assets/indexes/${index.id}.json",
-                    url = index.url,
+                    url = resolveUrl(index.url) ?: index.url,
                     sha1 = index.sha1,
                     size = index.size,
                 )
@@ -62,7 +68,7 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "assets/log_configs/$name",
-                    url = config.url,
+                    url = resolveUrl(config.url) ?: config.url,
                     sha1 = config.sha1,
                     size = config.size,
                 )
@@ -81,7 +87,7 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "libraries/$path",
-                    url = artifact.url,
+                    url = resolveUrl(artifact.url) ?: artifact.url,
                     sha1 = artifact.sha1,
                     size = artifact.size,
                 )

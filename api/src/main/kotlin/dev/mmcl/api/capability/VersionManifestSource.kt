@@ -40,4 +40,22 @@ interface VersionManifestSource {
      * @param hash 资源对象的 SHA-1
      */
     fun assetObjectUrl(hash: String): String? = null
+
+    /**
+     * 把官方下载地址改写到本来源的镜像地址。
+     *
+     * core 会对版本详情地址、客户端 jar、资源索引、库文件、日志配置的 URL 调用它；
+     * 返回 `null` 表示不改写、按原地址下载。默认不改写。
+     *
+     * @param original 版本清单/版本 JSON 里的原始地址
+     */
+    fun resolveUrl(original: String): String? = null
+
+    /**
+     * 下载来源标注，例如 `资源来自 BMCLAPI`。
+     *
+     * 设置页的下载源列表与下载页会显示它；镜像类来源应当在视觉上标明出处
+     * （BMCLAPI 的使用条款要求）。
+     */
+    val attribution: String? get() = null
 }

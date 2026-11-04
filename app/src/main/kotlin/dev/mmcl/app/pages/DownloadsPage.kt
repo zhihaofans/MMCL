@@ -138,6 +138,14 @@ class DownloadsPage(
                 }
             },
         ) {
+            manifests?.currentSource()?.attribution?.let { attribution ->
+                Text(
+                    text = attribution,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = MmclSpacing.m),
+                )
+            }
             when (val current = state) {
                 ManifestUiState.Idle ->
                     if (hasSource) {

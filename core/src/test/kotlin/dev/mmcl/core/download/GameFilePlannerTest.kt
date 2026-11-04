@@ -56,6 +56,20 @@ class GameFilePlannerTest {
     )
 
     @Test
+    fun `来源插件的地址改写会应用到全部文件`() {
+        val plan =
+            GameFilePlanner.plan(detail(library("com.example:lib:1.0")), OperatingSystem.MACOS, Architecture.ARM64) { url ->
+                url.replace("example.invalid", "mirror.invalid")
+            }
+
+        assertTrue(plan.files.isNotEmpty())
+        assertTrue(
+            plan.files.all { it.url.startsWith("https://mirror.invalid/") },
+            "以下地址没有被改写：${plan.files.filterNot { it.url.startsWith("https://mirror.invalid/") }.map { it.url }}",
+        )
+    }
+
+    @Test
     fun `基础文件包含客户端 资源索引 日志配置`() {
         val plan = GameFilePlanner.plan(detail(), OperatingSystem.MACOS, Architecture.ARM64)
 

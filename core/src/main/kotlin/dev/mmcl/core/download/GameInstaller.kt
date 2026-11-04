@@ -59,13 +59,15 @@ class GameInstaller(
     private val logger: Logger,
     /** 资源对象地址提供者；由来源插件决定，默认不支持。 */
     private val assetUrl: (hash: String) -> String? = { null },
+    /** 普通文件地址改写钩子；由来源插件的 `resolveUrl` 提供，默认不改写。 */
+    private val resolveUrl: (String) -> String? = { null },
 ) : Installer {
     private val json = Json { ignoreUnknownKeys = true }
 
     /** 只做规划，不下载（界面用于"检查文件"）。 */
     suspend fun plan(entry: VersionManifestEntry, forceRefresh: Boolean = false): InstallPlan {
         val detail = detailService.load(entry, forceRefresh)
-        val planned = GameFilePlanner.plan(detail, os, arch)
+        val planned = GameFilePlanner.plan(detail, os, arch, resolveUrl)
         planned.warnings.forEach { logger.warn("版本 {}：{}", detail.id, it) }
         return InstallPlan(detail = detail, files = planned.files, warnings = planned.warnings)
     }

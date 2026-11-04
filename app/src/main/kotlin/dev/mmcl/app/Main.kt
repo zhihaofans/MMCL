@@ -135,7 +135,13 @@ fun main(args: Array<String>) {
     }
 
     val transport = JdkHttpTransport(userAgent = "MMCL/${launcher.version}")
-    val detailService = VersionDetailService(launcher.dataDir.resolve("versions"), transport, logger)
+    val detailService =
+        VersionDetailService(
+            versionsDir = launcher.dataDir.resolve("versions"),
+            transport = transport,
+            logger = logger,
+            resolveUrl = { url -> manifestService.currentSource()?.resolveUrl(url) },
+        )
     val instanceService =
         InstanceService(
             store = InstanceStore(launcher.dataDir.resolve("instances.json"), logger),
@@ -158,6 +164,7 @@ fun main(args: Array<String>) {
             arch = launcher.arch,
             logger = logger,
             assetUrl = { hash -> manifestService.currentSource()?.assetObjectUrl(hash) },
+            resolveUrl = { url -> manifestService.currentSource()?.resolveUrl(url) },
         )
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

@@ -31,6 +31,8 @@ class VersionDetailService(
     private val versionsDir: Path,
     private val transport: HttpTransport,
     private val logger: Logger,
+    /** 版本详情地址改写钩子，由来源插件的 `resolveUrl` 提供；返回 `null` 表示不改。 */
+    private val resolveUrl: (String) -> String? = { null },
 ) {
     private val mutex = Mutex()
     private val json =
@@ -63,7 +65,7 @@ class VersionDetailService(
             }
             val body =
                 try {
-                    transport.getText(entry.url)
+                    transport.getText(resolveUrl(entry.url) ?: entry.url)
                 } catch (e: IOException) {
                     throw VersionDetailException("拉取版本详情失败：${entry.id}", e)
                 }
