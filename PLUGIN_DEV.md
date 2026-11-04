@@ -256,6 +256,11 @@ class MojangSourcePlugin : Plugin {
 
 - 源插件还可以提供资源对象地址：`override fun assetObjectUrl(hash: String): String?`，
   返回 `null` 表示不支持（游戏会因缺贴图崩溃）；官方源返回 `https://resources.download.minecraft.net/<前两位>/<hash>`
+- 镜像类来源还可以改写普通文件地址：`override fun resolveUrl(original: String): String?`，
+  core 会把它应用到版本详情、client jar、资源索引、库文件与日志配置；返回 `null` 表示按原地址下载。
+  `source-bmclapi` 就是按主机前缀把 `piston-meta` / `piston-data` / `libraries.minecraft.net` 等映射到镜像
+- 镜像在界面上必须标明出处：`override val attribution: String?`，设置页下载源与下载页都会显示它
+  （BMCLAPI 使用条款要求）
 - Java 运行时来源示例（`plugins/runtime-adoptium`，不内置）：
 
 ```kotlin

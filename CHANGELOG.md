@@ -37,6 +37,9 @@
 
 ### 新增
 
+- `source-bmclapi` 插件：版本清单、版本 JSON、库、client jar、资源对象全部走 BMCLAPI 国内镜像；
+  新增 `VersionManifestSource.resolveUrl`（普通文件地址改写，默认不改）与 `attribution`（来源标注），
+  设置页下载源列表与下载页会显示「资源来自 BMCLAPI」（其使用条款要求标明出处）
 - `auth-microsoft` 插件：微软账号设备码登录（`XboxLive.signin offline_access`），
   登录后过 Xbox Live → XSTS → Minecraft Services → 游戏权益 → 档案，拿到的会话注入 `${auth_access_token}`；
   刷新令牌存插件数据目录（`tokens.properties`，权限 0600、原子替换），过期时启动前静默刷新；

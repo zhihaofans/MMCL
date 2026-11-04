@@ -33,5 +33,6 @@ include(
     ":plugins:runtime-foojay",
     ":plugins:runtime-mirror",
     ":plugins:locale-zh-tw",
+    ":plugins:source-bmclapi",
     ":plugins:source-mojang",
 )
