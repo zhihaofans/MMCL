@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 插件设置页：新增 `SettingsSection` 能力 + `SettingItem`（文本 / 开关 / 单选），
+  插件声明设置项、`app` 在「设置 → 插件设置」统一渲染并读写 `SettingsService`，
+  非 UI 插件也能有设置页；离线账户插件据此暴露「玩家名」（`player.name`）
+
 ## [0.0.4] - 2026-11-03
 
 ### 新增

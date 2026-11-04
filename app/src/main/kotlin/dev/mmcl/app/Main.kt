@@ -21,6 +21,7 @@ import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.capability.LocalePack
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.api.service.SettingsService
+import dev.mmcl.api.settings.SettingsSection
 import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.LocalLauncherLocale
 import dev.mmcl.api.ui.UiPage
@@ -258,6 +259,7 @@ fun main(args: Array<String>) {
                 onFontFamilyChanged = { family -> customFontFamily.value = family },
                 onBackgroundChanged = { bitmap -> customBackground.value = bitmap },
                 localeController = localeController,
+                pluginSections = manager.services.getAll(SettingsSection::class),
                 onLocaleChanged = { updated ->
                     strings.value = updated
                     currentLocale.value = localeController.currentLocale()

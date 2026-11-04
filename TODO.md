@@ -34,7 +34,6 @@
 - [ ] `loader-fabric`／`loader-forge`／`loader-neoforge`（**只针对最新正式版系列**；Quilt 是否单独立项另议）
 - [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
 - [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
-- [ ] 插件设置页（通用机制：插件自报设置项；Java 运行时来源已先落在应用设置）
 - [ ] 用真实 Azure client ID 走通一次微软登录（需注册 public client + Mojang AppID 审批；
       当前链路有 29 个单测覆盖，但没有真实账号端到端验证过）
 - [ ] 插件版本冲突、签名与来源校验

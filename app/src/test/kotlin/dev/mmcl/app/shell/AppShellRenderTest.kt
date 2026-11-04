@@ -27,6 +27,9 @@ import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiSlot
 import dev.mmcl.api.ui.UiWidget
+import dev.mmcl.api.settings.ChoiceOption
+import dev.mmcl.api.settings.SettingItem
+import dev.mmcl.api.settings.SettingsSection
 import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.i18n.BuiltinStrings
 import dev.mmcl.app.i18n.LocaleController
@@ -78,7 +81,7 @@ class AppShellRenderTest {
     private val launcher =
         LauncherInfo(
             name = "MMCL",
-            version = "0.0.3",
+            version = "0.0.4",
             os = OperatingSystem.MACOS,
             arch = Architecture.ARM64,
             dataDir = Path.of("/Users/demo/Library/Application Support/MMCL"),
@@ -285,6 +288,7 @@ class AppShellRenderTest {
                 safeMode = false,
                 manifests = manifestStub,
                 javaSources = javaSources,
+                pluginSections = demoPluginSections(),
             )
 
         render("shell-settings", controller, listOf(settingsPage, InstancesPage()))
@@ -323,6 +327,7 @@ class AppShellRenderTest {
                 settings = pageSettings,
                 appearance = AppearanceStore(pageSettings),
                 localeController = LocaleController(pageSettings),
+                pluginSections = demoPluginSections(),
             )
         render("shell-settings-en", controller, listOf(settingsPage, InstancesPage()), strings = englishStrings())
     }
@@ -539,3 +544,35 @@ class AppShellRenderTest {
         }
     }
 }
+
+    /** 渲染测试用的插件设置区：一个文本项 + 一个开关。 */
+    private fun demoPluginSections(): List<SettingsSection> =
+        listOf(
+            object : SettingsSection {
+                override val id: String = "demo.settings"
+
+                override fun title(locale: String): String = "示例插件设置"
+
+                override fun description(locale: String): String = "由插件注册、app 渲染"
+
+                override fun items(locale: String): List<SettingItem> =
+                    listOf(
+                        SettingItem.Text(
+                            key = "demo.name",
+                            title = "玩家名",
+                            defaultValue = "Player",
+                        ),
+                        SettingItem.Toggle(
+                            key = "demo.auto",
+                            title = "自动更新",
+                            description = "启动时检查新版本",
+                        ),
+                        SettingItem.Choice(
+                            key = "demo.mode",
+                            title = "模式",
+                            options = listOf(ChoiceOption("a", "模式 A"), ChoiceOption("b", "模式 B")),
+                            defaultValue = "a",
+                        ),
+                    )
+            },
+        )

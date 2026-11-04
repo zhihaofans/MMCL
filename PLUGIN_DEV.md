@@ -295,6 +295,25 @@ interface JavaRuntimeProvider {
 - 展示名不要写死：`title`、`AuthProvider.displayName`、`LauncherTheme.displayName` 这类会进界面的字符串，
   用 `get() = if (ctx.locale.startsWith("zh")) "中文" else "English"` 现取（`ctx.locale` 切换语言后立刻是新值）；
   写成 `val displayName = "中文"` 在英文界面下就是一条漏网的中文
+- 插件设置页：注册 `SettingsSection`，`app` 在设置页统一渲染，插件不需要依赖 Compose：
+
+```kotlin
+class MySettings : SettingsSection {
+    override val id = "dev.mmcl.example"
+    override fun title(locale: String) = if (locale.startsWith("zh")) "示例插件" else "Example plugin"
+    override fun items(locale: String) = listOf(
+        SettingItem.Text(key = "example.name", title = "名字", defaultValue = "Player"),
+        SettingItem.Toggle(key = "example.auto", title = "自动更新"),
+        SettingItem.Choice(key = "example.mode", title = "模式", options = listOf(ChoiceOption("a", "A"))),
+    )
+}
+
+context.services.register(SettingsSection::class, MySettings())
+```
+
+  - 值统一存在 `SettingsService` 里；`title(locale)` / `items(locale)` 会拿到当前界面语言
+  - 内置示例：`plugins/auth-offline` 的「玩家名」（`player.name`）
+
 - 语言包（`LocalePack`，不内置）：应用自带 `en` / `zh-CN`，插件可以补其它语言：
 
 ```kotlin

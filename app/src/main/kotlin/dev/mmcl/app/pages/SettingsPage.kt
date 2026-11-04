@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +36,8 @@ import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.capability.JavaRuntimeProvider
+import dev.mmcl.api.settings.SettingItem
+import dev.mmcl.api.settings.SettingsSection
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.app.theme.ThemeController
 import androidx.compose.ui.graphics.ImageBitmap
@@ -74,6 +77,7 @@ class SettingsPage(
     private val onBackgroundChanged: (ImageBitmap?) -> Unit = {},
     private val localeController: LocaleController? = null,
     private val onLocaleChanged: (Strings) -> Unit = {},
+    private val pluginSections: List<SettingsSection> = emptyList(),
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
@@ -332,6 +336,14 @@ class SettingsPage(
                     )
                 }
 
+                if (pluginSections.isNotEmpty()) {
+                    val pluginLocale = localeController?.currentLocale() ?: "en"
+                    SectionTitle(strings.t("settings.section.plugin_settings"))
+                    pluginSections.forEach { section ->
+                        PluginSettingsBlock(section, pluginLocale, settings, strings)
+                    }
+                }
+
                 SectionTitle(strings.t("settings.section.download"))
                 var limitText by remember(settings) {
                     mutableStateOf(settings?.getString(LIMIT_KEY)?.takeIf { it.isNotBlank() } ?: "0")
@@ -552,3 +564,105 @@ private fun chooseImageFile(title: String): Path? =
         val file = dialog.file
         if (directory == null || file == null) null else Path.of(directory, file)
     }.getOrNull()
+
+@Composable
+private fun PluginSettingsBlock(
+    section: SettingsSection,
+    locale: String,
+    settings: SettingsService?,
+    strings: Strings,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = MmclSpacing.s),
+        verticalArrangement = Arrangement.spacedBy(MmclSpacing.xs),
+    ) {
+        Text(section.title(locale), style = MaterialTheme.typography.titleSmall)
+        section.description(locale)?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        section.items(locale).forEach { item ->
+            when (item) {
+                is SettingItem.Text -> PluginTextItem(item, settings, strings)
+                is SettingItem.Toggle -> PluginToggleItem(item, settings)
+                is SettingItem.Choice -> PluginChoiceItem(item, settings)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PluginTextItem(item: SettingItem.Text, settings: SettingsService?, strings: Strings) {
+    var value by remember(item.key) { mutableStateOf(settings?.getString(item.key) ?: item.defaultValue) }
+    var saved by remember(item.key) { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {
+                value = it
+                saved = false
+            },
+            label = { Text(item.title) },
+            placeholder = item.placeholder?.let { hint -> { Text(hint) } },
+            singleLine = true,
+            modifier = Modifier.width(240.dp),
+        )
+        Button(
+            onClick = {
+                settings?.putString(item.key, value.ifBlank { item.defaultValue })
+                saved = true
+            },
+            enabled = settings != null,
+        ) { Text(if (saved) strings.t("settings.plugin.saved") else strings.t("settings.plugin.save")) }
+    }
+    item.description?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun PluginToggleItem(item: SettingItem.Toggle, settings: SettingsService?) {
+    var checked by remember(item.key) {
+        mutableStateOf(settings?.getString(item.key)?.toBooleanStrictOrNull() ?: item.defaultValue)
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.title, style = MaterialTheme.typography.bodyMedium)
+            item.description?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Switch(
+            checked = checked,
+            enabled = settings != null,
+            onCheckedChange = {
+                checked = it
+                settings?.putString(item.key, it.toString())
+            },
+        )
+    }
+}
+
+@Composable
+private fun PluginChoiceItem(item: SettingItem.Choice, settings: SettingsService?) {
+    var selected by remember(item.key) {
+        mutableStateOf(settings?.getString(item.key) ?: item.defaultValue ?: item.options.firstOrNull()?.value)
+    }
+    item.options.forEach { option ->
+        ChoiceRow(
+            title = option.label,
+            subtitle = option.value,
+            selected = option.value == selected,
+            onClick = {
+                selected = option.value
+                settings?.putString(item.key, option.value)
+            },
+        )
+    }
+}
