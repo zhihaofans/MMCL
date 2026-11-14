@@ -62,6 +62,9 @@
 
 ### 变更
 
+- 打包流程：推 tag 时三平台构建完直接上传到 GitHub Release（先建草稿，全部成功才解除草稿），
+  不再使用 Actions artifact 中转，避免安装包把 artifact 存储额度占满；
+  手动触发可指定 tag，并校验 tag 与 `gradle.properties` 版本一致
 - Windows 安装位置改为 **per-user**（`%LOCALAPPDATA%\MMCL`，免管理员），需要安装时不再提权；
   `0.0.2` 是 per-machine（装进 `C:\Program Files`），两者属于不同安装上下文，**从 0.0.2 升级需先手动卸载旧版**；
   数据目录 `%APPDATA%\MMCL` 不受影响，卸载不会丢实例与设置（详见 `BUILD_WINDOWS.md` §5.7）
