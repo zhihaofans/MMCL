@@ -61,7 +61,7 @@ jobs:
       matrix:
         include:
           - label: macOS (dmg)
-            os: macos-14
+            os: macos-15
             task: :app:packageDmg
             path: app/build/compose/binaries/main/dmg/*.dmg
           - label: Windows (msi)
@@ -74,7 +74,7 @@ jobs:
             path: app/build/compose/binaries/main/deb/*.deb
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # 手动发布时构建 tag 指向的提交，而不是分支头；tag 不存在会直接失败
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref }}
@@ -98,7 +98,7 @@ jobs:
           echo "版本校验通过：$version"
 
       - name: Setup JDK 27
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "27"
