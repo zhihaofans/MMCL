@@ -36,6 +36,8 @@ import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
 import dev.mmcl.app.shell.SavedWindowState
 import dev.mmcl.app.shell.WindowStateStore
+import dev.mmcl.app.wizard.OnboardingWizard
+import dev.mmcl.app.wizard.WIZARD_DONE_KEY
 import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.loadBackgroundBitmap
 import dev.mmcl.app.i18n.LocaleController
@@ -182,6 +184,10 @@ fun main(args: Array<String>) {
             packs = { manager.services.getAll(LocalePack::class) },
         )
     val strings = mutableStateOf(localeController.strings { key -> logger.debug("缺少文案 key：{}", key) })
+
+    // 首次启动向导：完成/跳过后写 ui.onboarded；设置页可以重新打开
+    val wizardVisible = mutableStateOf(settings.getString(WIZARD_DONE_KEY) != "true")
+    if (wizardVisible.value) logger.info("首次启动向导待完成（设置页可重新打开，完成/跳过后写 {}）", WIZARD_DONE_KEY)
     val currentLocale = mutableStateOf(localeController.currentLocale())
 
     // 用户自选字体：设置页选完立即重排，不用重启
@@ -264,6 +270,7 @@ fun main(args: Array<String>) {
                     strings.value = updated
                     currentLocale.value = localeController.currentLocale()
                 },
+                onOpenWizard = { wizardVisible.value = true },
             ),
         )
     val pluginPages: List<UiPage> =
@@ -350,15 +357,29 @@ fun main(args: Array<String>) {
                 fontFamily = customFontFamily.value,
                 background = customBackground.value,
             ) {
-                AppShell(
-                    pages = pages,
-                    launcher = launcher,
-                    safeMode = safeMode,
-                    pluginCount = plugins.size,
-                    downloads = downloads,
-                    widgets = registry.widgets,
-                    titleBarInset = if (macChrome) MAC_TITLE_BAR_INSET else 0.dp,
-                )
+                if (wizardVisible.value) {
+                    OnboardingWizard(
+                        manifests = manifestService,
+                        downloads = downloads,
+                        instanceService = instanceService,
+                        javaSources = javaSources,
+                        pluginFolder = pluginFolder,
+                        onFinished = {
+                            settings.putString(WIZARD_DONE_KEY, "true")
+                            wizardVisible.value = false
+                        },
+                    )
+                } else {
+                    AppShell(
+                        pages = pages,
+                        launcher = launcher,
+                        safeMode = safeMode,
+                        pluginCount = plugins.size,
+                        downloads = downloads,
+                        widgets = registry.widgets,
+                        titleBarInset = if (macChrome) MAC_TITLE_BAR_INSET else 0.dp,
+                    )
+                }
             }
             }
         }

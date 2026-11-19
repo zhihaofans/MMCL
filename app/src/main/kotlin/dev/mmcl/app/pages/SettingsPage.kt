@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -78,6 +79,7 @@ class SettingsPage(
     private val localeController: LocaleController? = null,
     private val onLocaleChanged: (Strings) -> Unit = {},
     private val pluginSections: List<SettingsSection> = emptyList(),
+    private val onOpenWizard: () -> Unit = {},
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
@@ -382,6 +384,7 @@ class SettingsPage(
                 InfoRow(strings.t("settings.about.version"), launcher.version)
                 InfoRow(strings.t("settings.about.platform"), "${launcher.os} / ${launcher.arch}")
                 InfoRow(strings.t("settings.about.data_dir"), launcher.dataDir.toString())
+                OutlinedButton(onClick = onOpenWizard) { Text(strings.t("settings.wizard.reopen")) }
             }
         }
     }

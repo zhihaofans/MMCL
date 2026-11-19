@@ -16,7 +16,6 @@
 > `UI_DESIGN`：P1–P5 已完成；本段是上手路径（向导、账户区）。
 
 - [ ] 高 DPI 真机验证：Windows 125%／150%／175%、macOS Retina、Linux 100%／125%（渲染测试已加 1.5 倍用例）
-- [ ] 首次启动向导：装下载源 →（可选）装 Java 运行时来源 → 装版本 → 建实例
 - [ ] 账户区：离线账户切换与改名（`auth-microsoft` 已完成，入口在账户页）
 - [ ] 把 `auth.microsoft.clientId` 从账户页输入框迁到「设置 → 插件设置」（`SettingsSection`），
       与离线玩家名（`player.name`）的入口保持一致
