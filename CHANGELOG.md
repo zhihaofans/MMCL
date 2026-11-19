@@ -16,7 +16,8 @@
 - `auth-microsoft` 插件：微软账号设备码登录（`XboxLive.signin offline_access`），
   登录后过 Xbox Live → XSTS → Minecraft Services → 游戏权益 → 档案，拿到的会话注入 `${auth_access_token}`；
   刷新令牌存插件数据目录（`tokens.properties`，权限 0600、原子替换），过期时启动前静默刷新；
-  新增账户页（配置 client ID、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断
+  新增账户页（配置 client ID、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断；
+  已用真实账号端到端验证：登录后成功启动 26.3 进入世界
 - `AuthProvider.isSignedIn`（默认 `true`）：启动器只在已登录的认证方式里选，
   装了微软插件但没登录时不会把离线账户挤掉
 
