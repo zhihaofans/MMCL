@@ -52,6 +52,14 @@ class FileDownloaderTest {
                 exchange.responseBody.use { it.write(okBytes) }
             }
         }
+        server.createContext("/mirror-404.jar") { exchange ->
+            exchange.sendResponseHeaders(404, -1)
+            exchange.close()
+        }
+        server.createContext("/origin-ok.jar") { exchange ->
+            exchange.sendResponseHeaders(200, okBytes.size.toLong())
+            exchange.responseBody.use { it.write(okBytes) }
+        }
         server.createContext("/missing.jar") { exchange ->
             missingRequests.incrementAndGet()
             exchange.sendResponseHeaders(404, -1)
@@ -135,6 +143,27 @@ class FileDownloaderTest {
         assertEquals(2, attempts)
         assertEquals(1000L, resumedFrom)
         assertTrue(content.contentEquals(Files.readAllBytes(root.resolve("big.jar"))))
+    }
+
+    @Test
+    fun `镜像地址失败时回退原地址并成功`() = runTest {
+        val file =
+            PlannedFile(
+                relativePath = "libraries/fallback.jar",
+                url = "$base/mirror-404.jar",
+                sha1 = okSha,
+                size = okBytes.size.toLong(),
+                fallbackUrl = "$base/origin-ok.jar",
+            )
+
+        val report = FileDownloader(JdkHttpTransport(), logger, retryDelayMillis = { 0 }).download(root, listOf(file))
+
+        assertTrue(
+            report.failures.isEmpty(),
+            "不应失败：${report.failures.map { it.file.relativePath to it.error.message }}",
+        )
+        assertEquals(1, report.downloaded)
+        assertTrue(Files.readAllBytes(root.resolve("libraries/fallback.jar")).contentEquals(okBytes))
     }
 
     @Test

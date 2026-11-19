@@ -32,6 +32,21 @@ class JdkHttpTransportResumeTest {
             exchange.sendResponseHeaders(if (start > 0) 206 else 200, slice.size.toLong())
             exchange.responseBody.use { it.write(slice) }
         }
+        server.createContext("/strict-range.jar") { exchange ->
+            val start =
+                exchange.requestHeaders.getFirst("Range")
+                    ?.removePrefix("bytes=")
+                    ?.substringBefore('-')
+                    ?.toIntOrNull() ?: 0
+            if (start >= content.size) {
+                exchange.sendResponseHeaders(416, -1)
+                exchange.close()
+            } else {
+                val slice = content.copyOfRange(start, content.size)
+                exchange.sendResponseHeaders(if (start > 0) 206 else 200, slice.size.toLong())
+                exchange.responseBody.use { it.write(slice) }
+            }
+        }
         server.createContext("/plain.jar") { exchange ->
             // 故意忽略 Range：模拟不支持续传的服务器
             exchange.sendResponseHeaders(200, content.size.toLong())
@@ -45,6 +60,18 @@ class JdkHttpTransportResumeTest {
     fun tearDown() {
         server.stop(0)
         dir.toFile().deleteRecursively()
+    }
+
+    @Test
+    fun `本地临时文件已完整时遇到 416 会从头重下`() = runTest {
+        // 模拟上次下完但没落盘：target 里已是完整内容，续传位置 == 文件长度
+        val target = dir.resolve("complete.jar")
+        Files.write(target, content)
+
+        val resumed = JdkHttpTransport(userAgent = "test").resumeTo("$base/strict-range.jar", target) {}
+
+        assertFalse(resumed)
+        assertTrue(content.contentEquals(Files.readAllBytes(target)))
     }
 
     @Test

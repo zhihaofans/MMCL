@@ -22,6 +22,10 @@
 
 ### 修复
 
+- 文件下载：上次中断留下的临时文件已经和远端一样长时，续传会一直收到 **HTTP 416**；
+  现在遇到 416 直接丢弃本地内容从头下载
+- 文件下载：镜像缺少某个对象（实测 BMCLAPI 缺 `log_configs` 时返回 404）时，
+  现在会回退到版本 JSON 里的原地址（`VersionManifestSource.resolveUrl` 改写过的地址都保留原地址作为回退）
 - 首页 / 游戏页的账户名：登录微软账号后仍显示离线玩家名（`player.name`，默认 `Player`）；
   新增 `AuthProvider.accountName`（默认 `null`），已登录时优先显示账户的游戏内名称
 - 微软登录：设备码轮询时微软用 **HTTP 400** 返回 `authorization_pending`，之前被当成网络错误，

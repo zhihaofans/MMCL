@@ -29,6 +29,12 @@ object GameFilePlanner {
      * @param os 目标平台，用于解析库的 `rules`
      * @param arch 目标架构，用于剔除 `natives-*-arm64` / `natives-*-x86_64` 里不匹配的变体
      */
+    /** 返回（下载地址, 回退地址）；被改写时回退地址是原地址，否则为 `null`。 */
+    private fun plannedUrl(original: String, resolveUrl: (String) -> String?): Pair<String, String?> {
+        val mirrored = resolveUrl(original)
+        return if (mirrored != null && mirrored != original) mirrored to original else original to null
+    }
+
     fun plan(
         detail: VersionDetail,
         os: OperatingSystem,
@@ -43,7 +49,8 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "versions/${detail.id}/${detail.id}.jar",
-                    url = resolveUrl(client.url) ?: client.url,
+                    url = plannedUrl(client.url, resolveUrl).first,
+                    fallbackUrl = plannedUrl(client.url, resolveUrl).second,
                     sha1 = client.sha1,
                     size = client.size,
                 )
@@ -53,7 +60,8 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "assets/indexes/${index.id}.json",
-                    url = resolveUrl(index.url) ?: index.url,
+                    url = plannedUrl(index.url, resolveUrl).first,
+                    fallbackUrl = plannedUrl(index.url, resolveUrl).second,
                     sha1 = index.sha1,
                     size = index.size,
                 )
@@ -68,7 +76,8 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "assets/log_configs/$name",
-                    url = resolveUrl(config.url) ?: config.url,
+                    url = plannedUrl(config.url, resolveUrl).first,
+                    fallbackUrl = plannedUrl(config.url, resolveUrl).second,
                     sha1 = config.sha1,
                     size = config.size,
                 )
@@ -87,7 +96,8 @@ object GameFilePlanner {
             files +=
                 PlannedFile(
                     relativePath = "libraries/$path",
-                    url = resolveUrl(artifact.url) ?: artifact.url,
+                    url = plannedUrl(artifact.url, resolveUrl).first,
+                    fallbackUrl = plannedUrl(artifact.url, resolveUrl).second,
                     sha1 = artifact.sha1,
                     size = artifact.size,
                 )

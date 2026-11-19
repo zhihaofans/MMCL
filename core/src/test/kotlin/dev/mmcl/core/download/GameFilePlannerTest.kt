@@ -67,6 +67,10 @@ class GameFilePlannerTest {
             plan.files.all { it.url.startsWith("https://mirror.invalid/") },
             "以下地址没有被改写：${plan.files.filterNot { it.url.startsWith("https://mirror.invalid/") }.map { it.url }}",
         )
+        assertTrue(
+            plan.files.all { it.fallbackUrl?.startsWith("https://example.invalid/") == true },
+            "改写后必须保留原地址作为回退：${plan.files.map { it.fallbackUrl }}",
+        )
     }
 
     @Test

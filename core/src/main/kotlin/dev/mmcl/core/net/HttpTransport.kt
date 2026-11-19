@@ -120,6 +120,14 @@ class JdkHttpTransport(
                 } catch (e: IOException) {
                     throw IOException("请求失败：$url", e)
                 }
+            if (response.statusCode() == HTTP_RANGE_NOT_SATISFIABLE) {
+                // 本地临时文件已经和远端一样长（上次下完但没落盘）或更长：
+                // 再续传永远 416，丢掉本地内容从头下载
+                response.body().close()
+                java.nio.file.Files.deleteIfExists(target)
+                downloadTo(url, target, onBytes)
+                return@withContext false
+            }
             val resumed = response.statusCode() == HTTP_PARTIAL_CONTENT
             if (!resumed && response.statusCode() !in 200..299) {
                 throw IOException("HTTP ${response.statusCode()}：$url")
@@ -150,6 +158,9 @@ class JdkHttpTransport(
 
         /** 206 Partial Content：服务器接受了 Range 请求。 */
         const val HTTP_PARTIAL_CONTENT = 206
+
+        /** 416 Range Not Satisfiable：本地续传位置超过了远端文件长度。 */
+        const val HTTP_RANGE_NOT_SATISFIABLE = 416
     }
 
     private fun <T> send(url: String, handler: HttpResponse.BodyHandler<T>): HttpResponse<T> {

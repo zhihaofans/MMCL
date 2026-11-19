@@ -152,7 +152,7 @@ class FileDownloader(
         for (attempt in 1..maxAttempts.coerceAtLeast(1)) {
             attempts = attempt
             try {
-                attemptFetch(temp, target, file, limiter)
+                attemptFetch(temp, target, file.url, file, limiter)
                 logger.debug("已下载并校验：{}（root={}，尝试 {} 次）", file.relativePath, root.fileName, attempt)
                 return
             } catch (t: CancellationException) {
@@ -174,6 +174,21 @@ class FileDownloader(
                 delay(wait)
             }
         }
+        // 镜像地址（resolveUrl 改写过的）失败时回退到原地址：镜像不保证同步每个对象
+        val fallback = file.fallbackUrl
+        if (fallback != null && fallback != file.url) {
+            logger.warn("镜像地址失败，回退原地址：{}（{}）", file.relativePath, file.url)
+            runCatching { Files.deleteIfExists(temp) }
+            try {
+                attemptFetch(temp, target, fallback, file, limiter)
+                logger.info("回退原地址成功：{}", file.relativePath)
+                return
+            } catch (t: CancellationException) {
+                throw t
+            } catch (t: Throwable) {
+                lastError = t
+            }
+        }
         throw IOException(
             "下载失败：${file.relativePath}（已尝试 $attempts 次）：${lastError?.message}",
             lastError,
@@ -183,11 +198,12 @@ class FileDownloader(
     private suspend fun attemptFetch(
         temp: Path,
         target: Path,
+        url: String,
         file: PlannedFile,
         limiter: RateLimiter,
     ) {
         // 不删临时文件：重试时交给 transport 从已写长度续传（断网重来最省流量的做法）
-        transport.resumeTo(file.url, temp) { bytes -> limiter.acquire(bytes) }
+        transport.resumeTo(url, temp) { bytes -> limiter.acquire(bytes) }
         if (file.sha1.isNotBlank() && !Sha1.matches(temp, file.sha1)) {
             // 文件是完整的但内容不对：留着只会让下次续传出错，删掉
             runCatching { Files.deleteIfExists(temp) }
