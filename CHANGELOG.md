@@ -10,6 +10,28 @@
 - 插件设置页：新增 `SettingsSection` 能力 + `SettingItem`（文本 / 开关 / 单选），
   插件声明设置项、`app` 在「设置 → 插件设置」统一渲染并读写 `SettingsService`，
   非 UI 插件也能有设置页；离线账户插件据此暴露「玩家名」（`player.name`）
+- `source-bmclapi` 插件：版本清单、版本 JSON、库、client jar、资源对象全部走 BMCLAPI 国内镜像；
+  新增 `VersionManifestSource.resolveUrl`（普通文件地址改写，默认不改）与 `attribution`（来源标注），
+  设置页下载源列表与下载页会显示「资源来自 BMCLAPI」（其使用条款要求标明出处）
+- `auth-microsoft` 插件：微软账号设备码登录（`XboxLive.signin offline_access`），
+  登录后过 Xbox Live → XSTS → Minecraft Services → 游戏权益 → 档案，拿到的会话注入 `${auth_access_token}`；
+  刷新令牌存插件数据目录（`tokens.properties`，权限 0600、原子替换），过期时启动前静默刷新；
+  新增账户页（配置 client ID、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断
+- `AuthProvider.isSignedIn`（默认 `true`）：启动器只在已登录的认证方式里选，
+  装了微软插件但没登录时不会把离线账户挤掉
+
+### 修复
+
+- 设置页「跟随系统」行的副标题显示的是当前生效语言（选 English 就变 `en`），应固定为系统语言；改用 `LocaleController.systemLocale()`
+- 英文界面残留中文：设置页「未安装下载源插件」提示、字体 / 背景图文件对话框标题、安全模式徽标改为走 i18n；
+  内置插件的展示名（离线账户、Mojang 官方、国内镜像源、樱花主题、foojay 等）改为跟随 `PluginContext.locale`，
+  切到英文后不再出现中英混排
+
+### 变更
+
+- 打包流程：推 tag 时三平台构建完直接上传到 GitHub Release（先建草稿，全部成功才解除草稿），
+  不再使用 Actions artifact 中转，避免安装包把 artifact 存储额度占满；
+  手动触发可指定 tag，并校验 tag 与 `gradle.properties` 版本一致
 
 ## [0.0.4] - 2026-11-03
 
@@ -41,30 +63,8 @@
 - macOS 透明标题栏：内容延伸到标题栏，只保留原生红黄绿按钮，缩放 / 阴影 / 全屏仍由系统处理；
   Windows / Linux 保留系统标题栏（无边框自绘的代价太大，暂不做）
 
-### 新增
-
-- `source-bmclapi` 插件：版本清单、版本 JSON、库、client jar、资源对象全部走 BMCLAPI 国内镜像；
-  新增 `VersionManifestSource.resolveUrl`（普通文件地址改写，默认不改）与 `attribution`（来源标注），
-  设置页下载源列表与下载页会显示「资源来自 BMCLAPI」（其使用条款要求标明出处）
-- `auth-microsoft` 插件：微软账号设备码登录（`XboxLive.signin offline_access`），
-  登录后过 Xbox Live → XSTS → Minecraft Services → 游戏权益 → 档案，拿到的会话注入 `${auth_access_token}`；
-  刷新令牌存插件数据目录（`tokens.properties`，权限 0600、原子替换），过期时启动前静默刷新；
-  新增账户页（配置 client ID、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断
-- `AuthProvider.isSignedIn`（默认 `true`）：启动器只在已登录的认证方式里选，
-  装了微软插件但没登录时不会把离线账户挤掉
-
-### 修复
-
-- 设置页「跟随系统」行的副标题显示的是当前生效语言（选 English 就变 `en`），应固定为系统语言；改用 `LocaleController.systemLocale()`
-- 英文界面残留中文：设置页「未安装下载源插件」提示、字体 / 背景图文件对话框标题、安全模式徽标改为走 i18n；
-  内置插件的展示名（离线账户、Mojang 官方、国内镜像源、樱花主题、foojay 等）改为跟随 `PluginContext.locale`，
-  切到英文后不再出现中英混排
-
 ### 变更
 
-- 打包流程：推 tag 时三平台构建完直接上传到 GitHub Release（先建草稿，全部成功才解除草稿），
-  不再使用 Actions artifact 中转，避免安装包把 artifact 存储额度占满；
-  手动触发可指定 tag，并校验 tag 与 `gradle.properties` 版本一致
 - Windows 安装位置改为 **per-user**（`%LOCALAPPDATA%\MMCL`，免管理员），需要安装时不再提权；
   `0.0.2` 是 per-machine（装进 `C:\Program Files`），两者属于不同安装上下文，**从 0.0.2 升级需先手动卸载旧版**；
   数据目录 `%APPDATA%\MMCL` 不受影响，卸载不会丢实例与设置（详见 `BUILD_WINDOWS.md` §5.7）

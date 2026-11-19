@@ -85,21 +85,21 @@
 │   └── wrapper/
 ├── api/                 # 纯契约：接口、数据类、事件、异常
 ├── api-ui/              # UI 扩展契约（依赖 Compose）
-├── ui-kit/              # UI 公共组件：调色板、图标映射、PageScaffold（规划中，见 UI_DESIGN.md）
-├── core/                # 插件运行时、启动引擎、事件总线、服务注册
-├── app/                 # main 入口、Compose 窗口、组装
-└── plugins/
-    ├── hello/           # 示例插件（不内置，开发时手动安装）
-    ├── ui-about/        # 已落地：UI 页面插件示例
-    ├── theme-sakura/    # 已落地：主题插件示例
-    ├── auth-microsoft/  # 规划中
-    ├── auth-offline/
-    ├── download-modrinth/
-    ├── download-curseforge/
-    ├── loader-forge/
-    ├── loader-fabric/
-    ├── ui-theme-dark/
-    └── tool-log-analyzer/
+├── ui-kit/              # UI 公共组件：调色板、图标映射、PageScaffold、EmptyState
+├── core/                # 插件运行时、启动引擎、事件总线、下载与实例管理
+├── app/                 # main 入口、Compose 窗口、组装、打包
+└── plugins/             # 共 11 个；内置打包 3 个（auth-offline / ui-about / theme-sakura）
+    ├── auth-offline/        # 内置：离线账户 + 玩家名设置
+    ├── auth-microsoft/      # 微软设备码登录（不内置，需自备 Azure client id）
+    ├── hello/               # 示例插件（不内置）
+    ├── locale-zh-tw/        # 繁体中文本地化包示例（不内置）
+    ├── runtime-adoptium/    # Java 运行时来源：Adoptium
+    ├── runtime-foojay/      # Java 运行时来源：foojay 多发行版
+    ├── runtime-mirror/      # Java 运行时来源：国内镜像（TUNA/USTC/华为云）
+    ├── source-bmclapi/      # 版本清单来源：BMCLAPI 国内镜像
+    ├── source-mojang/       # 版本清单来源：Mojang 官方（不内置）
+    ├── theme-sakura/        # 内置：主题示例
+    └── ui-about/            # 内置：UI 页面示例
 ```
 
 **依赖方向（只允许自上而下）：**

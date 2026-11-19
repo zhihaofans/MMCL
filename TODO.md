@@ -6,7 +6,7 @@
 
 ## 进行中
 
-- [ ] 拿到 MSI 后在 **Windows 11** 实机验证安装 / 升级 / 卸载（产物来自 CI 的 `MMCL-windows-msi`）
+- [ ] 拿到 MSI 后在 **Windows 11** 实机验证安装 / 升级 / 卸载（产物来自 GitHub Release 的 `MMCL-x.y.z.msi`）
   - 完成定义：干净机安装能开、覆盖安装不丢数据目录、卸载清掉开始菜单项
 
 ## 待办
@@ -26,7 +26,7 @@
 
 - [ ] 高 DPI 真机验证：Windows 125%／150%／175%、macOS Retina、Linux 100%／125%（渲染测试已加 1.5 倍用例）
 - [ ] 首次启动向导：装下载源 →（可选）装 Java 运行时来源 → 装版本 → 建实例
-- [ ] 账户区：离线账户管理完善 + `auth-microsoft` 入口预留（设备码／OAuth 本体见 0.3.x）
+- [ ] 账户区：离线账户切换与改名（`auth-microsoft` 已完成，入口在账户页）
 - [ ] 顶栏／首页展示当前账户与皮肤预览（有微软账户后）
 
 ### 0.3.x — 插件生态（加载器／内容平台）
@@ -53,8 +53,8 @@
 - [ ] 自动更新通道
 - [ ] 可选：自定义 WiX `resource-dir`，安装时检测并卸载旧的 per-machine 版本（只影响 0.0.2 用户，先观察是否需要）
 - [ ] Linux 发行形态写清范围：当前目标 deb；若要 AppImage／rpm／Flatpak 需单独拍板后再开项
-- [ ] CI 冒烟：package workflow 成功后校验 artifact 存在；打包前至少跑 `:app:test`
-      （0.0.3 的 `WindowStateStoreTest` 依赖宿主屏幕，本地 Retina 真实失败、CI 却没跑测试，已在本轮修掉测试隔离）
+- [ ] CI 冒烟：package workflow 成功后校验 Release 资产齐全（dmg/msi/deb 各一）
+      （测试已在 CI 前置跑：JVM 测试在 Ubuntu，`:app:test` 在 macOS；见 `.github/workflows/package.yml`）
 
 ### 1.0.0 — 稳定版
 

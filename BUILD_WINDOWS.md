@@ -486,16 +486,23 @@ app\build\compose\binaries\main\app\MMCL\
 
 ### 5.4 用 GitHub Actions 出包（推荐）
 
-仓库自带 `.github/workflows/package.yml`，在 GitHub 上手动触发（Actions → package → Run workflow），
-或推送 `0.*` / `v*` tag 时自动跑三平台矩阵：
+仓库自带 `.github/workflows/package.yml`，在 GitHub 上手动触发（Actions → package → Run workflow，
+可填要发布的 tag，留空则只构建），或推送 `0.*` / `v*` tag 时自动跑三平台矩阵：
 
-| 平台 | 任务 | 产物 |
+| 平台 | 任务 | 产物（Release 资产） |
 |---|---|---|
-| `macos-14` | `:app:packageDmg` | `MMCL-macos-dmg` artifact |
-| `windows-latest` | `:app:packageMsi`（自动装 WiX 3） | `MMCL-windows-msi` artifact |
-| `ubuntu-latest` | `:app:packageDeb` | `MMCL-linux-deb` artifact |
+| `macos-15` | `:app:packageDmg` | `MMCL-x.y.z.dmg` |
+| `windows-latest` | `:app:packageMsi`（自动装 WiX 3） | `MMCL-x.y.z.msi` |
+| `ubuntu-latest` | `:app:packageDeb` | `mmcl_x.y.z_amd64.deb` |
 
-版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.3`）。CI 统一安装 JDK 27，
+发布流程：`prepare-release` 先建草稿 Release → 三个平台构建后 `gh release upload --clobber` 直接上传
+→ 全部成功后 `publish-release` 解除草稿。**不使用 Actions artifact**，安装包不占 artifact 存储额度；
+构建失败时停在草稿（用户看不到），重跑同 tag 会覆盖。
+
+发布前会校验 **tag 与 `gradle.properties` 的 `version` 一致**（`v` 前缀忽略），不一致直接失败；
+手动发布 checkout 的是 tag 指向的提交，不是分支头。
+
+版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.4`）。CI 统一安装 JDK 27，
 编译与 jpackage 同一个 JDK，不做版本映射。
 
 `windows { }` 里的 `upgradeUuid` 已经固定，**发布后不要改**，否则 MSI 会把新版本当成另一个产品，
