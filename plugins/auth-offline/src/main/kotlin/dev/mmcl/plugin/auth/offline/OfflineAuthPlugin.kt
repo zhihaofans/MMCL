@@ -17,7 +17,7 @@ import java.util.UUID
  */
 class OfflineAuthPlugin : Plugin {
     override val id: String = "dev.mmcl.auth.offline"
-    override val version: String = "0.0.1"
+    override val version: String = "0.0.2"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "离线账户" else OFFLINE_ACCOUNT_EN

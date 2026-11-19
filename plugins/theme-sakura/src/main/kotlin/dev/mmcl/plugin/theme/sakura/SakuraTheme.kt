@@ -48,7 +48,7 @@ class SakuraTheme(
 /** 注册 [SakuraTheme] 的插件入口。 */
 class SakuraThemePlugin : Plugin {
     override val id: String = "dev.mmcl.theme.sakura.plugin"
-    override val version: String = "0.0.1"
+    override val version: String = "0.0.2"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "樱花主题" else "Sakura theme"

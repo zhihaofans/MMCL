@@ -98,7 +98,7 @@ class AboutPage(private val launcher: LauncherInfo) : UiPage {
 /** 注册 [AboutPage] 的插件入口。 */
 class AboutPlugin : Plugin {
     override val id: String = "dev.mmcl.ui.about.plugin"
-    override val version: String = "0.0.1"
+    override val version: String = "0.0.2"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "关于页面" else "About page"

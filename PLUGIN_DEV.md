@@ -467,7 +467,13 @@ cp build/plugins/*.jar "$HOME/Library/Application Support/MMCL/plugins/"
 
 内置的三个插件（`auth-offline` / `ui-about` / `theme-sakura`）不用手动装，`:app` 打包时自动同步。
 
-### 10.2 内置插件
+### 10.2 非内置插件随 Release 分发
+
+推版本 tag 时，CI 会执行 `./gradlew packagePlugins verifyPluginVersions`，把 8 个**非内置**插件 JAR
+和 `SHA256SUMS` 上传到该 tag 的 GitHub Release（发布任务还会把全部资产的 SHA-256 写进 Release 正文）；内置三个（auth-offline / theme-sakura / ui-about）
+随 app 打包，不单独发布。用户下载后放进 `<数据目录>/plugins/` 即可。
+
+### 10.3 内置插件
 
 内置插件不进 Git 的 `src/main/resources`，而是在 `app` 构建期由 `prepareBuiltinPlugins` 任务收集：
 

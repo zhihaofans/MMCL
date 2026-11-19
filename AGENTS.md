@@ -30,6 +30,11 @@
   - **版本闸门**：能实际启动 Minecraft 之前固定 `0.0.1`（**已于 2026-10-31 达成**：真实启动 `26.3`），
     闸门已过，当前 `0.0.5`；后续升版（含 `0.1.0`）仍需用户批准
   - **升版需要请示**：即使过了闸门，启动器与插件的 `version` 变更前也要先问用户，同意后再改并同步 `CHANGELOG.md`
+  - **改插件就升 PATCH**：插件代码有行为变化时升该插件的 PATCH，并同步 `build.gradle.kts` 的 `version` 与 `Plugin.version`
+    （`./gradlew verifyPluginVersions` 会拦不一致；`packagePlugins` 依赖它）
+  - **非内置插件随 Release 分发**：推 tag 时 CI 把 8 个非内置插件 JAR 连同 `SHA256SUMS` 传到 Release；
+    内置三个（auth-offline / theme-sakura / ui-about）随 app 打包，不重复发布
+  - **Release 正文带校验和**：发布前 CI 下载该 Release 的全部资产，把 SHA-256 追加到正文再解除草稿
 - 文档清单（都是**必须维护的活文档**，不是一次性产物）：
   - `AGENTS.md`：本文件，AI Agent 规则
   - `ARCHITECTURE.md`：架构与边界，冲突时以它为准

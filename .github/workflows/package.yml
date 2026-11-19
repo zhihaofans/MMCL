@@ -70,6 +70,56 @@ jobs:
         run: ./gradlew test -x :app:test --console=plain --stacktrace
         shell: bash
 
+  # 插件 JAR：只发布非内置插件（内置三个随 app 打包），并附 SHA256SUMS
+  plugins:
+    name: Plugin JARs
+    needs: [prepare-release, test]
+    if: >-
+      always()
+      && needs.prepare-release.result != 'failure'
+      && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref }}
+
+      - name: Setup JDK 27
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "27"
+          cache: gradle
+
+      - name: Build plugins
+        run: ./gradlew packagePlugins verifyPluginVersions --console=plain --stacktrace
+        shell: bash
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          # 同名插件出现多个版本说明 build/plugins 混进了旧 JAR，直接失败
+          dupes=$(ls build/plugins/*.jar | sed -E 's#.*/##; s/-[0-9]+\.[0-9]+\.[0-9]+\.jar$//' | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::同插件存在多个版本：$dupes"
+            exit 1
+          fi
+          (cd build/plugins && shasum -a 256 *.jar > SHA256SUMS)
+
+      - name: Upload plugin jars to release
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          # 内置插件随 app 打包，不重复发布
+          files=$(ls build/plugins/*.jar | grep -v -E 'dev\.mmcl\.(auth\.offline|theme\.sakura|ui\.about)-')
+          gh release upload "$TAG" $files build/plugins/SHA256SUMS --clobber
+
   package:
     name: ${{ matrix.label }}
     needs: [prepare-release, test]
@@ -164,7 +214,7 @@ jobs:
 
   publish-release:
     name: Publish release
-    needs: [prepare-release, package]
+    needs: [prepare-release, package, plugins]
     if: >-
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
       || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
@@ -172,10 +222,32 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Undraft release
+      - name: Download assets and compute SHA-256
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
-          gh release edit "$TAG" --draft=false -R "$GITHUB_REPOSITORY"
-          echo "已发布 release $TAG"
+          rm -rf dist && mkdir -p dist
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --dir dist --clobber
+          # SHA256SUMS 是插件 job 自己生成的校验文件，不参与再哈希
+          (cd dist && shasum -a 256 $(ls | grep -v '^SHA256SUMS$') > "$RUNNER_TEMP/hashes.txt")
+          cat "$RUNNER_TEMP/hashes.txt"
+
+      - name: Append hashes to release notes and publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body > "$RUNNER_TEMP/body.md"
+          {
+            echo ""
+            echo "### SHA-256"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/hashes.txt"
+            echo '```'
+          } >> "$RUNNER_TEMP/body.md"
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/body.md" --draft=false
+          echo "已发布 release $TAG（正文含资产 SHA-256）"

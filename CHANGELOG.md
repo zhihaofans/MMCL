@@ -9,6 +9,8 @@
 
 ### 新增
 
+- 非内置插件 JAR 随 Release 发布（8 个 + `SHA256SUMS`，CI 从 tag 构建并上传；内置三个仍随 app 打包）
+- `./gradlew verifyPluginVersions` 校验插件两处版本号一致，`packagePlugins` 依赖它
 - 设置 → 账户：可选择启动时使用的认证方式（自动 / 微软 / 离线，`auth.activeProvider`），
   并可直接修改离线玩家名（`player.name`）；选中的账户未登录时自动回退到可用账户
 - 首次启动向导：下载源 →（可选）Java 运行时来源 → 选版本 → 安装并自动创建实例；
@@ -45,6 +47,9 @@
 
 ### 变更
 
+- Release 正文附带全部资产的 **SHA-256**（发布前 CI 下载资产计算并写入，再解除草稿）；
+  插件另有 `SHA256SUMS` 文件
+- 内置插件 `auth-offline` / `theme-sakura` / `ui-about` 版本升到 **0.0.2**（0.0.4 之后有改动但版本未升的历史遗留）
 - `auth.microsoft.clientId` 从账户页输入框迁到「设置 → 插件设置 → 微软账号」，与其它插件设置统一入口；
   账户页只显示是否已配置
 - 离线玩家名从 `auth-offline` 的插件设置区移到「设置 → 账户」，避免同一个键出现两处
