@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-19
+
 ### 新增
 
 - 设置 → 账户：可选择启动时使用的认证方式（自动 / 微软 / 离线，`auth.activeProvider`），
@@ -14,14 +16,14 @@
   设置页「关于」下方可重新打开
 - 插件设置页：新增 `SettingsSection` 能力 + `SettingItem`（文本 / 开关 / 单选），
   插件声明设置项、`app` 在「设置 → 插件设置」统一渲染并读写 `SettingsService`，
-  非 UI 插件也能有设置页；离线账户插件据此暴露「玩家名」（`player.name`）
+  非 UI 插件也能有设置页；`auth-microsoft` 据此暴露 client ID（离线玩家名在「设置 → 账户」）
 - `source-bmclapi` 插件：版本清单、版本 JSON、库、client jar、资源对象全部走 BMCLAPI 国内镜像；
   新增 `VersionManifestSource.resolveUrl`（普通文件地址改写，默认不改）与 `attribution`（来源标注），
   设置页下载源列表与下载页会显示「资源来自 BMCLAPI」（其使用条款要求标明出处）
 - `auth-microsoft` 插件：微软账号设备码登录（`XboxLive.signin offline_access`），
   登录后过 Xbox Live → XSTS → Minecraft Services → 游戏权益 → 档案，拿到的会话注入 `${auth_access_token}`；
   刷新令牌存插件数据目录（`tokens.properties`，权限 0600、原子替换），过期时启动前静默刷新；
-  新增账户页（配置 client ID、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断；
+  新增账户页（登录状态、显示验证码、打开浏览器、退出登录），登录任务挂在插件作用域，切页面不中断；
   已用真实账号端到端验证：登录后成功启动 26.3 进入世界
 - `AuthProvider.isSignedIn`（默认 `true`）：启动器只在已登录的认证方式里选，
   装了微软插件但没登录时不会把离线账户挤掉
