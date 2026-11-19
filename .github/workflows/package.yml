@@ -48,11 +48,36 @@ jobs:
             echo "已创建 draft release $TAG"
           fi
 
+  # 测试先跑：任何触发都执行，失败就不进入三平台构建
+  # JVM 测试在 Ubuntu（快、免费额度友好）；Compose 渲染测试在 macOS leg 里单独跑
+  test:
+    name: Tests (JVM)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref }}
+
+      - name: Setup JDK 27
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "27"
+          cache: gradle
+
+      - name: Run tests (all modules except :app:test)
+        run: ./gradlew test -x :app:test --console=plain --stacktrace
+        shell: bash
+
   package:
     name: ${{ matrix.label }}
-    needs: prepare-release
+    needs: [prepare-release, test]
     # prepare-release 只在发版时运行；「不填 tag 的普通构建」不能被它连坐跳过
-    if: always() && needs.prepare-release.result != 'failure'
+    if: >-
+      always()
+      && needs.prepare-release.result != 'failure'
+      && needs.test.result == 'success'
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write # 上传 Release 资产需要
@@ -107,6 +132,12 @@ jobs:
       - name: Install deb tooling (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fakeroot
+
+      # Compose UI / 渲染测试依赖 macOS 图形环境，放在这条腿里跑
+      - name: Run app tests
+        if: runner.os == 'macOS'
+        run: ./gradlew :app:test --console=plain --stacktrace
+        shell: bash
 
       - name: Build installer
         run: ./gradlew ${{ matrix.task }} --console=plain --stacktrace
