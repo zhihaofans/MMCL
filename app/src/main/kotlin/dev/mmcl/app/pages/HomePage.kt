@@ -50,6 +50,7 @@ class HomePage(
     private val instances: InstanceService? = null,
     private val manifests: VersionManifestService? = null,
     private val authProviders: List<AuthProvider> = emptyList(),
+    private val activeProviderId: () -> String? = { null },
     private val playerName: String = "Player",
     private val intent: NavigationIntent? = null,
     private val widgets: List<UiWidget> = emptyList(),
@@ -71,7 +72,7 @@ class HomePage(
             recent = instances?.recent(RECENT_LIMIT).orEmpty()
         }
 
-        val account = authProviders.activeAccount()
+        val account = authProviders.activeAccount(activeProviderId())
         val sourceCount = manifests?.orderedSources()?.size ?: 0
 
         PageScaffold(title = strings.t("page.home.title"), subtitle = strings.t("home.subtitle")) {

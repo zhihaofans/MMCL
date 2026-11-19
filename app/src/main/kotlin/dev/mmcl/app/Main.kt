@@ -226,6 +226,7 @@ fun main(args: Array<String>) {
                 instances = instanceService,
                 manifests = manifestService,
                 authProviders = authProviders,
+                activeProviderId = { settings.getString("auth.activeProvider") },
                 playerName = settings.getString("player.name") ?: "Player",
                 intent = intent,
                 pluginFolder = pluginFolder,
@@ -240,6 +241,7 @@ fun main(args: Array<String>) {
                 launcher = gameLauncher,
                 launchContext = launchContext,
                 authProviders = authProviders,
+                activeProviderId = { settings.getString("auth.activeProvider") },
                 intent = intent,
                 autoLoad = true,
                 pluginFolder = pluginFolder,
@@ -271,6 +273,7 @@ fun main(args: Array<String>) {
                     currentLocale.value = localeController.currentLocale()
                 },
                 onOpenWizard = { wizardVisible.value = true },
+                authProviders = authProviders,
             ),
         )
     val pluginPages: List<UiPage> =

@@ -39,6 +39,7 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.capability.JavaRuntimeProvider
 import dev.mmcl.api.settings.SettingItem
 import dev.mmcl.api.settings.SettingsSection
+import dev.mmcl.api.capability.AuthProvider
 import dev.mmcl.api.capability.VersionManifestSource
 import dev.mmcl.app.theme.ThemeController
 import androidx.compose.ui.graphics.ImageBitmap
@@ -47,6 +48,7 @@ import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.loadBackgroundBitmap
 import dev.mmcl.app.appearance.loadFontFamily
 import dev.mmcl.app.i18n.LocaleController
+import dev.mmcl.app.auth.AUTO_PROVIDER
 import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.app.i18n.Strings
 import dev.mmcl.core.java.JavaRuntimeSources
@@ -80,6 +82,7 @@ class SettingsPage(
     private val onLocaleChanged: (Strings) -> Unit = {},
     private val pluginSections: List<SettingsSection> = emptyList(),
     private val onOpenWizard: () -> Unit = {},
+    private val authProviders: List<AuthProvider> = emptyList(),
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "设置"
@@ -236,6 +239,82 @@ class SettingsPage(
                 }
                 Text(
                     text = strings.t("settings.language.hint"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                SectionTitle(strings.t("settings.section.account"))
+                var activeProvider by remember {
+                    mutableStateOf(settings?.getString("auth.activeProvider") ?: AUTO_PROVIDER)
+                }
+                ChoiceRow(
+                    title = strings.t("settings.account.auto"),
+                    subtitle = strings.t("settings.account.auto_hint"),
+                    selected = activeProvider == AUTO_PROVIDER,
+                    onClick = {
+                        activeProvider = AUTO_PROVIDER
+                        settings?.putString("auth.activeProvider", AUTO_PROVIDER)
+                    },
+                )
+                authProviders.forEach { provider ->
+                    ChoiceRow(
+                        title = provider.displayName,
+                        subtitle =
+                            provider.id + " · " +
+                                if (provider.isSignedIn) {
+                                    strings.t("settings.account.signed_in")
+                                } else {
+                                    strings.t("settings.account.not_signed_in")
+                                },
+                        selected = activeProvider == provider.id,
+                        onClick = {
+                            activeProvider = provider.id
+                            settings?.putString("auth.activeProvider", provider.id)
+                        },
+                    )
+                }
+                Text(
+                    text = strings.t("settings.account.fallback_hint"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                var offlineName by remember {
+                    mutableStateOf(settings?.getString("player.name") ?: "Player")
+                }
+                var offlineNameSaved by remember { mutableStateOf(false) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+                ) {
+                    OutlinedTextField(
+                        value = offlineName,
+                        onValueChange = {
+                            offlineName = it
+                            offlineNameSaved = false
+                        },
+                        label = { Text(strings.t("settings.account.offline_name")) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Button(
+                        onClick = {
+                            settings?.putString("player.name", offlineName.trim().ifEmpty { "Player" })
+                            offlineNameSaved = true
+                        },
+                        enabled = settings != null,
+                    ) {
+                        Text(
+                            if (offlineNameSaved) {
+                                strings.t("settings.plugin.saved")
+                            } else {
+                                strings.t("settings.plugin.save")
+                            },
+                        )
+                    }
+                }
+                Text(
+                    text = strings.t("settings.account.offline_name_hint"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

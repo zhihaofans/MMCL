@@ -6,9 +6,8 @@ internal data class MicrosoftTexts(
     val subtitle: String,
     val clientIdTitle: String,
     val clientIdHint: String,
-    val clientIdLabel: String,
-    val clientIdSave: String,
-    val clientIdSaved: String,
+    val clientIdConfigured: String,
+    val clientIdMissing: String,
     val signedInAs: String,
     val signOut: String,
     val signIn: String,
@@ -32,11 +31,9 @@ internal val MICROSOFT_ENGLISH =
         clientIdTitle = "Azure client ID",
         clientIdHint =
             "This launcher embeds no client ID. Register a public client app in Microsoft Entra " +
-                "(enable public client flows and device code), ask Mojang for Minecraft API approval, " +
-                "then paste the client ID here.",
-        clientIdLabel = "Client ID",
-        clientIdSave = "Save",
-        clientIdSaved = "Saved. You can sign in now.",
+                "(enable public client flows and device code) and ask Mojang for Minecraft API approval.",
+        clientIdConfigured = "Client ID configured.",
+        clientIdMissing = "Client ID not configured: add it in Settings → Plugin settings → Microsoft account.",
         signedInAs = "Signed in as %s",
         signOut = "Sign out",
         signIn = "Sign in with Microsoft",
@@ -60,10 +57,9 @@ internal val MICROSOFT_CHINESE =
         clientIdTitle = "Azure client id",
         clientIdHint =
             "启动器不内置 client id。请先在 Microsoft Entra 注册一个公共客户端应用（打开「允许公共客户端流」与设备码流程），" +
-                "向 Mojang 申请 Minecraft API 权限后，把 client id 填到这里。",
-        clientIdLabel = "client id",
-        clientIdSave = "保存",
-        clientIdSaved = "已保存，现在可以登录。",
+                "并向 Mojang 申请 Minecraft API 权限。",
+        clientIdConfigured = "client ID 已配置。",
+        clientIdMissing = "未配置 client ID：请在「设置 → 插件设置 → 微软账号」里填写。",
         signedInAs = "已登录：%s",
         signOut = "退出登录",
         signIn = "用微软账号登录",

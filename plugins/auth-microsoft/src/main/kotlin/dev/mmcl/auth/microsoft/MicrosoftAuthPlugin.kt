@@ -5,6 +5,7 @@ import dev.mmcl.api.capability.AuthProvider
 import dev.mmcl.api.plugin.Plugin
 import dev.mmcl.api.plugin.PluginContext
 import dev.mmcl.api.plugin.PluginIcon
+import dev.mmcl.api.settings.SettingsSection
 import dev.mmcl.api.ui.UiPage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,10 +65,8 @@ class MicrosoftAuthPlugin : Plugin {
         val loginScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         scope = loginScope
         val loginService = MicrosoftLoginService(authProvider, factory, loginScope, context.logger)
-        context.services.register(
-            UiPage::class,
-            AccountsPage(loginService, authProvider, context.settings, CLIENT_ID_KEY),
-        )
+        context.services.register(UiPage::class, AccountsPage(loginService, authProvider, { clientId(context) }))
+        context.services.register(SettingsSection::class, MicrosoftAuthSettings())
 
         if (clientId(context) == null) {
             context.logger.warn("未配置 {}，微软登录不可用（账户页会给注册指引）", CLIENT_ID_KEY)

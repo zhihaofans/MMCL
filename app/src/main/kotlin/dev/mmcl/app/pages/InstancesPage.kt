@@ -95,6 +95,7 @@ class InstancesPage(
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
     private val authProviders: List<AuthProvider> = emptyList(),
+    private val activeProviderId: () -> String? = { null },
     private val intent: NavigationIntent? = null,
     private val autoLoad: Boolean = false,
     private val pluginFolder: PluginFolder? = null,
@@ -191,7 +192,7 @@ class InstancesPage(
                 launchStatus = strings.t("instances.launch.missing_files", instance.versionId)
                 return
             }
-            val provider = authProviders.activeAccount()
+            val provider = authProviders.activeAccount(activeProviderId())
             if (provider == null) {
                 launchStatus = strings.t("instances.launch.no_auth")
                 return
@@ -321,7 +322,7 @@ class InstancesPage(
                 }
             },
         ) {
-            val account = authProviders.activeAccount()
+            val account = authProviders.activeAccount(activeProviderId())
             val missing = instances.filter { !hasFiles(it) }
             Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.m)) {
                 Text(

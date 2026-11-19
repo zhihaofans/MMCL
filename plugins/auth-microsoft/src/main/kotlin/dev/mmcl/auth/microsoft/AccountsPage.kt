@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.mmcl.api.service.SettingsService
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.LocalLauncherLocale
 import dev.mmcl.api.ui.UiGroup
@@ -40,8 +38,8 @@ import java.net.URI
 internal class AccountsPage(
     private val service: MicrosoftLoginService,
     private val provider: MicrosoftAuthProvider,
-    private val settings: SettingsService?,
-    private val clientIdKey: String,
+    /** 当前 client ID；由插件读取设置/系统属性，`null` 表示未配置。 */
+    private val clientIdProvider: () -> String?,
 ) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "账户"
@@ -57,9 +55,7 @@ internal class AccountsPage(
         val locale = LocalLauncherLocale.current
         val texts = microsoftTexts(locale)
         val state by service.state.collectAsState()
-        var clientId by remember { mutableStateOf(settings?.getString(clientIdKey).orEmpty()) }
-        var saved by remember { mutableStateOf(false) }
-        val configured = clientId.isNotBlank()
+        val configured = clientIdProvider() != null
 
         LaunchedEffect(Unit) { service.refresh() }
 
@@ -67,37 +63,15 @@ internal class AccountsPage(
             Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
                 Text(text = texts.clientIdTitle, style = MaterialTheme.typography.titleSmall)
                 Text(
+                    text = if (configured) texts.clientIdConfigured else texts.clientIdMissing,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (configured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                )
+                Text(
                     text = texts.clientIdHint,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
-                    OutlinedTextField(
-                        value = clientId,
-                        onValueChange = {
-                            clientId = it
-                            saved = false
-                        },
-                        label = { Text(texts.clientIdLabel) },
-                        singleLine = true,
-                        enabled = settings != null,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Button(
-                        onClick = {
-                            settings?.putString(clientIdKey, clientId.trim().ifEmpty { null })
-                            saved = true
-                        },
-                        enabled = settings != null,
-                    ) { Text(texts.clientIdSave) }
-                }
-                if (saved) {
-                    Text(
-                        text = texts.clientIdSaved,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
 
                 when (val current = state) {
                     is LoginState.SignedIn ->

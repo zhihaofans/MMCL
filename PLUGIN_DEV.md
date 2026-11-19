@@ -312,7 +312,9 @@ context.services.register(SettingsSection::class, MySettings())
 ```
 
   - 值统一存在 `SettingsService` 里；`title(locale)` / `items(locale)` 会拿到当前界面语言
-  - 内置示例：`plugins/auth-offline` 的「玩家名」（`player.name`）
+  - 内置示例：`plugins/auth-microsoft` 的「Client ID」（`auth.microsoft.clientId`）
+  - 账户相关设置（启动用哪个认证方式、离线玩家名）由 `app` 的「设置 → 账户」统一管理，
+    插件只负责读取 `player.name` 等键
 
 - 语言包（`LocalePack`，不内置）：应用自带 `en` / `zh-CN`，插件可以补其它语言：
 

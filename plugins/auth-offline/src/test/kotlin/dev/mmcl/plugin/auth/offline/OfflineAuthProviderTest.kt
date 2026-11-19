@@ -1,6 +1,5 @@
 package dev.mmcl.plugin.auth.offline
 
-import dev.mmcl.api.settings.SettingItem
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -41,18 +40,5 @@ class OfflineAuthProviderTest {
     fun `展示名跟随界面语言`() {
         assertEquals("离线账户", OfflineAuthProvider(localeProvider = { "zh-CN" }).displayName)
         assertEquals("Offline account", OfflineAuthProvider(localeProvider = { "en" }).displayName)
-    }
-
-    @Test
-    fun `设置区暴露玩家名`() {
-        val section = OfflineAuthSettings()
-        val items = section.items("zh-CN")
-
-        assertEquals("dev.mmcl.auth.offline", section.id)
-        assertEquals("离线账户", section.title("zh-CN"))
-        assertEquals("Offline account", section.title("en"))
-        val text = items.single() as SettingItem.Text
-        assertEquals("player.name", text.key)
-        assertEquals("玩家名", text.title)
     }
 }

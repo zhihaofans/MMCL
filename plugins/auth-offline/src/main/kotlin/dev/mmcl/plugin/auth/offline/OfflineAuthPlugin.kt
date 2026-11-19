@@ -6,8 +6,6 @@ import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.plugin.Plugin
 import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.plugin.PluginContext
-import dev.mmcl.api.settings.SettingItem
-import dev.mmcl.api.settings.SettingsSection
 import java.util.UUID
 
 /**
@@ -38,7 +36,6 @@ class OfflineAuthPlugin : Plugin {
                 configuredName = { context.settings.getString(PLAYER_NAME_KEY) ?: "Player" },
             ),
         )
-        context.services.register(SettingsSection::class, OfflineAuthSettings())
         context.logger.info("离线账户插件已加载（player.name 缺省为 Player）")
     }
 
@@ -85,32 +82,3 @@ private const val ENGLISH = "en"
 
 /** 界面语言是否为中文；插件展示名跟随 `PluginContext.locale`，不写死。 */
 private fun isChinese(locale: String): Boolean = locale.lowercase().startsWith("zh")
-
-/** 离线账户的设置项：玩家名（用于离线 UUID 与显示名）。 */
-class OfflineAuthSettings : SettingsSection {
-    override val id: String = "dev.mmcl.auth.offline"
-
-    override fun title(locale: String): String = if (isChinese(locale)) "离线账户" else "Offline account"
-
-    override fun description(locale: String): String =
-        if (isChinese(locale)) {
-            "离线模式下启动游戏使用的玩家名；同时决定离线 UUID。"
-        } else {
-            "Player name used when launching offline; it also determines the offline UUID."
-        }
-
-    override fun items(locale: String): List<SettingItem> =
-        listOf(
-            SettingItem.Text(
-                key = PLAYER_NAME_KEY,
-                title = if (isChinese(locale)) "玩家名" else "Player name",
-                description = if (isChinese(locale)) "留空使用 Player" else "Leave blank to use Player",
-                placeholder = "Player",
-                defaultValue = "Player",
-            ),
-        )
-
-    private companion object {
-        const val PLAYER_NAME_KEY = "player.name"
-    }
-}
