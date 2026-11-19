@@ -448,11 +448,22 @@ class MyPlugin : Plugin {
 在 macOS 27 下：
 
 ```bash
+# 全部插件一次编译，收集到 build/plugins/
+./gradlew packagePlugins
+
+# 只编译一个
 ./gradlew :plugins:hello:jar
 ```
 
 产物输出到 `plugins/hello/build/libs/dev.mmcl.plugin.hello-0.0.1.jar`
-（文件名由 `tasks.jar { archiveBaseName.set(...) }` 固定为 `<pluginId>-<version>.jar`）。
+（文件名由 `tasks.jar { archiveBaseName.set(...) }` 固定为 `<pluginId>-<version>.jar`）；
+`packagePlugins` 会把所有插件 JAR 复制到仓库根的 `build/plugins/`，方便一次性安装：
+
+```bash
+cp build/plugins/*.jar "$HOME/Library/Application Support/MMCL/plugins/"
+```
+
+内置的三个插件（`auth-offline` / `ui-about` / `theme-sakura`）不用手动装，`:app` 打包时自动同步。
 
 ### 10.2 内置插件
 

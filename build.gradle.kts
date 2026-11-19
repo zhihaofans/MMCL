@@ -37,3 +37,19 @@ subprojects {
         }
     }
 }
+
+// 一键收集全部插件 JAR：./gradlew packagePlugins → build/plugins/
+val packagePlugins =
+    tasks.register<Sync>("packagePlugins") {
+        group = "distribution"
+        description = "构建全部插件并收集 JAR 到 build/plugins/"
+        subprojects
+            .filter { it.path.startsWith(":plugins:") }
+            .forEach { plugin ->
+                dependsOn(plugin.tasks.named("jar"))
+                from(plugin.layout.buildDirectory.dir("libs")) {
+                    include("*.jar")
+                }
+            }
+        into(layout.buildDirectory.dir("plugins"))
+    }
