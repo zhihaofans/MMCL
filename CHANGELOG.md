@@ -22,6 +22,8 @@
 
 ### 修复
 
+- 首页 / 游戏页的账户名：登录微软账号后仍显示离线玩家名（`player.name`，默认 `Player`）；
+  新增 `AuthProvider.accountName`（默认 `null`），已登录时优先显示账户的游戏内名称
 - 微软登录：设备码轮询时微软用 **HTTP 400** 返回 `authorization_pending`，之前被当成网络错误，
   用户还没在浏览器确认就提示「网络请求失败」；现在 400 按错误信封解析，等待期间保持「等待完成登录」
 - 设置页「跟随系统」行的副标题显示的是当前生效语言（选 English 就变 `en`），应固定为系统语言；改用 `LocaleController.systemLocale()`

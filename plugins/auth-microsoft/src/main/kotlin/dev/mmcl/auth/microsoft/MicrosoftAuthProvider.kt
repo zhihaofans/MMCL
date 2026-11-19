@@ -28,6 +28,10 @@ internal class MicrosoftAuthProvider(
 
     override val priority: Int = 100
 
+    /** 已登录时返回游戏内名称，供首页/游戏页展示。 */
+    override val accountName: String?
+        get() = accountOrNull()?.name
+
     /**
      * 有刷新令牌就算已登录。
      *

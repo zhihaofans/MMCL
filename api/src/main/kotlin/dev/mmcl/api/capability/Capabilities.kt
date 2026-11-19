@@ -31,6 +31,15 @@ interface AuthProvider {
     val priority: Int get() = 100
 
     /**
+     * 当前登录的账户名，未登录或没有账户概念时为 `null`。
+     *
+     * 首页/游戏页优先显示它；为 `null` 时回退到设置里的离线玩家名（`player.name`）。
+     * 默认 `null`，旧插件行为不变。
+     */
+    val accountName: String?
+        get() = null
+
+    /**
      * 当前是否已有可用账户。
      *
      * 启动器只在已登录的认证方式里挑优先级最高的那个：装了正版登录插件但还没登录时，

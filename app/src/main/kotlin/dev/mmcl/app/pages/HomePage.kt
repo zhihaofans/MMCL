@@ -89,7 +89,7 @@ class HomePage(
                         text = strings.t(
                     "home.account",
                     account?.displayName ?: strings.t("home.account.no_auth"),
-                    playerName,
+                    account?.accountName ?: playerName,
                 ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,

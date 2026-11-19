@@ -328,7 +328,11 @@ class InstancesPage(
                     text = if (account == null) {
                         strings.t("instances.account.none")
                     } else {
-                        strings.t("instances.account", account.displayName, launchContext?.playerName ?: "Player")
+                        strings.t(
+                            "instances.account",
+                            account.displayName,
+                            account.accountName ?: launchContext?.playerName ?: "Player",
+                        )
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (account == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,

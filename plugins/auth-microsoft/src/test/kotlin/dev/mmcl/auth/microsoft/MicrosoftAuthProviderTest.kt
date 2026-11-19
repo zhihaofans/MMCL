@@ -69,6 +69,7 @@ class MicrosoftAuthProviderTest {
         assertEquals("00000000000000000000000000000001", account.uuid)
         assertEquals("mc", account.accessToken)
         assertEquals("msa", account.userType)
+        assertEquals("Alex", provider.accountName)
         assertTrue(provider.isSignedIn)
         assertEquals("refresh-1", store.load()?.refreshToken)
     }
@@ -153,6 +154,7 @@ class MicrosoftAuthProviderTest {
         provider.signOut()
 
         assertNull(store.load())
+        assertNull(provider.accountName)
         assertTrue(!provider.isSignedIn)
     }
 }
