@@ -119,6 +119,13 @@ internal class AccountsPage(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
+                        current.detail?.takeIf { it.isNotBlank() }?.let { detail ->
+                            Text(
+                                text = detail,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         Button(onClick = { service.beginLogin() }, enabled = configured) {
                             Text(texts.retry)
                         }

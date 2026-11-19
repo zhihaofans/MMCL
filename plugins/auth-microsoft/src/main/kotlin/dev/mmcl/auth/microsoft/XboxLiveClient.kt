@@ -96,7 +96,11 @@ internal class XboxLiveClient(
                 if (e.status == 401) {
                     throw MicrosoftAuthException(MicrosoftAuthException.Reason.NOT_SIGNED_IN, "Minecraft 令牌被拒绝", e)
                 }
-                throw MicrosoftAuthException(MicrosoftAuthException.Reason.HTTP_ERROR, e.message, e)
+                throw MicrosoftAuthException(
+                    MicrosoftAuthException.Reason.HTTP_ERROR,
+                    "GET 权益 $ENTITLEMENTS_URL 失败：${e.message}",
+                    e,
+                )
             }
         val response = decode<EntitlementsResponse>(body, "游戏权益")
         val ownsGame =
@@ -123,7 +127,11 @@ internal class XboxLiveClient(
                         "该账号没有 Minecraft: Java 版档案",
                     )
                 }
-                throw MicrosoftAuthException(MicrosoftAuthException.Reason.HTTP_ERROR, e.message, e)
+                throw MicrosoftAuthException(
+                    MicrosoftAuthException.Reason.HTTP_ERROR,
+                    "GET 档案 $PROFILE_URL 失败：${e.message}",
+                    e,
+                )
             }
         return decode<MinecraftProfile>(body, "档案")
     }
@@ -132,7 +140,11 @@ internal class XboxLiveClient(
         try {
             transport.postJson(url, body)
         } catch (e: HttpStatusException) {
-            throw MicrosoftAuthException(MicrosoftAuthException.Reason.HTTP_ERROR, e.message, e)
+            throw MicrosoftAuthException(
+                MicrosoftAuthException.Reason.HTTP_ERROR,
+                "POST $url 失败：${e.message}",
+                e,
+            )
         }
 
     private fun uhs(response: XboxTokenResponse, step: String): String {

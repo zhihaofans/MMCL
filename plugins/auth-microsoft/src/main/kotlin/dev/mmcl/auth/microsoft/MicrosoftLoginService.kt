@@ -75,6 +75,7 @@ internal class MicrosoftLoginService(
                     _state.value = initialState()
                     throw e
                 } catch (e: MicrosoftAuthException) {
+                    logger.warn("微软登录失败：{}（{}）", e.reason, e.message, e)
                     _state.value = LoginState.Failed(e.reason, e.message)
                 } catch (e: Exception) {
                     logger.error("微软登录失败，已隔离", e)

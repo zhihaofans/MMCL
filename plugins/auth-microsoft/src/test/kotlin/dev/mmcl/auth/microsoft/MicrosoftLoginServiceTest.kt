@@ -87,6 +87,36 @@ class MicrosoftLoginServiceTest {
     }
 
     @Test
+    fun `用户还没在浏览器确认时保持等待而不是网络失败`() = runTest {
+        val transport =
+            QueuedTransport(
+                deviceCodeReply,
+                Reply.Failure(400, """{"error":"authorization_pending"}"""),
+                Reply.Body("""{"access_token":"ms","refresh_token":"refresh-1","expires_in":3600}"""),
+                Reply.Body(xblResponse),
+                Reply.Body(xstsResponse),
+                Reply.Body(loginResponse),
+                Reply.Body(entitlementsResponse),
+                Reply.Body(profileResponse),
+            )
+        val service =
+            MicrosoftLoginService(
+                provider = provider(tempStore(), transport, "client"),
+                oauthFactory = { MicrosoftOAuthClient("client", transport, now = clock, sleep = {}) },
+                scope = this,
+                logger = logger,
+                now = clock,
+            )
+
+        service.beginLogin()
+        advanceUntilIdle()
+
+        val state = service.state.value
+        assertTrue(state is LoginState.SignedIn, "应先 Pending 再成功：$state")
+        assertEquals("Alex", (state as LoginState.SignedIn).account.name)
+    }
+
+    @Test
     fun `设备码过期时状态为失败并可重试`() = runTest {
         val transport =
             QueuedTransport(

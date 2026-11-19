@@ -59,6 +59,51 @@ class MicrosoftOAuthClientTest {
     }
 
     @Test
+    fun `轮询遇到 HTTP 400 的 authorization_pending 不算网络失败`() = runTest {
+        // 真实微软接口在用户还没确认时返回 400 + error 信封，这里必须被当成 Pending
+        val pending = client(QueuedTransport(Reply.Failure(400, """{"error":"authorization_pending"}""")))
+        assertEquals(DeviceCodePoll.Pending(slowDown = false), pending.poll("dev"))
+
+        val slow = client(QueuedTransport(Reply.Failure(400, """{"error":"slow_down"}""")))
+        assertEquals(DeviceCodePoll.Pending(slowDown = true), slow.poll("dev"))
+    }
+
+    @Test
+    fun `400 的 expired_token 与 authorization_declined 映射到对应原因`() = runTest {
+        val expired = client(QueuedTransport(Reply.Failure(400, """{"error":"expired_token"}""")))
+        assertEquals(
+            MicrosoftAuthException.Reason.DEVICE_CODE_EXPIRED,
+            (expired.poll("dev") as DeviceCodePoll.Failed).reason,
+        )
+
+        val declined = client(QueuedTransport(Reply.Failure(400, """{"error":"authorization_declined"}""")))
+        assertEquals(
+            MicrosoftAuthException.Reason.AUTHORIZATION_DECLINED,
+            (declined.poll("dev") as DeviceCodePoll.Failed).reason,
+        )
+    }
+
+    @Test
+    fun `设备码申请返回 invalid_client 时提示 client id 配置问题`() = runTest {
+        val transport = QueuedTransport(Reply.Failure(400, """{"error":"invalid_client"}"""))
+
+        val error = runCatching { client(transport).requestDeviceCode() }.exceptionOrNull()
+
+        assertTrue(error is MicrosoftAuthException)
+        assertEquals(MicrosoftAuthException.Reason.CLIENT_ID_INVALID, (error as MicrosoftAuthException).reason)
+    }
+
+    @Test
+    fun `刷新遇到 400 invalid_grant 映射为未登录`() = runTest {
+        val transport = QueuedTransport(Reply.Failure(400, """{"error":"invalid_grant"}"""))
+
+        val error = runCatching { client(transport).refresh("old") }.exceptionOrNull()
+
+        assertTrue(error is MicrosoftAuthException)
+        assertEquals(MicrosoftAuthException.Reason.NOT_SIGNED_IN, (error as MicrosoftAuthException).reason)
+    }
+
+    @Test
     fun `拿到令牌时按 expires_in 计算到期时间`() = runTest {
         val transport =
             QueuedTransport(

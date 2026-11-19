@@ -67,10 +67,23 @@ internal class MicrosoftOAuthClient(
     /** 申请设备码。 */
     suspend fun requestDeviceCode(): DeviceCodeChallenge {
         val body =
-            transport.postForm(
+            postFormAllowing400(
                 MicrosoftEndpoints.DEVICE_CODE,
                 mapOf("client_id" to clientId, "scope" to MicrosoftEndpoints.SCOPE),
             )
+        // 400 时响应体是错误信封（invalid_client / unauthorized_client），先看 error 再解析挑战
+        val errorEnvelope = runCatching { decode<TokenResponse>(body) }.getOrNull()
+        if (errorEnvelope?.error != null) {
+            val error = errorEnvelope.error
+            throw MicrosoftAuthException(
+                if (error == "invalid_client" || error == "unauthorized_client") {
+                    MicrosoftAuthException.Reason.CLIENT_ID_INVALID
+                } else {
+                    MicrosoftAuthException.Reason.OAUTH_ERROR
+                },
+                "$error：${errorEnvelope.errorDescription.orEmpty()}",
+            )
+        }
         val response = decode<DeviceCodeResponse>(body)
         return DeviceCodeChallenge(
             userCode = response.userCode,
@@ -84,7 +97,7 @@ internal class MicrosoftOAuthClient(
     /** 轮询一次；调用方负责按 [DeviceCodeChallenge.intervalSeconds] 控制节奏。 */
     suspend fun poll(deviceCode: String): DeviceCodePoll {
         val body =
-            transport.postForm(
+            postFormAllowing400(
                 MicrosoftEndpoints.TOKEN,
                 mapOf(
                     "grant_type" to "urn:ietf:params:oauth:grant-type:device_code",
@@ -147,7 +160,7 @@ internal class MicrosoftOAuthClient(
     /** 用刷新令牌换新的访问令牌。 */
     suspend fun refresh(refreshToken: String): MicrosoftTokens {
         val body =
-            transport.postForm(
+            postFormAllowing400(
                 MicrosoftEndpoints.TOKEN,
                 mapOf(
                     "grant_type" to "refresh_token",
@@ -172,6 +185,21 @@ internal class MicrosoftOAuthClient(
             expiresAtEpochSeconds = now() + (response.expiresIn ?: 3600),
         )
     }
+
+    /**
+     * 令牌/设备码端点用 HTTP 400 表示「还没完成 / 被拒绝 / 已过期」，
+     * 这些响应体里的 `error` 才是真正的结果，所以 400 不当作网络错误。
+     */
+    private suspend fun postFormAllowing400(url: String, form: Map<String, String>): String =
+        try {
+            transport.postForm(url, form)
+        } catch (e: HttpStatusException) {
+            if (e.status == 400) {
+                e.body
+            } else {
+                throw MicrosoftAuthException(MicrosoftAuthException.Reason.HTTP_ERROR, e.message, e)
+            }
+        }
 
     private inline fun <reified T> decode(body: String): T =
         try {

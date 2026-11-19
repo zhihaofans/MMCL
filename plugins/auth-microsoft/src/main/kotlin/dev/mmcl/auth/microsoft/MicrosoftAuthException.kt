@@ -44,6 +44,9 @@ internal class MicrosoftAuthException(
         /** Azure 应用未获 Minecraft API 权限（`login_with_xbox` 返回 403）。 */
         CLIENT_ID_NOT_APPROVED,
 
+        /** Azure 应用 ID 无效，或没开「允许公共客户端流」。 */
+        CLIENT_ID_INVALID,
+
         /** 当前没有可用令牌，需要重新登录。 */
         NOT_SIGNED_IN,
 

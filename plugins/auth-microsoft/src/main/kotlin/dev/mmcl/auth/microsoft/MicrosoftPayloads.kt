@@ -115,6 +115,9 @@ internal data class MinecraftProfile(
 /** 插件内部统一的 JSON 配置：微软的响应字段远多于我们需要的。 */
 internal val MicrosoftJson: kotlinx.serialization.json.Json = kotlinx.serialization.json.Json {
     ignoreUnknownKeys = true
+    // 请求体的 RelyingParty / TokenType / AuthMethod / SiteName / SandboxId 都靠默认值，
+    // 不序列化默认值的话 XBL/XSTS 会收到缺字段的 JSON 并回 400（响应体还是空的）
+    encodeDefaults = true
     coerceInputValues = true
     explicitNulls = false
 }

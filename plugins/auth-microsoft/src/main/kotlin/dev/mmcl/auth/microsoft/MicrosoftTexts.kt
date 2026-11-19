@@ -113,6 +113,9 @@ internal fun failureText(reason: MicrosoftAuthException.Reason, locale: String):
         MicrosoftAuthException.Reason.CLIENT_ID_NOT_APPROVED ->
             if (zh) "Azure 应用还没有 Minecraft API 权限（需向 Mojang 申请）"
             else "The Azure app is not approved for the Minecraft API yet"
+        MicrosoftAuthException.Reason.CLIENT_ID_INVALID ->
+            if (zh) "client id 无效，或 Azure 应用没开启「允许公共客户端流」"
+            else "Invalid client ID, or public client flows are not enabled"
         MicrosoftAuthException.Reason.NOT_SIGNED_IN ->
             if (zh) "登录已失效，请重新登录" else "Your session expired, please sign in again"
         MicrosoftAuthException.Reason.INVALID_RESPONSE ->
