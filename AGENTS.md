@@ -265,6 +265,11 @@
 - **jlink 会裁掉运行时要用的模块**：打包后必须显式 `modules("java.naming", "java.sql", "java.net.http",
   "jdk.crypto.ec", "jdk.unsupported")`，否则 logback（javax.naming）或 HttpClient 会在启动时报
   `NoClassDefFoundError` —— 这个坑只在打包产物里出现，`:app:run` 不会暴露
+- **未公证的 dmg 下载后被 Gatekeeper 拦**：macOS 15+ 的弹窗只有「移到废纸篓 / 取消」，
+  没有「打开」。临时绕过：`xattr -dr com.apple.quarantine /Applications/MMCL.app`
+  （对 runtime 里的只读文件会报 `Permission denied`，可忽略——清掉 app 根与 `Contents/MacOS/` 就够启动，
+  已实测 `codesign --verify --deep --strict` 仍为 0）。每次从 Release 更新都会重新带上隔离属性，
+  彻底解决只能 Developer ID 签名 + 公证；本地 `:app:packageDmg` 产物没有隔离属性，不受影响
 - **`/usr/bin/git` 可能直接报错**：本机 `xcode-select -p` 指向 `/Applications/Xcode.app/Contents/Developer`，
   该路径缺 `xcodebuild` 时 `/usr/bin/git` 报 `unable to locate xcodebuild`。改用
   `/Library/Developer/CommandLineTools/usr/bin/git`（2.54），或
