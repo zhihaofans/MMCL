@@ -14,6 +14,7 @@ import java.nio.file.Path
  * @property jar 插件 JAR 路径；测试或内置构造时可为 `null`
  * @property classLoader 该插件专属类加载器；测试或内置构造时可为 `null`
  * @property plugin 插件实例
+ * @property integrity JAR 完整性与签名信息；测试或内置构造时可为 `null`
  */
 data class PluginDescriptor(
     val id: String,
@@ -23,4 +24,5 @@ data class PluginDescriptor(
     val jar: Path? = null,
     val classLoader: URLClassLoader? = null,
     val plugin: Plugin,
+    val integrity: PluginIntegrity? = null,
 )

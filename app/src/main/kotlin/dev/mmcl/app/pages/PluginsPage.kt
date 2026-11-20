@@ -15,6 +15,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,14 +30,27 @@ import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.core.plugin.LoadedPlugin
+import dev.mmcl.core.plugin.PluginConflict
+import dev.mmcl.core.plugin.PluginConflictReason
+import dev.mmcl.core.plugin.PluginSignature
 import dev.mmcl.core.plugin.PluginState
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclIcons
 import dev.mmcl.ui.kit.MmclSpacing
 import dev.mmcl.ui.kit.PageScaffold
 
-/** 插件页：展示插件加载状态与来源 JAR，插件管理（启用/禁用）留到后续版本。 */
-class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
+/**
+ * 插件页：展示加载状态、来源 JAR、完整性与冲突。
+ *
+ * 点击状态标签可启用/禁用插件：写入 `plugins.disabled`，**重启后生效**
+ * （运行中的插件不做热卸载，避免服务与页面指针失效）。
+ */
+class PluginsPage(
+    private val plugins: List<LoadedPlugin>,
+    private val conflicts: List<PluginConflict> = emptyList(),
+    private val disabledIdsProvider: () -> Set<String> = { emptySet() },
+    private val onToggle: (String, Boolean) -> Unit = { _, _ -> },
+) : UiPage {
     override val id: String = PAGE_ID
     override val title: String = "插件"
     override val titleKey: String = "page.plugins.title"
@@ -49,6 +66,8 @@ class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
     @Composable
     override fun Content(navigator: AppNavigator) {
         val strings = LocalStrings.current
+        var disabled by remember { mutableStateOf(disabledIdsProvider()) }
+        var changed by remember { mutableStateOf(false) }
         PageScaffold(title = strings.t("page.plugins.title"), subtitle = strings.t("plugins.subtitle", plugins.size)) {
             if (plugins.isEmpty()) {
                 EmptyState(
@@ -59,8 +78,44 @@ class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
                 return@PageScaffold
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
+                if (changed) {
+                    item {
+                        Text(
+                            text = strings.t("plugins.restart_hint"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 items(plugins, key = { it.id }) { plugin ->
-                    PluginRow(plugin)
+                    val toggleable = plugin.state == PluginState.ENABLED || plugin.state == PluginState.DISABLED
+                    PluginRow(
+                        plugin = plugin,
+                        disabled = plugin.id in disabled,
+                        onToggle =
+                            if (toggleable) {
+                                {
+                                    val enable = plugin.id in disabled
+                                    disabled = if (enable) disabled - plugin.id else disabled + plugin.id
+                                    changed = true
+                                    onToggle(plugin.id, enable)
+                                }
+                            } else {
+                                null
+                            },
+                    )
+                }
+                if (conflicts.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = strings.t("plugins.conflicts.title"),
+                            modifier = Modifier.padding(top = MmclSpacing.m),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+                    items(conflicts, key = { "conflict-${it.jar}" }) { conflict ->
+                        PluginConflictRow(conflict)
+                    }
                 }
             }
         }
@@ -68,8 +123,10 @@ class PluginsPage(private val plugins: List<LoadedPlugin>) : UiPage {
 }
 
 @Composable
-private fun PluginRow(plugin: LoadedPlugin) {
+private fun PluginRow(plugin: LoadedPlugin, disabled: Boolean = false, onToggle: (() -> Unit)? = null) {
+    val strings = LocalStrings.current
     val meta = plugin.descriptor.plugin
+    val integrity = plugin.descriptor.integrity
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -100,13 +157,50 @@ private fun PluginRow(plugin: LoadedPlugin) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (integrity != null) {
+                Text(
+                    text =
+                        buildString {
+                            append(strings.t("plugins.integrity.sha"))
+                            append(" ")
+                            append(integrity.shortSha256)
+                            append(" · ")
+                            append(
+                                when (val signature = integrity.signature) {
+                                    PluginSignature.Unsigned -> strings.t("plugins.integrity.unsigned")
+                                    is PluginSignature.Signed ->
+                                        strings.t(
+                                            "plugins.integrity.signed",
+                                            signature.signers.firstOrNull() ?: "",
+                                        )
+                                    is PluginSignature.Invalid -> strings.t("plugins.integrity.invalid")
+                                },
+                            )
+                        },
+                    style = MaterialTheme.typography.labelSmall,
+                    color =
+                        if (integrity.signature is PluginSignature.Unsigned) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                )
+            }
         }
-        StateChip(plugin.state)
+        // 禁用/重新启用的即时反馈：重启前先按用户的选择显示
+        val displayState =
+            when {
+                disabled -> PluginState.DISABLED
+                plugin.state == PluginState.DISABLED -> PluginState.ENABLED
+                else -> plugin.state
+            }
+        StateChip(displayState, onClick = onToggle)
     }
 }
 
 @Composable
-private fun StateChip(state: PluginState) {
+private fun StateChip(state: PluginState, onClick: (() -> Unit)? = null) {
+    val strings = LocalStrings.current
     val container =
         when (state) {
             PluginState.ENABLED -> MaterialTheme.colorScheme.secondaryContainer
@@ -121,13 +215,26 @@ private fun StateChip(state: PluginState) {
             PluginState.MISSING_DEP, PluginState.CYCLE -> MaterialTheme.colorScheme.onTertiaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
-    Surface(color = container, shape = RoundedCornerShape(percent = 50)) {
-        Text(
-            text = state.name,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = content,
-        )
+    val label = strings.t("plugin.state.${state.name}")
+    if (onClick != null) {
+        // 可点击：启用/禁用开关（重启生效）
+        Surface(onClick = onClick, color = container, shape = RoundedCornerShape(percent = 50)) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = content,
+            )
+        }
+    } else {
+        Surface(color = container, shape = RoundedCornerShape(percent = 50)) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = content,
+            )
+        }
     }
 }
 
@@ -143,3 +250,49 @@ private fun PluginIcon.toUiIcon(): UiIcon =
         PluginIcon.LOCALE -> UiIcon.INFO
         PluginIcon.DEFAULT -> UiIcon.PLUGIN
     }
+
+/** 被忽略的插件 JAR：版本冲突、签名无效或读取失败。 */
+@Composable
+private fun PluginConflictRow(conflict: PluginConflict) {
+    val strings = LocalStrings.current
+    val reason =
+        when (conflict.reason) {
+            PluginConflictReason.DUPLICATE -> strings.t("plugins.conflict.duplicate")
+            PluginConflictReason.INVALID_SIGNATURE -> strings.t("plugins.conflict.invalid_signature")
+            PluginConflictReason.LOAD_FAILED -> strings.t("plugins.conflict.load_failed")
+        }
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                .padding(MmclSpacing.m),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = buildString {
+                append(conflict.jar.fileName)
+                conflictIdentity(conflict)?.let { identity ->
+                    append(" · ")
+                    append(identity)
+                }
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(
+            text = buildString {
+                append(reason)
+                conflict.detail?.takeIf { it.isNotBlank() }?.let {
+                    append(" · ")
+                    append(it)
+                }
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** `id version` 形式的冲突标识；两者都没有时返回 `null`。 */
+private fun conflictIdentity(conflict: PluginConflict): String? =
+    listOfNotNull(conflict.id, conflict.version).takeIf { it.isNotEmpty() }?.joinToString(" ")

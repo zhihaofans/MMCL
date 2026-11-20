@@ -63,6 +63,33 @@ class PluginManagerTest {
     }
 
     @Test
+    fun `禁用的插件不执行生命周期`() {
+        val plugin = FakePlugin("disabled-plugin")
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(plugin)), disabledIds = setOf("disabled-plugin"))
+
+        assertEquals(PluginState.DISABLED, manager.plugins.single().state)
+        assertEquals(0, plugin.loadCount)
+        assertEquals(0, plugin.enableCount)
+        manager.close()
+    }
+
+    @Test
+    fun `依赖被禁用插件的插件按缺失依赖处理`() {
+        val disabled = FakePlugin("disabled-dep")
+        val dependent = FakePlugin("needs-disabled", dependencies = listOf("disabled-dep"))
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(disabled), descriptor(dependent)), setOf("disabled-dep"))
+
+        assertEquals(PluginState.DISABLED, manager.plugins.first { it.id == "disabled-dep" }.state)
+        assertEquals(PluginState.MISSING_DEP, manager.plugins.first { it.id == "needs-disabled" }.state)
+        assertEquals(0, dependent.loadCount)
+        manager.close()
+    }
+
+    @Test
     fun `插件元信息有默认值`() {
         val plugin = FakePlugin("plain")
 

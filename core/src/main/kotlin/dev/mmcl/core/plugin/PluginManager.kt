@@ -47,24 +47,36 @@ class PluginManager(
     val plugins: List<LoadedPlugin>
         get() = loaded.values.toList()
 
+    /** 最近一次加载中被忽略的插件 JAR（版本冲突 / 签名无效 / 加载失败）。 */
+    val conflicts: List<PluginConflict>
+        get() = loader.conflicts
+
     /**
      * 扫描目录并启动其中的全部插件。
      *
      * @return 启动后的插件快照
      */
-    fun load(pluginsDir: Path): List<LoadedPlugin> {
+    fun load(pluginsDir: Path, disabledIds: Set<String> = emptySet()): List<LoadedPlugin> {
         check(!closed) { "PluginManager 已关闭" }
-        start(loader.discover(pluginsDir))
+        start(loader.discover(pluginsDir), disabledIds)
         return plugins
     }
 
     /**
      * 启动给定插件（已发现但尚未执行生命周期回调）。测试可直接注入构造好的描述符。
      */
-    fun start(descriptors: List<PluginDescriptor>) {
+    fun start(descriptors: List<PluginDescriptor>, disabledIds: Set<String> = emptySet()) {
         check(!closed) { "PluginManager 已关闭" }
-        val result = sorter.sort(descriptors)
-        val byId = descriptors.associateBy { it.id }
+        // 用户禁用的插件不参与依赖解析和生命周期，但仍记录状态，插件页才能重新启用
+        val disabled = descriptors.filter { it.id in disabledIds }
+        val active = descriptors.filterNot { it.id in disabledIds }
+        val result = sorter.sort(active)
+        val byId = active.associateBy { it.id }
+
+        for (descriptor in disabled) {
+            loaded[descriptor.id] = LoadedPlugin(descriptor, PluginState.DISABLED)
+            logger.info("插件 {} {} 已在设置中禁用，跳过加载", descriptor.id, descriptor.version)
+        }
 
         for ((id, missingDeps) in result.missing) {
             val descriptor = byId.getValue(id)

@@ -22,7 +22,6 @@
 - [ ] `loader-fabric`／`loader-forge`／`loader-neoforge`（**只针对最新正式版系列**；Quilt 是否单独立项另议）
 - [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
 - [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
-- [ ] 插件版本冲突、签名与来源校验
 
 ### 0.4.x — 整合包与内容互操作
 

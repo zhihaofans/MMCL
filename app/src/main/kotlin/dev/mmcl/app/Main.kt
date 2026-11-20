@@ -113,9 +113,10 @@ fun main(args: Array<String>) {
         PluginFolder(path = pluginsDir) { DirectoryLauncher(launcher.os).open(pluginsDir) }
 
     val manager = PluginManager(launcher, logger, settings = settings)
+    val disabledPluginIds = parseDisabledPluginIds(settings.getString(PLUGINS_DISABLED_KEY))
     val plugins =
         try {
-            manager.load(pluginsDir)
+            manager.load(pluginsDir, disabledPluginIds)
         } catch (t: Throwable) {
             logger.error("插件加载失败，启动器继续以空插件列表运行", t)
             manager.plugins
@@ -260,7 +261,16 @@ fun main(args: Array<String>) {
                 autoLoad = true,
                 pluginFolder = pluginFolder,
             ),
-            PluginsPage(plugins),
+            PluginsPage(
+                plugins = plugins,
+                conflicts = manager.conflicts,
+                disabledIdsProvider = { parseDisabledPluginIds(settings.getString(PLUGINS_DISABLED_KEY)) },
+                onToggle = { id, enabled ->
+                    val current = parseDisabledPluginIds(settings.getString(PLUGINS_DISABLED_KEY)).toMutableSet()
+                    if (enabled) current.remove(id) else current.add(id)
+                    settings.putString(PLUGINS_DISABLED_KEY, current.joinToString(","))
+                },
+            ),
             SettingsPage(
                 launcher,
                 themeController,
@@ -403,3 +413,10 @@ fun main(args: Array<String>) {
         }
     }
 }
+
+/** 设置键：被禁用的插件 id（逗号分隔），重启后生效。 */
+private const val PLUGINS_DISABLED_KEY: String = "plugins.disabled"
+
+/** 解析禁用列表；空串/多余逗号都安全。 */
+private fun parseDisabledPluginIds(raw: String?): Set<String> =
+    raw.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()

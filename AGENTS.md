@@ -239,6 +239,8 @@
 - **锁屏时无法实拍**：macOS 锁屏时 `screencapture` 只能拿到登录界面；用 `ImageComposeScene` 的无头渲染出图，
   或等解锁后再截
 - **Gradle 要写 `~/.gradle`**：沙箱里构建需要放开到工作区外；离线时用 `--offline`（依赖须已在缓存里）
+- **JAR 签名校验要读完条目才触发**：`JarFile(file, verify = true)` 只有在逐条读取内容时才会校验，
+  只打开不读会得到「未签名」的假象；`PluginIntegrityVerifier` 已按条目读流并收集 `codeSigners`
 - **插件版本双写**：`build.gradle.kts` 的 `version` 与 `Plugin.version` 必须一致，否则 JAR 名和界面显示会对不上
 - **`:app:run` 是长驻进程**：窗口关闭前任务不结束，本机验证时别用阻塞写法等它返回
 - **JDK 27 是构建+打包的统一工具链**：早期用 21 编译、27 打包，版本号会因 macOS 的 jpackage

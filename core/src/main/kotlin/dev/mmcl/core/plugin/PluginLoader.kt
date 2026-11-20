@@ -22,6 +22,10 @@ class PluginLoader(
     private val logger: Logger,
     private val parentClassLoader: ClassLoader = Plugin::class.java.classLoader,
 ) {
+    /** 最近一次 [discover] 中被忽略的 JAR（重复版本 / 签名无效 / 加载失败）。 */
+    var conflicts: List<PluginConflict> = emptyList()
+        private set
+
     /**
      * 扫描目录并返回去重后的插件描述符。
      *
@@ -42,9 +46,35 @@ class PluginLoader(
             }
 
         val byId = LinkedHashMap<String, PluginDescriptor>()
+        val foundConflicts = mutableListOf<PluginConflict>()
         for (jar in jars) {
             var classLoader: URLClassLoader? = null
             try {
+                val integrity =
+                    runCatching { PluginIntegrityVerifier.inspect(jar) }
+                        .onFailure {
+                            logger.error("插件 JAR 无法读取，已忽略：{}", jar, it)
+                            foundConflicts +=
+                                PluginConflict(
+                                    jar = jar,
+                                    reason = PluginConflictReason.LOAD_FAILED,
+                                    detail = it.message,
+                                )
+                        }
+                        .getOrNull() ?: continue
+                val invalidSignature = integrity.signature as? PluginSignature.Invalid
+                if (invalidSignature != null) {
+                    // 签名无效说明内容被改过：拒绝加载，不能只告警
+                    logger.error("插件签名校验失败，已拒绝：{}（{}）", jar, invalidSignature.reason)
+                    foundConflicts +=
+                        PluginConflict(
+                            jar = jar,
+                            reason = PluginConflictReason.INVALID_SIGNATURE,
+                            detail = invalidSignature.reason,
+                        )
+                    continue
+                }
+
                 classLoader = URLClassLoader(arrayOf(jar.toUri().toURL()), parentClassLoader)
                 val declared = ServiceLoader.load(Plugin::class.java, classLoader).toList()
                 if (declared.isEmpty()) {
@@ -69,6 +99,7 @@ class PluginLoader(
                             jar = jar,
                             classLoader = classLoader,
                             plugin = plugin,
+                            integrity = integrity,
                         )
                 }
                 for (descriptor in created) {
@@ -86,15 +117,49 @@ class PluginLoader(
                                 descriptor.version,
                                 existing.version,
                             )
+                            foundConflicts +=
+                                PluginConflict(
+                                    jar = existing.jar ?: jar,
+                                    id = existing.id,
+                                    version = existing.version,
+                                    reason = PluginConflictReason.DUPLICATE,
+                                    detail = "被 ${descriptor.version} 取代",
+                                )
                             byId[descriptor.id] = descriptor
                         }
 
-                        else -> logger.warn(
-                            "插件 {} 存在多版本，保留已发现的 {}，忽略 {}",
-                            descriptor.id,
-                            existing.version,
-                            descriptor.version,
-                        )
+                        else -> {
+                            val sameVersion = compareVersions(descriptor.version, existing.version) == 0
+                            val sameContent =
+                                sameVersion && existing.integrity?.sha256 == descriptor.integrity?.sha256
+                            if (sameVersion && !sameContent) {
+                                // 同版本不同内容：可能是替换了 JAR 却没升版本，保留先发现的并让冲突可见
+                                logger.error(
+                                    "插件 {} {} 内容不同（SHA-256 {} vs {}），保留先发现的 {}，忽略 {}",
+                                    descriptor.id,
+                                    descriptor.version,
+                                    existing.integrity?.shortSha256,
+                                    descriptor.integrity?.shortSha256,
+                                    existing.jar?.fileName,
+                                    jar.fileName,
+                                )
+                            } else {
+                                logger.warn(
+                                    "插件 {} 存在多版本，保留已发现的 {}，忽略 {}",
+                                    descriptor.id,
+                                    existing.version,
+                                    descriptor.version,
+                                )
+                            }
+                            foundConflicts +=
+                                PluginConflict(
+                                    jar = jar,
+                                    id = descriptor.id,
+                                    version = descriptor.version,
+                                    reason = PluginConflictReason.DUPLICATE,
+                                    detail = if (sameVersion && !sameContent) "同版本不同内容" else null,
+                                )
+                        }
                     }
                 }
                 if (created.none { byId[it.id] === it }) {
@@ -103,9 +168,16 @@ class PluginLoader(
             } catch (t: Throwable) {
                 // 插件自身的 ServiceLoader 配置错误也要被隔离，不能拖垮启动流程
                 logger.error("加载插件 JAR 失败，已隔离：{}", jar, t)
+                foundConflicts +=
+                    PluginConflict(
+                        jar = jar,
+                        reason = PluginConflictReason.LOAD_FAILED,
+                        detail = t.message,
+                    )
                 runCatching { classLoader?.close() }
             }
         }
+        conflicts = foundConflicts.toList()
         return byId.values.toList()
     }
 

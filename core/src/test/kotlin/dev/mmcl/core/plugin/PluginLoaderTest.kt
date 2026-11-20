@@ -35,12 +35,22 @@ class PluginLoaderTest {
 
     private fun tempDir(): Path = Files.createTempDirectory("mmcl-loader-test")
 
-    private fun writeJar(dir: Path, fileName: String, serviceDeclaration: String): Path {
+    private fun writeJar(
+        dir: Path,
+        fileName: String,
+        serviceDeclaration: String,
+        extra: String? = null,
+    ): Path {
         val jar = dir.resolve(fileName)
         JarOutputStream(Files.newOutputStream(jar)).use { out ->
             out.putNextEntry(JarEntry("META-INF/services/${Plugin::class.java.name}"))
             out.write(serviceDeclaration.toByteArray(Charsets.UTF_8))
             out.closeEntry()
+            if (extra != null) {
+                out.putNextEntry(JarEntry("extra.txt"))
+                out.write(extra.toByteArray(Charsets.UTF_8))
+                out.closeEntry()
+            }
         }
         return jar
     }
@@ -73,6 +83,30 @@ class PluginLoaderTest {
         assertEquals(1, discovered.size)
         assertEquals("2.0.0", discovered.single().version)
         assertTrue(discovered.single().plugin is JarPluginV2)
+        discovered.forEach { it.classLoader?.close() }
+    }
+
+    @Test
+    fun `同版本不同内容保留先发现的并记录冲突`() {
+        val dir = tempDir()
+        writeJar(dir, "a.jar", JarPluginV1::class.java.name, extra = "a")
+        writeJar(dir, "b.jar", JarPluginV1::class.java.name, extra = "b")
+
+        val discovered = loader.discover(dir)
+
+        assertEquals(1, discovered.size)
+        assertEquals("1.0.0", discovered.single().version)
+        assertEquals(1, loader.conflicts.size)
+        val conflict = loader.conflicts.single()
+        assertEquals(PluginConflictReason.DUPLICATE, conflict.reason)
+        assertEquals("dev.mmcl.test.jar", conflict.id)
+        // 冲突里记的是被忽略的 b.jar；保留的是先发现的 a.jar
+        assertEquals("b.jar", conflict.jar.fileName.toString())
+        assertEquals("同版本不同内容", conflict.detail)
+        assertEquals(
+            PluginIntegrityVerifier.sha256Of(dir.resolve("a.jar")),
+            discovered.single().integrity?.sha256,
+        )
         discovered.forEach { it.classLoader?.close() }
     }
 
