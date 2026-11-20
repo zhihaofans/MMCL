@@ -10,7 +10,7 @@
 ## 0. 项目信息
 
 - 项目名：**MMCL**（插件化 Minecraft Java 启动器）
-- 当前版本：**0.0.5**，唯一来源是 `gradle.properties` 的 `version`，代码里不得另写一份
+- 当前版本：**0.0.6**，唯一来源是 `gradle.properties` 的 `version`，代码里不得另写一份
 - 包名 / groupId：**`dev.mmcl`**（插件 id 形如 `dev.mmcl.auth.microsoft`）
 - 目标平台与支持范围：
   - **macOS：仅 Apple Silicon（arm64）**；Intel Mac 不专门适配，运行时只告警不拦
@@ -25,10 +25,10 @@
   （`source-mojang` 等只以独立插件分发）。没有源插件时启动器只能启动本机已装好的实例
 - 版本阶段约定：`0.x` 阶段允许 API 破坏性变更，但必须在提交说明里标注 `API-BREAK:`；`1.0.0` 起严格执行 6.1 节的兼容规则
 - 版本规则：
-  - **启动器**：`gradle.properties` 的 `version` 是唯一来源（当前 `0.0.5`）
+  - **启动器**：`gradle.properties` 的 `version` 是唯一来源（当前 `0.0.6`）
   - **插件**：每个插件版本**独立，从 `0.0.1` 起**，不跟随启动器版本；插件 `build.gradle.kts` 的 `version` 与代码里 `Plugin.version` 必须一致，插件 JAR 名因此为 `<pluginId>-<插件版本>.jar`
   - **版本闸门**：能实际启动 Minecraft 之前固定 `0.0.1`（**已于 2026-10-31 达成**：真实启动 `26.3`），
-    闸门已过，当前 `0.0.5`；后续升版（含 `0.1.0`）仍需用户批准
+    闸门已过，当前 `0.0.6`；后续升版（含 `0.1.0`）仍需用户批准
   - **升版需要请示**：即使过了闸门，启动器与插件的 `version` 变更前也要先问用户，同意后再改并同步 `CHANGELOG.md`
   - **改插件就升 PATCH**：插件代码有行为变化时升该插件的 PATCH，并同步 `build.gradle.kts` 的 `version` 与 `Plugin.version`
     （`./gradlew verifyPluginVersions` 会拦不一致；`packagePlugins` 依赖它）
