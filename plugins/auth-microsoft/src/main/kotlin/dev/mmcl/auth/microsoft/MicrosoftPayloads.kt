@@ -105,11 +105,24 @@ internal data class Entitlement(
     val name: String,
 )
 
+/** 档案里的一项皮肤。 */
+@Serializable
+internal data class ProfileSkin(
+    val id: String = "",
+    /** `ACTIVE` 为当前使用的皮肤；有些账号只有非 ACTIVE 项。 */
+    val state: String = "",
+    /** `textures.minecraft.net` 上的 PNG 地址。 */
+    val url: String = "",
+    /** `CLASSIC` / `SLIM`。 */
+    val variant: String = "",
+)
+
 /** Minecraft 档案响应体。 */
 @Serializable
 internal data class MinecraftProfile(
     val id: String,
     val name: String,
+    val skins: List<ProfileSkin> = emptyList(),
 )
 
 /** 插件内部统一的 JSON 配置：微软的响应字段远多于我们需要的。 */

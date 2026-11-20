@@ -1,5 +1,7 @@
 package dev.mmcl.app.shell
 
+import dev.mmcl.app.appearance.SkinAvatar
+import dev.mmcl.app.appearance.SkinLoader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +61,9 @@ fun AppShell(
     downloads: DownloadsService? = null,
     widgets: List<UiWidget> = emptyList(),
     titleBarInset: Dp = 0.dp,
+    accountName: String? = null,
+    accountSkinUrlProvider: () -> String? = { null },
+    skinLoader: SkinLoader? = null,
 ) {
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
@@ -78,6 +83,9 @@ fun AppShell(
             widgets = widgetsBySlot[UiSlot.TOP_BAR].orEmpty(),
             navigator = navigator,
             insetStart = titleBarInset,
+            accountName = accountName,
+            accountSkinUrlProvider = accountSkinUrlProvider,
+            skinLoader = skinLoader,
         )
         HorizontalDivider()
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -115,6 +123,9 @@ private fun TopBar(
     widgets: List<UiWidget> = emptyList(),
     navigator: AppNavigator? = null,
     insetStart: Dp = 0.dp,
+    accountName: String? = null,
+    accountSkinUrlProvider: () -> String? = { null },
+    skinLoader: SkinLoader? = null,
 ) {
     Row(
         modifier = Modifier
@@ -137,6 +148,14 @@ private fun TopBar(
         Spacer(modifier = Modifier.weight(1f))
         if (navigator != null) {
             widgets.forEach { widget -> widget.Content(navigator) }
+        }
+        if (accountName != null) {
+            SkinAvatar(loader = skinLoader, urlProvider = accountSkinUrlProvider, name = accountName, size = 26.dp)
+            Text(
+                text = accountName,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (safeMode) {
             Surface(

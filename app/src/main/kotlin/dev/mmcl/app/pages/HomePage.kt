@@ -28,6 +28,8 @@ import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
 import dev.mmcl.api.ui.UiIcon
+import dev.mmcl.app.appearance.SkinAvatar
+import dev.mmcl.app.appearance.SkinLoader
 import dev.mmcl.app.auth.activeAccount
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiSlot
@@ -52,6 +54,7 @@ class HomePage(
     private val authProviders: List<AuthProvider> = emptyList(),
     private val activeProviderId: () -> String? = { null },
     private val playerName: String = "Player",
+    private val skinLoader: SkinLoader? = null,
     private val intent: NavigationIntent? = null,
     private val widgets: List<UiWidget> = emptyList(),
     private val pluginFolder: PluginFolder? = null,
@@ -85,6 +88,12 @@ class HomePage(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(MmclSpacing.l),
             ) {
+                SkinAvatar(
+                    loader = skinLoader,
+                    urlProvider = { account?.skinUrl },
+                    name = account?.accountName ?: playerName,
+                    size = 40.dp,
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = strings.t(

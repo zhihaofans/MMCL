@@ -109,4 +109,13 @@ class XboxLiveClientTest {
         // 权益检查失败后不应再去拉档案
         assertTrue(transport.calls.none { it.contains("/minecraft/profile") })
     }
+
+    @Test
+    fun `Mojang 的 http 皮肤地址会升级为 https`() {
+        assertEquals(
+            "https://textures.minecraft.net/texture/abc",
+            normalizeSkinUrl("http://textures.minecraft.net/texture/abc"),
+        )
+        assertEquals("http://example.invalid/skin.png", normalizeSkinUrl("http://example.invalid/skin.png"))
+    }
 }

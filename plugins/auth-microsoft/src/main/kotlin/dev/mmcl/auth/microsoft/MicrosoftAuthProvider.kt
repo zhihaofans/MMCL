@@ -32,6 +32,10 @@ internal class MicrosoftAuthProvider(
     override val accountName: String?
         get() = accountOrNull()?.name
 
+    /** 当前皮肤地址；登录/刷新时随档案一起落盘，渲染时不发网络请求。 */
+    override val skinUrl: String?
+        get() = tokenStore.load()?.skinUrl?.let(::normalizeSkinUrl)
+
     /**
      * 有刷新令牌就算已登录。
      *
@@ -64,6 +68,25 @@ internal class MicrosoftAuthProvider(
             tokens.refreshToken ?: stored?.refreshToken
                 ?: throw MicrosoftAuthException(MicrosoftAuthException.Reason.NOT_SIGNED_IN, "响应里没有刷新令牌")
         return exchangeAndSave(refreshToken, tokens.accessToken)
+    }
+
+    /**
+     * 给旧登录态补齐皮肤地址（0.0.2 之前的 `tokens.properties` 没有 `skinUrl`）。
+     *
+     * 令牌仍有效时只拉一次档案；过期时走 [session] 刷新，刷新本身会顺带保存皮肤。
+     * 网络/权益问题直接抛出，由调用方决定是否记日志。
+     */
+    suspend fun backfillSkinUrl() {
+        val stored = tokenStore.load() ?: return
+        if (stored.skinUrl != null) return
+        val accessToken = stored.accessToken
+        if (accessToken != null && stored.accessTokenExpiresAt - now() > EXPIRY_MARGIN_SECONDS) {
+            val skinUrl = xbox.fetchSkinUrl(accessToken) ?: return
+            tokenStore.save(stored.copy(skinUrl = skinUrl))
+            logger.debug("已补齐皮肤地址")
+        } else {
+            session()
+        }
     }
 
     /** 退出登录：只删本地令牌，不调用微软的撤销接口（失败也不该挡住退出）。 */
@@ -132,6 +155,7 @@ internal class MicrosoftAuthProvider(
                 accessTokenExpiresAt = session.expiresAtEpochSeconds,
                 uuid = session.uuid,
                 name = session.name,
+                skinUrl = session.skinUrl,
             ),
         )
         logger.info("微软账号已登录：{}", session.name)

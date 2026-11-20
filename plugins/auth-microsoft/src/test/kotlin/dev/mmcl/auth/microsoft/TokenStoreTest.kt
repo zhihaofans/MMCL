@@ -31,6 +31,24 @@ class TokenStoreTest {
     }
 
     @Test
+    fun `皮肤地址能一起落盘`() {
+        val store = tempStore()
+
+        store.save(
+            StoredTokens(
+                refreshToken = "refresh-1",
+                accessToken = "mc-1",
+                accessTokenExpiresAt = 1,
+                uuid = "uuid-1",
+                name = "Steve",
+                skinUrl = "https://textures.minecraft.net/texture/abc",
+            ),
+        )
+
+        assertEquals("https://textures.minecraft.net/texture/abc", store.load()?.skinUrl)
+    }
+
+    @Test
     fun `文件权限收紧到仅属主可读写`() {
         val dir = Files.createTempDirectory("mmcl-auth")
         val file = dir.resolve("tokens.properties")

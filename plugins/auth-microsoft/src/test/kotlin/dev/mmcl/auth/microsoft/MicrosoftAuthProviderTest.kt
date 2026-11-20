@@ -51,6 +51,41 @@ class MicrosoftAuthProviderTest {
     }
 
     @Test
+    fun `旧登录态能补齐皮肤地址`() = runTest {
+        val store = store()
+        store.save(StoredTokens("refresh-1", "mc", 1_003_600, "uuid-1", "Alex"))
+        val profile =
+            """{"id":"uuid-1","name":"Alex","skins":[{"id":"s","state":"ACTIVE","url":"https://textures.minecraft.net/texture/old","variant":"CLASSIC"}]}"""
+        val provider = provider(store, QueuedTransport(Reply.Body(profile)))
+
+        provider.backfillSkinUrl()
+
+        assertEquals("https://textures.minecraft.net/texture/old", provider.skinUrl)
+        assertEquals("https://textures.minecraft.net/texture/old", store.load()?.skinUrl)
+    }
+
+    @Test
+    fun `登录后暴露皮肤地址`() = runTest {
+        val store = store()
+        val profile =
+            """{"id":"00000000000000000000000000000001","name":"Alex","skins":[{"id":"s","state":"ACTIVE","url":"https://textures.minecraft.net/texture/abc","variant":"CLASSIC"}]}"""
+        val transport =
+            QueuedTransport(
+                Reply.Body(xblResponse),
+                Reply.Body(xstsResponse),
+                Reply.Body(loginResponse),
+                Reply.Body(entitlementsResponse),
+                Reply.Body(profile),
+            )
+        val provider = provider(store, transport)
+
+        provider.completeLogin(MicrosoftTokens("ms-token", "refresh-1", 1_003_600))
+
+        assertEquals("https://textures.minecraft.net/texture/abc", provider.skinUrl)
+        assertEquals("https://textures.minecraft.net/texture/abc", store.load()?.skinUrl)
+    }
+
+    @Test
     fun `设备码完成登录后保存账号并返回 msa 类型`() = runTest {
         val store = store()
         val transport =

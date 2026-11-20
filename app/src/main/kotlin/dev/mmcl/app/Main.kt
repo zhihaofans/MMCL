@@ -39,6 +39,8 @@ import dev.mmcl.app.shell.WindowStateStore
 import dev.mmcl.app.wizard.OnboardingWizard
 import dev.mmcl.app.wizard.WIZARD_DONE_KEY
 import dev.mmcl.app.appearance.AppearanceStore
+import dev.mmcl.app.appearance.SkinLoader
+import dev.mmcl.app.auth.activeAccount
 import dev.mmcl.app.appearance.loadBackgroundBitmap
 import dev.mmcl.app.i18n.LocaleController
 import dev.mmcl.app.i18n.LocalStrings
@@ -138,6 +140,8 @@ fun main(args: Array<String>) {
     }
 
     val transport = JdkHttpTransport(userAgent = "MMCL/${launcher.version}")
+    // 皮肤头像：地址由认证插件提供，这里只下载 + 缓存（<dataDir>/cache/skins）
+    val skinLoader = SkinLoader(transport, launcher.dataDir.resolve("cache").resolve("skins"), logger)
     val detailService =
         VersionDetailService(
             versionsDir = launcher.dataDir.resolve("versions"),
@@ -228,6 +232,7 @@ fun main(args: Array<String>) {
                 authProviders = authProviders,
                 activeProviderId = { settings.getString("auth.activeProvider") },
                 playerName = settings.getString("player.name") ?: "Player",
+                skinLoader = skinLoader,
                 intent = intent,
                 pluginFolder = pluginFolder,
             ),
@@ -381,6 +386,16 @@ fun main(args: Array<String>) {
                         downloads = downloads,
                         widgets = registry.widgets,
                         titleBarInset = if (macChrome) MAC_TITLE_BAR_INSET else 0.dp,
+                        accountName =
+                            authProviders
+                                .activeAccount(settings.getString("auth.activeProvider"))
+                                ?.accountName,
+                        accountSkinUrlProvider = {
+                            authProviders
+                                .activeAccount(settings.getString("auth.activeProvider"))
+                                ?.skinUrl
+                        },
+                        skinLoader = skinLoader,
                     )
                 }
             }

@@ -14,6 +14,8 @@ internal data class MinecraftSession(
     val name: String,
     val accessToken: String,
     val expiresAtEpochSeconds: Long,
+    /** 当前皮肤地址；档案里没有时为空。 */
+    val skinUrl: String? = null,
 )
 
 /**
@@ -36,6 +38,7 @@ internal class XboxLiveClient(
         return MinecraftSession(
             uuid = profile.id,
             name = profile.name,
+            skinUrl = profileSkinUrl(profile),
             accessToken = minecraft.accessToken,
             expiresAtEpochSeconds = now() + minecraft.expiresIn,
         )
@@ -116,6 +119,16 @@ internal class XboxLiveClient(
         }
     }
 
+    /** 只取当前皮肤地址；用于给旧登录态补齐头像（失败由调用方处理）。 */
+    suspend fun fetchSkinUrl(accessToken: String): String? = profileSkinUrl(fetchProfile(accessToken))
+
+    /** 优先 `ACTIVE` 皮肤；没有则取第一个有地址的项。 */
+    private fun profileSkinUrl(profile: MinecraftProfile): String? =
+        (
+            profile.skins.firstOrNull { it.state.equals("ACTIVE", ignoreCase = true) }?.url?.takeIf { it.isNotBlank() }
+                ?: profile.skins.firstOrNull { it.url.isNotBlank() }?.url
+        )?.let(::normalizeSkinUrl)
+
     private suspend fun fetchProfile(accessToken: String): MinecraftProfile {
         val body =
             try {
@@ -187,3 +200,15 @@ internal class XboxLiveClient(
         const val PROFILE_URL = "https://api.minecraftservices.com/minecraft/profile"
     }
 }
+
+/**
+ * Mojang 档案里的皮肤地址有时是 `http://textures.minecraft.net/...`，统一升级成 https。
+ *
+ * 只处理这一种情况，其它地址原样返回（不把皮肤地址写死成某个源）。
+ */
+internal fun normalizeSkinUrl(url: String): String =
+    if (url.startsWith("http://textures.minecraft.net/")) {
+        "https://" + url.removePrefix("http://")
+    } else {
+        url
+    }

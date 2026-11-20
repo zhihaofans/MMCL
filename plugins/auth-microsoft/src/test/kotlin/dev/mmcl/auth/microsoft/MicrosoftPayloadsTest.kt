@@ -2,6 +2,8 @@ package dev.mmcl.auth.microsoft
 
 import kotlin.test.Test
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
 class MicrosoftPayloadsTest {
@@ -14,6 +16,17 @@ class MicrosoftPayloadsTest {
         assertContains(body, "\"AuthMethod\":\"RPS\"")
         assertContains(body, "\"SiteName\":\"user.auth.xboxlive.com\"")
         assertContains(body, "\"RpsTicket\":\"d=token\"")
+    }
+
+    @Test
+    fun `档案解析出皮肤地址`() {
+        val json =
+            """{"id":"uuid","name":"Alex","skins":[{"id":"s","state":"ACTIVE","url":"https://textures.minecraft.net/texture/abc","variant":"CLASSIC"}]}"""
+
+        val profile = MicrosoftJson.decodeFromString<MinecraftProfile>(json)
+
+        assertEquals("https://textures.minecraft.net/texture/abc", profile.skins.single().url)
+        assertEquals("ACTIVE", profile.skins.single().state)
     }
 
     @Test

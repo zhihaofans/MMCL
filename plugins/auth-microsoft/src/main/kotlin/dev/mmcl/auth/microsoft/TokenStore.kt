@@ -14,6 +14,8 @@ internal data class StoredTokens(
     val accessTokenExpiresAt: Long,
     val uuid: String?,
     val name: String?,
+    /** 当前皮肤地址；旧版文件没有这个键时为 `null`。 */
+    val skinUrl: String? = null,
 )
 
 /**
@@ -42,6 +44,7 @@ internal class TokenStore(
                 accessTokenExpiresAt = properties.getProperty(KEY_EXPIRES_AT)?.toLongOrNull() ?: 0,
                 uuid = properties.getProperty(KEY_UUID)?.takeIf { it.isNotBlank() },
                 name = properties.getProperty(KEY_NAME)?.takeIf { it.isNotBlank() },
+                skinUrl = properties.getProperty(KEY_SKIN_URL)?.takeIf { it.isNotBlank() },
             )
         }.onFailure { logger.warn("读取登录态失败，按未登录处理：{}", it.message) }
             .getOrNull()
@@ -57,6 +60,7 @@ internal class TokenStore(
                 setProperty(KEY_EXPIRES_AT, tokens.accessTokenExpiresAt.toString())
                 tokens.uuid?.let { setProperty(KEY_UUID, it) }
                 tokens.name?.let { setProperty(KEY_NAME, it) }
+                tokens.skinUrl?.let { setProperty(KEY_SKIN_URL, it) }
             }
         val temp = file.resolveSibling("${file.fileName}.tmp")
         Files.newBufferedWriter(temp, Charsets.UTF_8).use { writer -> properties.store(writer, "MMCL microsoft auth") }
@@ -93,5 +97,6 @@ internal class TokenStore(
         const val KEY_EXPIRES_AT = "expires_at"
         const val KEY_UUID = "uuid"
         const val KEY_NAME = "name"
+        const val KEY_SKIN_URL = "skinUrl"
     }
 }

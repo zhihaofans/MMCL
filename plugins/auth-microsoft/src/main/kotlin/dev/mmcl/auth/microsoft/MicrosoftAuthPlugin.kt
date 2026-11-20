@@ -8,6 +8,7 @@ import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.settings.SettingsSection
 import dev.mmcl.api.ui.UiPage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -23,7 +24,7 @@ import kotlinx.coroutines.cancel
  */
 class MicrosoftAuthPlugin : Plugin {
     override val id: String = "dev.mmcl.auth.microsoft"
-    override val version: String = "0.0.1"
+    override val version: String = "0.0.2"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "微软账号" else "Microsoft account"
@@ -67,6 +68,14 @@ class MicrosoftAuthPlugin : Plugin {
         val loginService = MicrosoftLoginService(authProvider, factory, loginScope, context.logger)
         context.services.register(UiPage::class, AccountsPage(loginService, authProvider, { clientId(context) }))
         context.services.register(SettingsSection::class, MicrosoftAuthSettings())
+
+        // 旧登录态没有皮肤地址：后台补一次，失败不影响启动
+        if (authProvider.isSignedIn && authProvider.skinUrl == null) {
+            loginScope.launch {
+                runCatching { authProvider.backfillSkinUrl() }
+                    .onFailure { context.logger.debug("皮肤地址补齐失败：{}", it.message) }
+            }
+        }
 
         if (clientId(context) == null) {
             context.logger.warn("未配置 {}，微软登录不可用（账户页会给注册指引）", CLIENT_ID_KEY)
