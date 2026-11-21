@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.app.pages.NoSourceGuide
 import dev.mmcl.app.pages.PluginFolder
+import dev.mmcl.app.version.isLaunchable
+import dev.mmcl.app.version.supportedReleases
 import dev.mmcl.core.download.DownloadTaskState
 import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.core.instance.InstanceService
@@ -74,6 +76,11 @@ fun OnboardingWizard(
     var selectedVersion by remember { mutableStateOf<VersionManifestEntry?>(null) }
     var manifestState by remember { mutableStateOf<WizardManifestState>(WizardManifestState.Idle) }
     var instanceName by remember { mutableStateOf<String?>(null) }
+
+    val canInstall =
+        selectedVersion?.let { version ->
+            isLaunchable(version.id, (manifestState as? WizardManifestState.Loaded)?.manifest)
+        } == true
 
     val taskFlow = downloads?.tasks
     val tasks = if (taskFlow != null) taskFlow.collectAsState().value else emptyList()
@@ -161,6 +168,7 @@ fun OnboardingWizard(
             WizardStep.INSTALL ->
                 InstallStep(
                     version = selectedVersion,
+                    canInstall = canInstall,
                     task = task,
                     instanceName = instanceName,
                     onStart = { selectedVersion?.let { downloads?.enqueue(it) } },
@@ -177,7 +185,7 @@ fun OnboardingWizard(
             if (step != WizardStep.INSTALL) {
                 val canNext =
                     WizardFlow.next(step, hasSource) != null &&
-                        (step != WizardStep.VERSION || selectedVersion != null)
+                        (step != WizardStep.VERSION || canInstall)
                 Button(
                     onClick = { WizardFlow.next(step, hasSource)?.let { step = it } },
                     enabled = canNext,
@@ -301,7 +309,8 @@ private fun VersionStep(
         }
 
         is WizardManifestState.Loaded -> {
-            state.manifest.versions.filter { it.isRelease }.take(6).forEach { version ->
+            // 与下载页一致：只列最新正式版系列，避免向导绕过支持范围
+            supportedReleases(state.manifest).forEach { version ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
                         selected = version.id == selectedVersion?.id,
@@ -324,6 +333,7 @@ private fun VersionStep(
 @Composable
 private fun InstallStep(
     version: VersionManifestEntry?,
+    canInstall: Boolean,
     task: dev.mmcl.core.download.DownloadTask?,
     instanceName: String?,
     onStart: () -> Unit,
@@ -342,7 +352,14 @@ private fun InstallStep(
     )
     val active = task?.state?.isActive == true
     val completed = task?.state == DownloadTaskState.COMPLETED
-    Button(onClick = onStart, enabled = !active && !completed) {
+    if (!canInstall) {
+        Text(
+            strings.t("wizard.version.unsupported"),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+    Button(onClick = onStart, enabled = canInstall && !active && !completed) {
         Text(strings.t("wizard.install.start"))
     }
     when (task?.state) {

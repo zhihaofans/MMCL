@@ -241,6 +241,10 @@
 - **Gradle 要写 `~/.gradle`**：沙箱里构建需要放开到工作区外；离线时用 `--offline`（依赖须已在缓存里）
 - **JAR 签名校验要读完条目才触发**：`JarFile(file, verify = true)` 只有在逐条读取内容时才会校验，
   只打开不读会得到「未签名」的假象；`PluginIntegrityVerifier` 已按条目读流并收集 `codeSigners`
+- **Parallels Windows 11 ARM 跑不了 26.x**：虚拟 GPU 只到 OpenGL 4.1，而 26.x 用到 4.3/4.4
+  （`glVertexAttribFormat`、`GL_MAX_VERTEX_ATTRIB_STRIDE`），日志会满屏 `GL_INVALID_VALUE` 后
+  卡在加载画面；1.21.x 则是 `WGL: Failed to retrieve pixel format attributes`（GLFW 65544）。
+  不是启动参数问题，真实 GPU 或换平台才能跑；排查先看游戏日志里的 GL 版本/错误
 - **插件版本双写**：`build.gradle.kts` 的 `version` 与 `Plugin.version` 必须一致，否则 JAR 名和界面显示会对不上
 - **`:app:run` 是长驻进程**：窗口关闭前任务不结束，本机验证时别用阻塞写法等它返回
 - **JDK 27 是构建+打包的统一工具链**：早期用 21 编译、27 打包，版本号会因 macOS 的 jpackage

@@ -53,7 +53,9 @@ import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionDetailService
+import dev.mmcl.app.version.isLaunchable
 import dev.mmcl.core.version.VersionManifestEntry
+import dev.mmcl.core.version.VersionSupport
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.EmptyState
 import dev.mmcl.ui.kit.MmclSpacing
@@ -172,6 +174,10 @@ class InstancesPage(
                 return
             }
             val manifest = (state as? ManifestUiState.Loaded)?.manifest
+            if (manifest != null && !isLaunchable(instance.versionId, manifest)) {
+                launchStatus = strings.t("instances.launch.unsupported", VersionSupport.latestSeries(manifest))
+                return
+            }
             val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
             queue.enqueue(entry, forceRefresh = true)
             launchStatus = strings.t("instances.launch.queued", instance.versionId)
@@ -186,6 +192,11 @@ class InstancesPage(
             val manifest = (state as? ManifestUiState.Loaded)?.manifest
             if (details == null || detector == null || process == null || context == null || service == null) {
                 launchStatus = strings.t("instances.launch.no_launcher")
+                return
+            }
+            // 产品边界：只启动最新正式版系列，旧大版本/快照直接拒绝（清单未知时放行）
+            if (manifest != null && !isLaunchable(instance.versionId, manifest)) {
+                launchStatus = strings.t("instances.launch.unsupported", VersionSupport.latestSeries(manifest))
                 return
             }
             if (!hasFiles(instance)) {
