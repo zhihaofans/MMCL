@@ -20,12 +20,15 @@ private val defaultCommandRunner: (List<String>) -> String? = { command ->
 /**
  * Java 运行时探测。
  *
- * 按优先级找**第一个够用**的运行时（大版本 ≥ 要求）：
+ * 收集全部候选运行时（大版本 ≥ 要求），然后按「精确优先、其次最接近」挑选：
  * 1. 设置项 `java.home`（用户手动指定）
  * 2. 启动器自带 `<dataDir>/runtime/<os>-<arch>/`
  * 3. 环境变量 `JAVA_HOME`
  * 4. `PATH` 里的 `java`
  * 5. macOS 上兜底 `/usr/libexec/java_home -v <major>`
+ *
+ * 之所以不直接用「第一个够用的」：系统里同时装了 25/27 而版本只要 21 时，
+ * 拿 27 跑老版本会触发 LWJGL/JNA 的兼容警告甚至崩溃；优先精确版本最稳。
  *
  * 版本识别只读 JDK 目录下的 `release` 文件（`JAVA_VERSION="21.0.13"`），
  * 不执行 `java -version`：避免拉起进程，也避开各平台输出格式差异。
@@ -53,11 +56,24 @@ class JavaRuntimeDetector(
      * @return 找不到返回 `null`（调用方负责提示"缺少 Java"）
      */
     fun detect(requiredMajor: Int): JavaRuntime? {
-        for ((home, source) in candidates(requiredMajor)) {
-            val runtime = probe(home, source, requiredMajor)
-            if (runtime != null) return runtime
+        val runtimes =
+            candidates(requiredMajor).mapNotNull { (home, source) -> probe(home, source, requiredMajor) }
+        if (runtimes.isEmpty()) return null
+
+        // 精确版本优先（同一版本多个来源时保留候选顺序）
+        runtimes.firstOrNull { it.majorVersion == requiredMajor }?.let { return it }
+
+        // 没有精确版本时选「最接近的更高版本」，不要无谓地拿最新 JDK 跑老版本
+        val closest = runtimes.minByOrNull { it.majorVersion }
+        if (closest != null) {
+            logger.info(
+                "没有 Java {}，改用最接近的 Java {}（{}）",
+                requiredMajor,
+                closest.majorVersion,
+                closest.executable,
+            )
         }
-        return null
+        return closest
     }
 
     /** 自带运行时目录里的全部候选 JDK 主目录。 */

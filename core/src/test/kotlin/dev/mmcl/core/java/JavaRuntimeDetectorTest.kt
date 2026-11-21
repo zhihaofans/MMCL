@@ -69,6 +69,30 @@ class JavaRuntimeDetectorTest {
     }
 
     @Test
+    fun `有精确版本时优先精确版本`() {
+        val newer = fakeJdk("configured-27", 27)
+        val exact = fakeJdk("env-21", 21)
+        settings.putString(JavaRuntimeDetector.SETTING_JAVA_HOME, newer.toString())
+
+        val runtime = detector(env = mapOf("JAVA_HOME" to exact.toString())).detect(21)
+
+        assertEquals(21, runtime?.majorVersion)
+        assertEquals(JavaRuntimeSource.JAVA_HOME, runtime?.source)
+    }
+
+    @Test
+    fun `没有精确版本时选最接近的更高版本`() {
+        val newest = fakeJdk("configured-27", 27)
+        val closer = fakeJdk("env-25", 25)
+        settings.putString(JavaRuntimeDetector.SETTING_JAVA_HOME, newest.toString())
+
+        val runtime = detector(env = mapOf("JAVA_HOME" to closer.toString())).detect(21)
+
+        assertEquals(25, runtime?.majorVersion)
+        assertEquals(JavaRuntimeSource.JAVA_HOME, runtime?.source)
+    }
+
+    @Test
     fun `版本不够时继续找下一个来源`() {
         val tooOld = fakeJdk("configured-8", 8)
         val good = fakeJdk("env-17", 17)
