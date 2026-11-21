@@ -25,7 +25,7 @@ private val defaultCommandRunner: (List<String>) -> String? = { command ->
  * 2. 启动器自带 `<dataDir>/runtime/<os>-<arch>/`
  * 3. 环境变量 `JAVA_HOME`
  * 4. `PATH` 里的 `java`
- * 5. macOS 上兜底 `/usr/libexec/java_home -v <major>`
+ * 5. macOS 上 `/usr/libexec/java_home -V` 列出的全部 JDK（兜底：精确版本查询）
  *
  * 之所以不直接用「第一个够用的」：系统里同时装了 25/27 而版本只要 21 时，
  * 拿 27 跑老版本会触发 LWJGL/JNA 的兼容警告甚至崩溃；优先精确版本最稳。
@@ -55,15 +55,28 @@ class JavaRuntimeDetector(
      *
      * @return 找不到返回 `null`（调用方负责提示"缺少 Java"）
      */
-    fun detect(requiredMajor: Int): JavaRuntime? {
-        val runtimes =
-            candidates(requiredMajor).mapNotNull { (home, source) -> probe(home, source, requiredMajor) }
-        if (runtimes.isEmpty()) return null
+    fun detect(requiredMajor: Int): JavaRuntime? =
+        select(
+            candidates(requiredMajor).mapNotNull { (home, source) -> probe(home, source, requiredMajor) },
+            requiredMajor,
+        )
 
-        // 精确版本优先（同一版本多个来源时保留候选顺序）
+    /** 只在自带运行时（`<dataDir>/runtime`）里找；用于「自带优先」策略。 */
+    fun detectBundled(requiredMajor: Int): JavaRuntime? =
+        select(
+            bundledHomes().mapNotNull { home -> probe(home, JavaRuntimeSource.BUNDLED, requiredMajor) },
+            requiredMajor,
+        )
+
+    /** 自带运行时里已安装的 Java 大版本（去重升序），设置页展示用。 */
+    fun bundledMajors(): List<Int> =
+        bundledHomes().mapNotNull { home -> readMajorVersion(home) }.distinct().sorted()
+
+    /** 精确优先，其次最接近的更高版本；同一版本保留候选顺序。 */
+    private fun select(runtimes: List<JavaRuntime>, requiredMajor: Int): JavaRuntime? {
+        if (runtimes.isEmpty()) return null
         runtimes.firstOrNull { it.majorVersion == requiredMajor }?.let { return it }
 
-        // 没有精确版本时选「最接近的更高版本」，不要无谓地拿最新 JDK 跑老版本
         val closest = runtimes.minByOrNull { it.majorVersion }
         if (closest != null) {
             logger.info(
@@ -113,7 +126,12 @@ class JavaRuntimeDetector(
         }
 
         if (os == OperatingSystem.MACOS) {
-            macOsJavaHome(requiredMajor)?.let { result += it to JavaRuntimeSource.SYSTEM_MACOS }
+            val installed = macOsJavaHomes()
+            if (installed.isEmpty()) {
+                macOsJavaHome(requiredMajor)?.let { result += it to JavaRuntimeSource.SYSTEM_MACOS }
+            } else {
+                installed.forEach { result += it to JavaRuntimeSource.SYSTEM_MACOS }
+            }
         }
 
         return result
@@ -155,6 +173,25 @@ class JavaRuntimeDetector(
             if (Files.isRegularFile(candidate)) return candidate
         }
         return null
+    }
+
+    /**
+     * `/usr/libexec/java_home -V` 列出的全部 JDK。
+     *
+     * 只查精确版本（`-v <major>`）会漏掉其它已安装版本：机器上有 25/27、需要 21 时
+     * 只能看到 PATH 的 27，选「最接近」也就失去意义。输出每行末尾是 JDK 路径。
+     */
+    private fun macOsJavaHomes(): List<Path> {
+        val output = commandRunner(listOf("/usr/libexec/java_home", "-V")) ?: return emptyList()
+        return output.lineSequence()
+            .map { it.trim() }
+            .mapNotNull { line ->
+                val path = line.substringAfterLast(' ').trim()
+                if (path.startsWith("/")) runCatching { Path.of(path) }.getOrNull() else null
+            }
+            .filter { it.isAbsolute }
+            .distinct()
+            .toList()
     }
 
     private fun macOsJavaHome(requiredMajor: Int): Path? {

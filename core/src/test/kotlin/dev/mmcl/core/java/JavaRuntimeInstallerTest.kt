@@ -84,6 +84,8 @@ class JavaRuntimeInstallerTest {
 
         assertTrue(Files.isRegularFile(target.resolve("release")))
         assertTrue(Files.isRegularFile(target.resolve("bin").resolve("java")))
+        // 下载的 JDK 必须保留可执行位，否则启动游戏时 exec 会失败
+        assertTrue(Files.isExecutable(target.resolve("bin").resolve("java")))
     }
 
     @Test
@@ -228,7 +230,11 @@ class JavaRuntimeInstallerTest {
             TarArchiveOutputStream(gzip).use { tar ->
                 fun add(name: String, content: String) {
                     val bytes = content.toByteArray()
-                    val entry = TarArchiveEntry(name).apply { size = bytes.size.toLong() }
+                    val entry =
+                        TarArchiveEntry(name).apply {
+                            size = bytes.size.toLong()
+                            mode = if (name.endsWith("bin/java")) 0b111101101 else 0b110100100
+                        }
                     tar.putArchiveEntry(entry)
                     tar.write(bytes)
                     tar.closeArchiveEntry()

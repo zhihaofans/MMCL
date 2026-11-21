@@ -118,6 +118,34 @@ class JavaRuntimeDetectorTest {
     }
 
     @Test
+    fun `detectBundled 只看自带运行时`() {
+        val bundled = fakeJdk("bundled-25", 25)
+        val system = fakeJdk("path-27", 27)
+        val target = dataDir.resolve("runtime").resolve("macos-arm64").resolve("jdk-25")
+        Files.createDirectories(target.parent)
+        Files.move(bundled, target)
+        settings.putString(JavaRuntimeDetector.SETTING_JAVA_HOME, system.toString())
+
+        val bundledRuntime = detector(pathJava = system.resolve("bin/java")).detectBundled(25)
+
+        assertEquals(JavaRuntimeSource.BUNDLED, bundledRuntime?.source)
+        assertEquals(25, bundledRuntime?.majorVersion)
+    }
+
+    @Test
+    fun `bundledMajors 列出去重后的自带版本`() {
+        val root = dataDir.resolve("runtime").resolve("macos-arm64")
+        for (major in listOf(21, 25)) {
+            val home = root.resolve("jdk-$major")
+            Files.createDirectories(home.resolve("bin"))
+            Files.writeString(home.resolve("bin/java"), "")
+            Files.writeString(home.resolve("release"), "JAVA_VERSION=\"$major.0.1\"\n")
+        }
+
+        assertEquals(listOf(21, 25), detector().bundledMajors())
+    }
+
+    @Test
     fun `PATH 里的 java 作为兜底`() {
         val home = fakeJdk("path-17", 17)
 
@@ -133,6 +161,23 @@ class JavaRuntimeDetectorTest {
         val runtime =
             detector(commandOutput = "${home}\n").detect(21)
 
+        assertEquals(JavaRuntimeSource.SYSTEM_MACOS, runtime?.source)
+    }
+
+    @Test
+    fun `macOS 会枚举全部已装 JDK 再选最接近的`() {
+        val newer = fakeJdk("mac-27", 27)
+        val closer = fakeJdk("mac-25", 25)
+        val listing =
+            """
+            Matching Java Virtual Machines (2):
+                27.0.1 (arm64) "Eclipse Adoptium" - "OpenJDK 27.0.1" ${newer}
+                25.0.2 (arm64) "Azul Systems, Inc." - "Zulu 25" ${closer}
+            """.trimIndent()
+
+        val runtime = detector(pathJava = newer.resolve("bin/java"), commandOutput = listing).detect(21)
+
+        assertEquals(25, runtime?.majorVersion)
         assertEquals(JavaRuntimeSource.SYSTEM_MACOS, runtime?.source)
     }
 

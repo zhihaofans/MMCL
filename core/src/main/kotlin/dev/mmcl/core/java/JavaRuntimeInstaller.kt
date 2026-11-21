@@ -11,6 +11,8 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermissions
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -92,6 +94,7 @@ class JavaRuntimeInstaller(
                 deleteRecursively(target)
                 Files.createDirectories(target.parent)
                 Files.move(home, target, StandardCopyOption.REPLACE_EXISTING)
+                ensureExecutable(target)
                 logger.info("Java {} 已安装到 {}（来源版本 {}）", majorVersion, target, installedMajor)
                 target
             } finally {
@@ -151,10 +154,60 @@ class JavaRuntimeInstaller(
                         else -> {
                             target.parent?.let { Files.createDirectories(it) }
                             Files.copy(tar, target, StandardCopyOption.REPLACE_EXISTING)
+                            // tar 里存了 POSIX 权限：不还原的话 bin/java 是 0644，下载的 JDK 根本起不来
+                            applyTarMode(target, entry.mode)
                         }
                     }
                 }
             }
+        }
+    }
+
+    /** 把 tar 条目的 mode 应用到目标文件；非 POSIX 文件系统或失败时忽略。 */
+    private fun applyTarMode(target: Path, mode: Int) {
+        val bits = mode and 0x1FF
+        if (bits == 0) return
+        runCatching {
+            val chars = CharArray(9)
+            for (index in 0 until 9) {
+                chars[index] =
+                    when {
+                        (bits shr (8 - index)) and 1 == 0 -> '-'
+                        index % 3 == 0 -> 'r'
+                        index % 3 == 1 -> 'w'
+                        else -> 'x'
+                    }
+            }
+            Files.setPosixFilePermissions(target, PosixFilePermissions.fromString(String(chars)))
+        }.onFailure { logger.debug("还原文件权限失败（{}）：{}", target, it.message) }
+    }
+
+    /**
+     * 兜底：部分来源给 zip 或在非 POSIX 环境打包，压缩包里没有权限位；
+     * 装完后保证 bin 目录下的文件与 lib/jspawnhelper 可执行。
+     */
+    private fun ensureExecutable(home: Path) {
+        if (os == OperatingSystem.WINDOWS) return
+        val candidates = mutableListOf<Path>()
+        val bin = home.resolve("bin")
+        if (Files.isDirectory(bin)) {
+            runCatching {
+                Files.list(bin).use { stream ->
+                    stream.filter { Files.isRegularFile(it) }.forEach { file -> candidates.add(file) }
+                }
+            }
+        }
+        candidates.add(home.resolve("lib").resolve("jspawnhelper"))
+        candidates.add(home.resolve("lib").resolve("jexec"))
+        for (file in candidates) {
+            if (!Files.isRegularFile(file)) continue
+            runCatching {
+                val permissions = Files.getPosixFilePermissions(file).toMutableSet()
+                permissions += PosixFilePermission.OWNER_EXECUTE
+                permissions += PosixFilePermission.GROUP_EXECUTE
+                permissions += PosixFilePermission.OTHERS_EXECUTE
+                Files.setPosixFilePermissions(file, permissions)
+            }.onFailure { logger.debug("设置可执行位失败（{}）：{}", file, it.message) }
         }
     }
 
