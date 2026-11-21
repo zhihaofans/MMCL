@@ -16,6 +16,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,7 +45,10 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
+import dev.mmcl.app.java.JAVA_POLICY_BUNDLED
+import dev.mmcl.app.java.JAVA_POLICY_SYSTEM
 import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.java.JavaRuntimeSource
 import dev.mmcl.core.download.DownloadsService
 import dev.mmcl.core.java.JavaRuntimeInstaller
 import dev.mmcl.core.java.JavaRuntimeSources
@@ -94,6 +98,7 @@ class InstancesPage(
     private val javaDetector: JavaRuntimeDetector? = null,
     private val javaInstaller: JavaRuntimeInstaller? = null,
     private val javaSources: JavaRuntimeSources? = null,
+    private val policyProvider: () -> String = { JAVA_POLICY_SYSTEM },
     private val launcher: MinecraftLauncher? = null,
     private val launchContext: LaunchContext? = null,
     private val authProviders: List<AuthProvider> = emptyList(),
@@ -124,6 +129,7 @@ class InstancesPage(
         var pendingDelete by remember { mutableStateOf<Instance?>(null) }
         var editingParams by remember { mutableStateOf<Instance?>(null) }
         var runningSession by remember { mutableStateOf<LaunchSession?>(null) }
+        var launchInFlight by remember { mutableStateOf(false) }
         var runningInstanceId by remember { mutableStateOf<String?>(null) }
         var logLines by remember { mutableStateOf<List<String>>(emptyList()) }
         var exitedCode by remember { mutableStateOf<Int?>(null) }
@@ -133,6 +139,10 @@ class InstancesPage(
         var javaBusy by remember { mutableStateOf(false) }
         var pendingJavaInstance by remember { mutableStateOf<Instance?>(null) }
         var autoLoadTriggered by remember { mutableStateOf(false) }
+        var createDialogOpen by remember { mutableStateOf(false) }
+        var createVersions by remember { mutableStateOf<List<String>>(emptyList()) }
+        var createVersionId by remember { mutableStateOf<String?>(null) }
+        var createName by remember { mutableStateOf("") }
         val scope = rememberCoroutineScope()
         val clipboard = LocalClipboardManager.current
         val hasSource = manifests?.hasSource() == true
@@ -166,6 +176,14 @@ class InstancesPage(
             navigator.navigate(DownloadsPage.PAGE_ID)
         }
 
+        /** 当前清单；没有加载时按需拉一次，并同步到页面状态。无法加载时返回 `null`。 */
+        suspend fun resolveManifest(): dev.mmcl.core.version.VersionManifest? {
+            (state as? ManifestUiState.Loaded)?.manifest?.let { return it }
+            val loaded = manifests?.let { runCatching { it.load() }.getOrNull() } ?: return null
+            state = ManifestUiState.Loaded(loaded)
+            return loaded
+        }
+
         /** 校验并修复：重新规划文件后由下载器跳过完好文件、补下缺失与损坏的。 */
         fun repairInstance(instance: Instance) {
             val queue = downloads
@@ -173,30 +191,73 @@ class InstancesPage(
                 launchStatus = strings.t("instances.launch.no_queue")
                 return
             }
-            val manifest = (state as? ManifestUiState.Loaded)?.manifest
-            if (manifest != null && !isLaunchable(instance.versionId, manifest)) {
-                launchStatus = strings.t("instances.launch.unsupported", VersionSupport.latestSeries(manifest))
+            scope.launch {
+                // 清单有可能还在加载：修复前按需补一次，避免绕过支持范围
+                val manifest = resolveManifest()
+                if (manifest != null && !isLaunchable(instance.versionId, manifest)) {
+                    launchStatus = strings.t("instances.launch.unsupported", VersionSupport.latestSeries(manifest))
+                    return@launch
+                }
+                val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
+                queue.enqueue(entry, forceRefresh = true)
+                launchStatus = strings.t("instances.launch.queued", instance.versionId)
+            }
+        }
+
+        // downloadJava 在 launchInstance 之前定义，成功后的重试通过这个回调晚绑定
+        var launchRetry: ((Instance) -> Unit)? = null
+        // 自带优先：每次启动最多自动下载一次，避免检测异常时反复下载
+        var bundledDownloadTried by remember { mutableStateOf(false) }
+
+        fun downloadJava(required: Int) {
+            val installer = javaInstaller
+            val context = launchContext
+            val sources = javaSources
+            if (installer == null || context == null || sources == null) {
+                javaMessage = strings.t("instances.java.no_source")
                 return
             }
-            val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
-            queue.enqueue(entry, forceRefresh = true)
-            launchStatus = strings.t("instances.launch.queued", instance.versionId)
+            javaBusy = true
+            javaMessage = strings.t("instances.java.parsing", required)
+            scope.launch {
+                try {
+                    // 镜像站常缺某个平台/版本；安装期失败（例如错平台的包）也会自动换下一个来源
+                    val installed =
+                        sources.installFirst(required, context.os, context.arch, installer) { bytes ->
+                            javaMessage = strings.t("instances.java.downloaded", bytes / 1024 / 1024)
+                        }
+                            ?: error(
+                                if (sources.hasProvider()) {
+                                    strings.t("instances.java.unsupported", context.os, context.arch)
+                                } else {
+                                    strings.t("instances.java.no_source")
+                                },
+                            )
+                    val (provider, home) = installed
+                    javaMessage = strings.t("instances.java.installed", provider.displayName, required)
+                    missingJava = null
+                    javaBusy = false
+                    pendingJavaInstance?.let { pending -> launchRetry?.invoke(pending) }
+                    pendingJavaInstance = null
+                } catch (t: Throwable) {
+                    javaBusy = false
+                    javaMessage = strings.t("instances.java.failed", t.message ?: t::class.simpleName)
+                }
+            }
         }
 
         fun launchInstance(instance: Instance) {
+            if (launchInFlight || runningSession != null) {
+                launchStatus = strings.t("instances.launch.busy")
+                return
+            }
             val details = detailService
             val detector = javaDetector
             val process = launcher
             val context = launchContext
             val service = instanceService
-            val manifest = (state as? ManifestUiState.Loaded)?.manifest
             if (details == null || detector == null || process == null || context == null || service == null) {
                 launchStatus = strings.t("instances.launch.no_launcher")
-                return
-            }
-            // 产品边界：只启动最新正式版系列，旧大版本/快照直接拒绝（清单未知时放行）
-            if (manifest != null && !isLaunchable(instance.versionId, manifest)) {
-                launchStatus = strings.t("instances.launch.unsupported", VersionSupport.latestSeries(manifest))
                 return
             }
             if (!hasFiles(instance)) {
@@ -208,11 +269,20 @@ class InstancesPage(
                 launchStatus = strings.t("instances.launch.no_auth")
                 return
             }
-            // 没有清单源时退回空 URL：详情服务会优先读本地缓存
-            val entry = manifest?.find(instance.versionId) ?: VersionManifestEntry(instance.versionId, "release", "")
             launchStatus = strings.t("instances.launch.starting", instance.name)
+            launchInFlight = true
             scope.launch {
                 try {
+                    // 产品边界：启动前确保有清单，再判断版本是否在支持范围内（不能依赖异步加载是否已完成）
+                    val manifest = resolveManifest()
+                    if (manifest != null && !isLaunchable(instance.versionId, manifest)) {
+                        launchStatus = strings.t("instances.launch.unsupported", VersionSupport.latestSeries(manifest))
+                        return@launch
+                    }
+                    // 没有清单源时退回空 URL：详情服务会优先读本地缓存
+                    val entry =
+                        manifest?.find(instance.versionId)
+                            ?: VersionManifestEntry(instance.versionId, "release", "")
                     val detail = details.load(entry)
                     val required = detail.javaVersion?.majorVersion ?: 0
                     val runtime = detector.detect(required)
@@ -220,6 +290,19 @@ class InstancesPage(
                         missingJava = required
                         pendingJavaInstance = instance
                         launchStatus = strings.t("instances.launch.missing_java", required, instance.name)
+                        return@launch
+                    }
+                    // 「自带优先」：系统 JDK 虽然够用，也先下载/使用启动器管理的运行时
+                    if (policyProvider() == JAVA_POLICY_BUNDLED &&
+                        runtime.source != JavaRuntimeSource.BUNDLED &&
+                        !bundledDownloadTried &&
+                        javaSources?.hasProvider() == true
+                    ) {
+                        bundledDownloadTried = true
+                        missingJava = required
+                        pendingJavaInstance = instance
+                        launchStatus = strings.t("instances.java.auto_prepare", required)
+                        downloadJava(required)
                         return@launch
                     }
                     val auth = provider.createSession(context.playerName)
@@ -250,9 +333,14 @@ class InstancesPage(
                     launchStatus = strings.t("instances.launch.failed", t.message ?: t::class.simpleName)
                     runningSession = null
                     runningInstanceId = null
+                } finally {
+                    launchInFlight = false
                 }
             }
         }
+
+        // 两个函数都定义完后再绑定重试入口
+        launchRetry = { launchInstance(it) }
 
         LaunchedEffect(Unit) {
             refreshInstances()
@@ -279,41 +367,23 @@ class InstancesPage(
             runningInstanceId = null
         }
 
-        fun downloadJava(required: Int) {
-            val installer = javaInstaller
-            val context = launchContext
-            val sources = javaSources
-            if (installer == null || context == null || sources == null) {
-                javaMessage = strings.t("instances.java.no_source")
-                return
-            }
-            javaBusy = true
-            javaMessage = strings.t("instances.java.parsing", required)
-            scope.launch {
-                try {
-                    // 镜像站常缺某个平台/版本；安装期失败（例如错平台的包）也会自动换下一个来源
-                    val installed =
-                        sources.installFirst(required, context.os, context.arch, installer) { bytes ->
-                            javaMessage = strings.t("instances.java.downloaded", bytes / 1024 / 1024)
-                        }
-                            ?: error(
-                                if (sources.hasProvider()) {
-                                    strings.t("instances.java.unsupported", context.os, context.arch)
-                                } else {
-                                    strings.t("instances.java.no_source")
-                                },
-                            )
-                    val (provider, home) = installed
-                    javaMessage = strings.t("instances.java.installed", provider.displayName, required)
-                    missingJava = null
-                    javaBusy = false
-                    pendingJavaInstance?.let { launchInstance(it) }
-                    pendingJavaInstance = null
-                } catch (t: Throwable) {
-                    javaBusy = false
-                    javaMessage = strings.t("instances.java.failed", t.message ?: t::class.simpleName)
+
+        /** 已安装到 `versions/` 的版本（有 `<id>.json`）；清单可用时只列支持范围内的。 */
+        fun scanInstalledVersions(): List<String> {
+            val root = launchContext?.sharedRoot?.resolve("versions") ?: return emptyList()
+            if (!Files.isDirectory(root)) return emptyList()
+            val manifest = (state as? ManifestUiState.Loaded)?.manifest
+            return runCatching {
+                Files.list(root).use { stream ->
+                    stream
+                        .filter { Files.isDirectory(it) }
+                        .filter { Files.isRegularFile(it.resolve("${it.fileName}.json")) }
+                        .map { it.fileName.toString() }
+                        .sorted()
+                        .toList()
                 }
-            }
+            }.getOrDefault(emptyList())
+                .filter { id -> manifest == null || isLaunchable(id, manifest) }
         }
 
         PageScaffold(
@@ -327,6 +397,16 @@ class InstancesPage(
                     ) {
                         Text(if (state == ManifestUiState.Loading) strings.t("downloads.loading") else strings.t("downloads.refresh"))
                     }
+                }
+                if (instanceService != null) {
+                    OutlinedButton(
+                        onClick = {
+                            createVersions = scanInstalledVersions()
+                            createVersionId = createVersions.firstOrNull()
+                            createName = ""
+                            createDialogOpen = true
+                        },
+                    ) { Text(strings.t("instances.create")) }
                 }
                 if (instanceService != null) {
                     Button(onClick = { openDownloads() }) { Text(strings.t("home.install_new")) }
@@ -393,6 +473,7 @@ class InstancesPage(
                             instance = instance,
                             missingFiles = !hasFiles(instance),
                             running = runningInstanceId == instance.id,
+                            launchAllowed = launchInFlight || runningSession == null,
                             onLaunch = { launchInstance(instance) },
                             onRepair = { repairInstance(instance) },
                             onEditParams = { editingParams = instance },
@@ -488,6 +569,53 @@ class InstancesPage(
             }
         }
 
+        if (createDialogOpen) {
+            AlertDialog(
+                onDismissRequest = { createDialogOpen = false },
+                title = { Text(strings.t("instances.create.title")) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
+                        if (createVersions.isEmpty()) {
+                            Text(strings.t("instances.create.none"))
+                        } else {
+                            Text(strings.t("instances.create.version"), style = MaterialTheme.typography.labelMedium)
+                            createVersions.forEach { id ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = createVersionId == id,
+                                        onClick = { createVersionId = id },
+                                    )
+                                    Text(id)
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = createName,
+                            onValueChange = { createName = it },
+                            label = { Text(strings.t("instances.create.name")) },
+                            singleLine = true,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = createVersionId != null,
+                        onClick = {
+                            val id = createVersionId
+                            if (id != null) {
+                                instanceService?.create(id, createName.trim().ifBlank { null })
+                                refreshInstances()
+                                createDialogOpen = false
+                            }
+                        },
+                    ) { Text(strings.t("instances.create.confirm")) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { createDialogOpen = false }) { Text(strings.t("instances.action.cancel")) }
+                },
+            )
+        }
+
         editingParams?.let { target ->
             LaunchParamsDialog(
                 instance = target,
@@ -533,6 +661,7 @@ internal fun InstanceCard(
     instance: Instance,
     missingFiles: Boolean = false,
     running: Boolean,
+    launchAllowed: Boolean = true,
     onLaunch: () -> Unit,
     onRepair: (() -> Unit)? = null,
     onEditParams: (() -> Unit)? = null,
@@ -563,7 +692,7 @@ internal fun InstanceCard(
                 )
             }
         }
-        Button(onClick = onLaunch, enabled = !running) {
+        Button(onClick = onLaunch, enabled = !running && launchAllowed) {
             Text(if (running) strings.t("instances.action.running") else strings.t("instances.action.launch"))
         }
         onRepair?.let { TextButton(onClick = it, enabled = !running) { Text(strings.t("instances.action.repair")) } }

@@ -41,6 +41,8 @@ import dev.mmcl.app.wizard.WIZARD_DONE_KEY
 import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.SkinLoader
 import dev.mmcl.app.auth.activeAccount
+import dev.mmcl.app.java.JAVA_POLICY_KEY
+import dev.mmcl.app.java.javaRuntimePolicy
 import dev.mmcl.app.appearance.loadBackgroundBitmap
 import dev.mmcl.app.i18n.LocaleController
 import dev.mmcl.app.i18n.LocalStrings
@@ -244,6 +246,7 @@ fun main(args: Array<String>) {
                 javaDetector = javaDetector,
                 javaInstaller = javaInstaller,
                 javaSources = javaSources,
+                policyProvider = { javaRuntimePolicy(settings.getString(JAVA_POLICY_KEY)) },
                 launcher = gameLauncher,
                 launchContext = launchContext,
                 authProviders = authProviders,
@@ -289,6 +292,9 @@ fun main(args: Array<String>) {
                 },
                 onOpenWizard = { wizardVisible.value = true },
                 authProviders = authProviders,
+                javaInstaller = javaInstaller,
+                detailService = detailService,
+                javaDetector = javaDetector,
             ),
         )
     val pluginPages: List<UiPage> =

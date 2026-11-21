@@ -51,7 +51,14 @@ import dev.mmcl.app.i18n.LocaleController
 import dev.mmcl.app.auth.AUTO_PROVIDER
 import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.app.i18n.Strings
+import dev.mmcl.app.java.JAVA_POLICY_BUNDLED
+import dev.mmcl.app.java.JAVA_POLICY_KEY
+import dev.mmcl.app.java.JAVA_POLICY_SYSTEM
+import dev.mmcl.app.java.javaRuntimePolicy
+import dev.mmcl.core.java.JavaRuntimeDetector
+import dev.mmcl.core.java.JavaRuntimeInstaller
 import dev.mmcl.core.java.JavaRuntimeSources
+import dev.mmcl.core.version.VersionDetailService
 import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.version.VersionManifestService
 import dev.mmcl.ui.kit.MmclSpacing
@@ -75,6 +82,9 @@ class SettingsPage(
     private val manifests: VersionManifestService? = null,
     private val settings: SettingsService? = null,
     private val javaSources: JavaRuntimeSources? = null,
+    private val javaInstaller: JavaRuntimeInstaller? = null,
+    private val detailService: VersionDetailService? = null,
+    private val javaDetector: JavaRuntimeDetector? = null,
     private val appearance: AppearanceStore? = null,
     private val onFontFamilyChanged: (FontFamily?) -> Unit = {},
     private val onBackgroundChanged: (ImageBitmap?) -> Unit = {},
@@ -318,6 +328,103 @@ class SettingsPage(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                SectionTitle(strings.t("settings.section.java_runtime"))
+                var javaPolicy by remember {
+                    mutableStateOf(javaRuntimePolicy(settings?.getString(JAVA_POLICY_KEY)))
+                }
+                ChoiceRow(
+                    title = strings.t("settings.java.policy.system"),
+                    subtitle = strings.t("settings.java.policy.system_hint"),
+                    selected = javaPolicy == JAVA_POLICY_SYSTEM,
+                    onClick = {
+                        javaPolicy = JAVA_POLICY_SYSTEM
+                        settings?.putString(JAVA_POLICY_KEY, JAVA_POLICY_SYSTEM)
+                    },
+                )
+                ChoiceRow(
+                    title = strings.t("settings.java.policy.bundled"),
+                    subtitle = strings.t("settings.java.policy.bundled_hint"),
+                    selected = javaPolicy == JAVA_POLICY_BUNDLED,
+                    onClick = {
+                        javaPolicy = JAVA_POLICY_BUNDLED
+                        settings?.putString(JAVA_POLICY_KEY, JAVA_POLICY_BUNDLED)
+                    },
+                )
+                var bundledMajors by remember { mutableStateOf(javaDetector?.bundledMajors().orEmpty()) }
+                Text(
+                    text =
+                        if (bundledMajors.isEmpty()) {
+                            strings.t("settings.java.none")
+                        } else {
+                            strings.t("settings.java.bundled", bundledMajors.joinToString(", "))
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                var javaBusy by remember { mutableStateOf(false) }
+                var javaMessage by remember { mutableStateOf<String?>(null) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val installer = javaInstaller
+                            val sources = javaSources
+                            val details = detailService
+                            val manifestService = manifests
+                            if (installer == null || sources == null || details == null || manifestService == null) {
+                                javaMessage = strings.t("settings.java.no_source")
+                                return@OutlinedButton
+                            }
+                            javaBusy = true
+                            javaMessage = strings.t("settings.java.preparing")
+                            scope.launch {
+                                try {
+                                    val manifest = manifestService.load()
+                                    val entry =
+                                        manifest.latestRelease()
+                                            ?: error(strings.t("settings.java.no_latest"))
+                                    val detail = details.load(entry)
+                                    val required = detail.javaVersion?.majorVersion ?: 0
+                                    if (required <= 0) error(strings.t("settings.java.no_requirement"))
+                                    val installed =
+                                        sources.installFirst(required, launcher.os, launcher.arch, installer) { bytes ->
+                                            javaMessage = strings.t("settings.java.progress", bytes / 1024 / 1024)
+                                        } ?: error(strings.t("settings.java.no_source"))
+                                    bundledMajors = javaDetector?.bundledMajors().orEmpty()
+                                    javaMessage =
+                                        strings.t(
+                                            "settings.java.installed",
+                                            required,
+                                            installed.second.fileName?.toString().orEmpty(),
+                                        )
+                                } catch (t: Throwable) {
+                                    javaMessage = strings.t("settings.java.failed", t.message ?: t::class.simpleName ?: "")
+                                } finally {
+                                    javaBusy = false
+                                }
+                            }
+                        },
+                        enabled = !javaBusy && javaInstaller != null && javaSources != null,
+                    ) {
+                        Text(
+                            if (javaBusy) {
+                                strings.t("settings.java.preparing")
+                            } else {
+                                strings.t("settings.java.download_latest")
+                            },
+                        )
+                    }
+                }
+                javaMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
                 SectionTitle(strings.t("settings.section.sources"))
                 val sources = manifests?.orderedSources().orEmpty()
