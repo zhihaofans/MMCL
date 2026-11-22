@@ -46,6 +46,9 @@ import dev.mmcl.app.NavigationIntent
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.app.java.JAVA_POLICY_BUNDLED
+import dev.mmcl.app.loader.LoaderInstallStore
+import dev.mmcl.api.capability.LoaderInstallRequest
+import dev.mmcl.api.capability.LoaderInstaller
 import dev.mmcl.app.java.JAVA_POLICY_SYSTEM
 import dev.mmcl.core.java.JavaRuntimeDetector
 import dev.mmcl.core.java.JavaRuntimeSource
@@ -107,6 +110,8 @@ class InstancesPage(
     private val autoLoad: Boolean = false,
     private val pluginFolder: PluginFolder? = null,
     private val downloads: DownloadsService? = null,
+    private val loaderInstallers: () -> List<LoaderInstaller> = { emptyList() },
+    private val loaderStore: LoaderInstallStore? = null,
 ) : UiPage {
     override val id: String = INSTANCES_PAGE_ID
     override val title: String = "游戏"
@@ -143,6 +148,7 @@ class InstancesPage(
         var createVersions by remember { mutableStateOf<List<String>>(emptyList()) }
         var createVersionId by remember { mutableStateOf<String?>(null) }
         var createName by remember { mutableStateOf("") }
+        var createLoaderId by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         val clipboard = LocalClipboardManager.current
         val hasSource = manifests?.hasSource() == true
@@ -169,7 +175,19 @@ class InstancesPage(
         fun clientJar(versionId: String): Path? =
             launchContext?.sharedRoot?.resolve("versions")?.resolve(versionId)?.resolve("$versionId.jar")
 
-        fun hasFiles(instance: Instance): Boolean = clientJar(instance.versionId)?.let { Files.isRegularFile(it) } ?: true
+        fun hasFiles(instance: Instance): Boolean {
+            val root = launchContext?.sharedRoot ?: return true
+            val versionsDir = root.resolve("versions")
+            val detailFile = versionsDir.resolve(instance.versionId).resolve("${instance.versionId}.json")
+            if (!Files.isRegularFile(detailFile)) return false
+            // 加载器版本没有自己的 client jar，实际文件在 inheritsFrom 指的基础版本目录
+            val parentId =
+                runCatching { Files.readString(detailFile) }.getOrNull()
+                    ?.let { INHERITS_FROM_PATTERN.find(it)?.groupValues?.get(1) }
+                    ?.takeIf { it.isNotBlank() }
+            val base = parentId ?: instance.versionId
+            return Files.isRegularFile(versionsDir.resolve(base).resolve("$base.jar"))
+        }
 
         fun openDownloads(versionId: String? = null) {
             if (versionId != null) intent?.requestDownload(versionId)
@@ -386,6 +404,45 @@ class InstancesPage(
                 .filter { id -> manifest == null || isLaunchable(id, manifest) }
         }
 
+        fun createInstanceNow(baseVersionId: String) {
+            val name = createName.trim().ifBlank { null }
+            val loaderId = createLoaderId
+            if (loaderId == null) {
+                instanceService?.create(baseVersionId, name)
+                refreshInstances()
+                createDialogOpen = false
+                return
+            }
+            val installer = loaderInstallers().firstOrNull { it.loaderId == loaderId }
+            val store = loaderStore
+            if (installer == null || store == null) {
+                launchStatus = strings.t("instances.loader.unavailable")
+                return
+            }
+            createDialogOpen = false
+            launchStatus = strings.t("instances.loader.installing", loaderDisplayName(loaderId))
+            scope.launch {
+                try {
+                    val result = installer.install(LoaderInstallRequest(gameVersionId = baseVersionId))
+                    store.save(result.versionId, result.detailJson)
+                    downloads?.enqueue(VersionManifestEntry(result.versionId, "release", ""))
+                    val instance = instanceService?.create(result.versionId, name)
+                    refreshInstances()
+                    launchStatus =
+                        strings.t(
+                            "instances.loader.installed",
+                            instance?.name ?: result.versionId,
+                            loaderDisplayName(loaderId),
+                        )
+                    result.warnings.firstOrNull()?.let { warning ->
+                        launchStatus = "$launchStatus（$warning）"
+                    }
+                } catch (t: Throwable) {
+                    launchStatus = strings.t("instances.loader.failed", t.message ?: t::class.simpleName ?: "")
+                }
+            }
+        }
+
         PageScaffold(
             title = strings.t("page.instances.title"),
             subtitle = strings.t("instances.subtitle"),
@@ -589,6 +646,26 @@ class InstancesPage(
                                 }
                             }
                         }
+                        val availableLoaders = loaderInstallers()
+                        if (availableLoaders.isNotEmpty()) {
+                            Text(strings.t("instances.create.loader"), style = MaterialTheme.typography.labelMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = createLoaderId == null,
+                                    onClick = { createLoaderId = null },
+                                )
+                                Text(strings.t("instances.create.loader.none"))
+                            }
+                            availableLoaders.forEach { installer ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = createLoaderId == installer.loaderId,
+                                        onClick = { createLoaderId = installer.loaderId },
+                                    )
+                                    Text(loaderDisplayName(installer.loaderId))
+                                }
+                            }
+                        }
                         OutlinedTextField(
                             value = createName,
                             onValueChange = { createName = it },
@@ -601,12 +678,7 @@ class InstancesPage(
                     TextButton(
                         enabled = createVersionId != null,
                         onClick = {
-                            val id = createVersionId
-                            if (id != null) {
-                                instanceService?.create(id, createName.trim().ifBlank { null })
-                                refreshInstances()
-                                createDialogOpen = false
-                            }
+                            createVersionId?.let { id -> createInstanceNow(id) }
                         },
                     ) { Text(strings.t("instances.create.confirm")) }
                 },
@@ -787,3 +859,13 @@ private fun LaunchParamsDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(strings.t("instances.action.cancel")) } },
     )
 }
+
+/** 读取版本 JSON 里的 `inheritsFrom`；只用于判断基础版本 jar 是否存在。 */
+private val INHERITS_FROM_PATTERN = Regex("\"inheritsFrom\"\\s*:\\s*\"([^\"]+)\"")
+
+/** 加载器 id 的展示名。 */
+private fun loaderDisplayName(loaderId: String): String =
+    when (loaderId) {
+        "fabric" -> "Fabric"
+        else -> loaderId
+    }

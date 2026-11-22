@@ -42,6 +42,8 @@ import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.SkinLoader
 import dev.mmcl.app.auth.activeAccount
 import dev.mmcl.app.java.JAVA_POLICY_KEY
+import dev.mmcl.app.loader.LoaderInstallStore
+import dev.mmcl.api.capability.LoaderInstaller
 import dev.mmcl.app.java.javaRuntimePolicy
 import dev.mmcl.app.appearance.loadBackgroundBitmap
 import dev.mmcl.app.i18n.LocaleController
@@ -114,6 +116,7 @@ fun main(args: Array<String>) {
     val pluginFolder =
         PluginFolder(path = pluginsDir) { DirectoryLauncher(launcher.os).open(pluginsDir) }
 
+    val loaderStore = LoaderInstallStore(launcher.dataDir.resolve("versions"), logger)
     val manager = PluginManager(launcher, logger, settings = settings)
     val disabledPluginIds = parseDisabledPluginIds(settings.getString(PLUGINS_DISABLED_KEY))
     val plugins =
@@ -255,6 +258,8 @@ fun main(args: Array<String>) {
                 autoLoad = true,
                 pluginFolder = pluginFolder,
                 downloads = downloads,
+                loaderInstallers = { manager.services.getAll(LoaderInstaller::class) },
+                loaderStore = loaderStore,
             ),
             DownloadsPage(
                 manifests = manifestService,

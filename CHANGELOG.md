@@ -7,6 +7,8 @@
 
 ### 新增
 
+- 游戏页「新建实例」支持 Fabric 加载器：调用 `loader-fabric` 插件生成 overlay、
+  写入 `versions/<id>/`、加入下载队列并创建实例；镜像/缺字段等警告显示在状态栏
 - `loader-fabric` 插件：查询 Fabric meta（官方优先、BMCLAPI 回退）、选 stable loader、
   校验 profile 并返回 overlay 版本 JSON；安装编排与写盘仍由启动器负责
 - 实例「参数」对话框支持重命名：只改展示名，实例 id 与目录不变
