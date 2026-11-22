@@ -3,7 +3,10 @@ package dev.mmcl.plugin.loader.fabric
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -125,6 +128,83 @@ internal object FabricPayloads {
         return ProfileCheck(id = id, warnings = warnings)
     }
 
+    /**
+     * 把 profile 的库整理成 core 能直接用的形状：
+     * - `url` → `downloads.artifact.url`（仓库根 + Maven 路径）
+     * - `sha1`/`size` → `downloads.artifact`，缺失时尝试官方 `.sha1` sidecar
+     * - 通过 [UrlMirror] 改写仓库地址（镜像不代理 `.sha1`，所以哈希始终从原地址取）
+     */
+    suspend fun normalizeLibraries(
+        body: String,
+        mirrors: List<dev.mmcl.api.capability.UrlMirror>,
+        http: FabricHttp,
+        logger: Logger,
+    ): NormalizedProfile {
+        val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull()
+            ?: return NormalizedProfile(body, emptyList())
+        val libraries = root["libraries"]?.let { runCatching { it.jsonArray }.getOrNull() }
+            ?: return NormalizedProfile(body, emptyList())
+        val warnings = mutableListOf<String>()
+        val rewritten =
+            libraries.map { element ->
+                val obj = runCatching { element.jsonObject }.getOrNull() ?: return@map element
+                val name = obj.primitive("name") ?: return@map element
+                val repository = obj.primitive("url") ?: return@map element
+                val path = mavenPathOf(name)
+                if (path == null) {
+                    warnings += "无法解析 Maven 坐标：$name"
+                    return@map element
+                }
+                val mirrored =
+                    mirrors.firstNotNullOfOrNull { mirror ->
+                        runCatching { mirror.resolve(repository) }.getOrNull()
+                    } ?: repository
+                val sha1 =
+                    obj.primitive("sha1")?.takeIf { it.isNotBlank() }
+                        ?: fetchSha1(repository + path, http, logger)?.also {
+                            logger.debug("已从 {} 取到 sha1", name)
+                        }
+                if (sha1.isNullOrBlank()) {
+                    warnings += "$name 没有哈希，下载后不校验"
+                }
+                val artifact =
+                    buildJsonObject {
+                        put("url", JsonPrimitive(mirrored + path))
+                        put("path", JsonPrimitive(path))
+                        put("sha1", JsonPrimitive(sha1.orEmpty()))
+                        put("size", JsonPrimitive(obj.primitive("size")?.toLongOrNull() ?: 0L))
+                    }
+                JsonObject(
+                    obj +
+                        ("downloads" to buildJsonObject { put("artifact", artifact) }) +
+                        ("url" to JsonPrimitive(mirrored)),
+                )
+            }
+        val normalized = JsonObject(root + ("libraries" to JsonArray(rewritten)))
+        return NormalizedProfile(normalized.toString(), warnings)
+    }
+
+    private suspend fun fetchSha1(url: String, http: FabricHttp, logger: Logger): String? =
+        try {
+            http.getText("$url.sha1").trim().substringBefore(' ').takeIf { it.isNotBlank() }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.debug("取 sha1 失败（{}）：{}", url, e.message)
+            null
+        }
+
+    private fun mavenPathOf(coordinates: String): String? {
+        val parts = coordinates.trim().split(':')
+        if (parts.size < 3) return null
+        val group = parts[0].replace('.', '/')
+        val artifact = parts[1]
+        val version = parts[2]
+        if (group.isBlank() || artifact.isBlank() || version.isBlank()) return null
+        val classifier = parts.getOrNull(3)?.takeIf { it.isNotBlank() }?.let { "-$it" }.orEmpty()
+        return "$group/$artifact/$version/$artifact-$version$classifier.jar"
+    }
+
     private fun JsonObject.primitive(key: String): String? =
         this[key]?.let { runCatching { it.jsonPrimitive.contentOrNull }.getOrNull() }
 
@@ -135,6 +215,12 @@ internal object FabricPayloads {
 /** profile 校验结果。 */
 internal data class ProfileCheck(
     val id: String,
+    val warnings: List<String>,
+)
+
+/** 库归一化后的 profile JSON。 */
+internal data class NormalizedProfile(
+    val detailJson: String,
     val warnings: List<String>,
 )
 

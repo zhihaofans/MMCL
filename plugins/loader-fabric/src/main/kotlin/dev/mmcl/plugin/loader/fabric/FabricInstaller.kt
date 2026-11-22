@@ -15,6 +15,8 @@ import org.slf4j.Logger
  */
 internal class FabricInstaller(
     private val client: FabricMetaClient,
+    private val http: FabricHttp,
+    private val mirrors: () -> List<dev.mmcl.api.capability.UrlMirror>,
     private val logger: Logger,
 ) : LoaderInstaller {
     override val loaderId: String = "fabric"
@@ -44,14 +46,15 @@ internal class FabricInstaller(
 
         val profile = client.profile(request.gameVersionId, chosen.version)
         val check = FabricPayloads.checkProfile(profile.body, request.gameVersionId)
-        val warnings = check.warnings.toMutableList()
+        val normalized = FabricPayloads.normalizeLibraries(profile.body, mirrors(), http, logger)
+        val warnings = (check.warnings + normalized.warnings).toMutableList()
         if (profile.source == FabricSource.MIRROR) {
             warnings += "Fabric profile 来自 BMCLAPI 镜像，可能与官方存在差异"
         }
         logger.info("Fabric loader {} 已生成版本 {}", chosen.version, check.id)
         return LoaderInstallResult(
             versionId = check.id,
-            detailJson = profile.body,
+            detailJson = normalized.detailJson,
             warnings = warnings,
         )
     }

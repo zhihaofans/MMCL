@@ -200,6 +200,7 @@ sources.forEach { it.search("sodium") }
 | `AuthProvider` | 账户认证方式（`displayName` / `priority` / `isSignedIn` / `createSession`；内置 `auth-offline` 可删除或禁用）。`isSignedIn` 决定启动器会不会选你：装了插件但没登录时返回 `false`，别把离线账户挤掉 |
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
+| `UrlMirror` | 下载地址镜像改写（镜像插件注册） |
 | `UiPage` | 完整页面（导航栏追加一项） |
 | `UiWidget` | 插槽小部件（顶栏 / 状态栏 / 首页卡片），见下 |
 | `VersionManifestSource` | 版本清单来源（官方 / 镜像 / 本地），**应用内不内置任何实现** |

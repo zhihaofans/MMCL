@@ -85,4 +85,15 @@ class BmclapiVersionSourceTest {
         assertEquals(10, source.priority)
         assertEquals("bmclapi", source.id)
     }
+
+    @Test
+    fun `Fabric Maven 地址会改写到 BMCLAPI`() {
+        val mirror = BmclapiUrlMirror()
+
+        assertEquals(
+            "https://bmclapi2.bangbang93.com/maven/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar",
+            mirror.resolve("https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar"),
+        )
+        assertEquals(null, mirror.resolve("https://piston-meta.mojang.com/26.3.json"))
+    }
 }

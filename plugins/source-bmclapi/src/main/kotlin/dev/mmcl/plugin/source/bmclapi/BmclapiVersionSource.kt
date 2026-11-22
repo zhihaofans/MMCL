@@ -1,5 +1,6 @@
 package dev.mmcl.plugin.source.bmclapi
 
+import dev.mmcl.api.capability.UrlMirror
 import dev.mmcl.api.capability.VersionManifestSource
 import java.io.IOException
 import java.net.URI
@@ -120,5 +121,25 @@ class BmclapiVersionSource(
 
         private const val SHA1_LENGTH = 40
         private const val ENGLISH = "en"
+    }
+}
+
+/**
+ * BMCLAPI 的通用地址镜像：目前覆盖 Fabric Maven。
+ *
+ * 只做「官方地址 → 镜像地址」的确定性替换，不缓存、不联网；镜像不可用时由调用方回退。
+ */
+internal class BmclapiUrlMirror : UrlMirror {
+    override val id: String = "bmclapi"
+
+    override fun resolve(url: String): String? =
+        when {
+            url.startsWith(FABRIC_MAVEN) -> MIRROR_MAVEN + url.removePrefix(FABRIC_MAVEN)
+            else -> null
+        }
+
+    private companion object {
+        const val FABRIC_MAVEN = "https://maven.fabricmc.net/"
+        const val MIRROR_MAVEN = "https://bmclapi2.bangbang93.com/maven/"
     }
 }

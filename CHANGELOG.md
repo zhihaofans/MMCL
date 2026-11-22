@@ -7,6 +7,10 @@
 
 ### 新增
 
+- `UrlMirror` 能力：镜像插件可改写下载地址；`source-bmclapi` 注册 Fabric Maven → BMCLAPI
+  （实测 JAR 与官方字节一致；BMCLAPI 不代理 `.sha1`，哈希仍取官方）
+- `loader-fabric` 库归一化：写入 `downloads.artifact`（含 sha1/size），缺 sha1 时取官方 `.sha1`，
+  并应用镜像；`source-bmclapi` / `loader-fabric` 升到 0.0.2
 - 游戏页「新建实例」支持 Fabric 加载器：调用 `loader-fabric` 插件生成 overlay、
   写入 `versions/<id>/`、加入下载队列并创建实例；镜像/缺字段等警告显示在状态栏
 - `loader-fabric` 插件：查询 Fabric meta（官方优先、BMCLAPI 回退）、选 stable loader、

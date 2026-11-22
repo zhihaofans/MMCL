@@ -82,6 +82,20 @@ data class ProjectHit(
 )
 
 /**
+ * 下载地址镜像扩展点：把官方地址改写成镜像地址。
+ *
+ * 由镜像插件（例如 `source-bmclapi`）注册；加载器/内容插件在生成下载清单前询问。
+ * 多个实现按注册顺序询问，第一个返回非 `null` 的生效；返回 `null` 表示不处理。
+ */
+interface UrlMirror {
+    /** 全局唯一标识，例如 `bmclapi`。 */
+    val id: String
+
+    /** 改写地址；不认识这个地址时返回 `null`。 */
+    fun resolve(url: String): String?
+}
+
+/**
  * 内容下载源扩展点（Modrinth / CurseForge / 自定义源）。
  */
 interface DownloadSource {

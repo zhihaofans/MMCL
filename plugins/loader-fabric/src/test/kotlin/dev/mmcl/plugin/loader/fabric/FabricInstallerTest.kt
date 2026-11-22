@@ -24,7 +24,7 @@ class FabricInstallerTest {
         """
         {"id":"fabric-loader-0.20.1-26.3","inheritsFrom":"26.3",
          "mainClass":"net.fabricmc.loader.impl.launch.knot.KnotClient",
-         "libraries":[{"name":"net.fabricmc:fabric-loader:0.20.1","url":"https://maven.fabricmc.net/"}],
+         "libraries":[{"name":"net.fabricmc:fabric-loader:0.20.1","url":"https://maven.fabricmc.net/","sha1":"abc123","size":123}],
          "arguments":{"jvm":["-DFabricMcEmu= net.minecraft.client.main.Main "]}}
         """.trimIndent()
 
@@ -37,8 +37,10 @@ class FabricInstallerTest {
         }
     }
 
-    private fun installer(http: FabricHttp) =
-        FabricInstaller(FabricMetaClient(http, logger), logger)
+    private fun installer(
+        http: FabricHttp,
+        mirrors: List<dev.mmcl.api.capability.UrlMirror> = emptyList(),
+    ) = FabricInstaller(FabricMetaClient(http, logger), http, { mirrors }, logger)
 
     private fun urls(base: String, game: String = "26.3", loader: String = "0.20.1") =
         "$base/v2/versions/loader/$game" to "$base/v2/versions/loader/$game/$loader/profile/json"
@@ -64,7 +66,8 @@ class FabricInstallerTest {
         val result = installer(http).install(LoaderInstallRequest("26.3"))
 
         assertEquals("fabric-loader-0.20.1-26.3", result.versionId)
-        assertEquals(profileJson, result.detailJson)
+        assertTrue(result.detailJson.contains("\"downloads\""))
+        assertTrue(result.detailJson.contains("\"sha1\":\"abc123\""))
         assertTrue(result.warnings.isEmpty())
     }
 
@@ -109,6 +112,57 @@ class FabricInstallerTest {
         val error = assertFailsWith<IOException> { installer(http).install(LoaderInstallRequest("26.3")) }
 
         assertTrue(error.message!!.contains("mainClass"))
+    }
+
+    @Test
+    fun `库地址会被镜像改写并写入 downloads`() = runTest {
+        val (listUrl, profileUrl) = urls(FabricMetaClient.OFFICIAL_META)
+        val http = FakeHttp(mapOf(listUrl to listJson, profileUrl to profileJson))
+        val mirror =
+            object : dev.mmcl.api.capability.UrlMirror {
+                override val id: String = "test"
+
+                override fun resolve(url: String): String? =
+                    if (url.startsWith("https://maven.fabricmc.net/")) {
+                        "https://mirror.invalid/maven/" + url.removePrefix("https://maven.fabricmc.net/")
+                    } else {
+                        null
+                    }
+            }
+
+        val result = installer(http, listOf(mirror)).install(LoaderInstallRequest("26.3"))
+
+        assertTrue(
+            result.detailJson.contains(
+                "https://mirror.invalid/maven/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar",
+            ),
+        )
+        assertTrue(result.detailJson.contains("\"sha1\":\"abc123\""))
+    }
+
+    @Test
+    fun `缺少 sha1 时从官方 sidecar 补齐`() = runTest {
+        val (listUrl, profileUrl) = urls(FabricMetaClient.OFFICIAL_META)
+        val sidecarUrl =
+            "https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar.sha1"
+        val profile = profileJson.replace(",\"sha1\":\"abc123\",\"size\":123", "")
+        val http = FakeHttp(mapOf(listUrl to listJson, profileUrl to profile, sidecarUrl to "deadbeef"))
+
+        val result = installer(http).install(LoaderInstallRequest("26.3"))
+
+        assertTrue(result.detailJson.contains("\"sha1\":\"deadbeef\""))
+        assertTrue(result.warnings.isEmpty())
+    }
+
+    @Test
+    fun `sidecar 也拿不到时只警告不失败`() = runTest {
+        val (listUrl, profileUrl) = urls(FabricMetaClient.OFFICIAL_META)
+        val profile = profileJson.replace(",\"sha1\":\"abc123\",\"size\":123", "")
+        val http = FakeHttp(mapOf(listUrl to listJson, profileUrl to profile))
+
+        val result = installer(http).install(LoaderInstallRequest("26.3"))
+
+        assertTrue(result.warnings.any { it.contains("没有哈希") })
     }
 
     @Test
