@@ -20,34 +20,37 @@
 - [ ] 下载页增加「下载列表」：集中展示排队 / 进行中 / 已完成 / 失败的任务，
       支持取消、重试、清理已完成；现在任务进度只在对应版本行内显示
 
-### 0.3.x — 插件生态（加载器／内容平台）
+### 0.3.x — 插件生态（内容管理优先）
 
-> 26.3 调研结论：Fabric 生态最大（Modrinth 10,799 项）且只需纯 JSON 合并；
-> NeoForge/Forge 必须跑 installer 的 processor 生成 patched client jar。
-> 接入顺序 **Fabric → NeoForge → Forge**；Quilt 不做（Loader 仍 beta、QSL 已停）。
+> Fabric 已可用：loader 0.20.1 + 26.3 实测安装/启动通过，库走 BMCLAPI 镜像。
+> 26.3 生态（Modrinth 26.3 项目数）：Fabric 10,799 / NeoForge 6,093 / Forge 2,975。
+> 下一步优先**内容与存储管理**；NeoForge/Forge 等有明确需求再做，Quilt 不做。
 
-**加载器前置（core，先做）**
+**内容管理（优先）**
 
-- [ ] Java 进程执行器：processor 的临时目录、日志、超时、退出码隔离
-- [ ] 空 URL 本地产物支持（Forge 的 patched client jar 在版本 JSON 里 `url` 为空）
-- [ ] Java 25 前置检查（26.x 的 `javaVersion.majorVersion=25`，安装与启动前都要查）
+- [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
+- [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
+- [ ] 实例级「打开游戏目录／mods／resourcepacks／shaderpacks／saves」快捷入口
+- [ ] 存储空间管理：统计并清理实例、加载器版本、已下载资源（libraries / assets）、
+      已下载游戏版本；**先定放插件还是内置**（若做插件，需要 core 暴露扫描/删除接口）
 
-**加载器插件**
+**后续加载器（有需求再做）**
 
 - [ ] `loader-neoforge`：先 spike 验证 patched client jar 进 classpath；
       然后 installer processor、`-DlibraryDirectory`、`--fml.*` 参数
 - [ ] `loader-forge`：复用 processor 引擎；promotions（files 主路径 + Maven 兜底）、
       83 MB 本地产物、`--launchTarget forge_client`
-- [ ] 存储空间管理：统计并清理实例、加载器版本、已下载资源（libraries / assets）、
-      已下载游戏版本；**先定放插件还是内置**（若做插件，需要 core 暴露扫描/删除接口）
-- [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
-- [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
+
+**做后续加载器前需要的前置**
+
+- [ ] Java 进程执行器：processor 的临时目录、日志、超时、退出码隔离
+- [ ] 空 URL 本地产物支持（Forge 的 patched client jar 在版本 JSON 里 `url` 为空）
+- [ ] Java 25 前置检查（26.x 的 `javaVersion.majorVersion=25`，安装与启动前都要查）
 
 ### 0.4.x — 整合包与内容互操作
 
 - [ ] 导入：Modrinth／CurseForge／常见开源实例包格式（能建实例并拉依赖）
 - [ ] 导出：至少一种可再导入的格式（优先 mrpack 或常见开源实例包格式；社区格式按需）
-- [ ] 实例级「打开游戏目录／mods／resourcepacks／shaderpacks／saves」快捷入口
 
 ### 0.5.x — 打包发布
 
