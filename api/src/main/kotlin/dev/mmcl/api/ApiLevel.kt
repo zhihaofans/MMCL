@@ -10,6 +10,10 @@ package dev.mmcl.api
  * core 会拒绝加载声明级别高于当前启动器的插件。
  */
 object ApiLevel {
-    /** 当前 API 级别。 */
-    const val CURRENT: Int = 1
+    /**
+     * 当前 API 级别。历史：
+     * - 1：初始级别
+     * - 2：`LoaderInstaller` 重做（`listVersions` + `install` 返回 overlay，删除旧 `install`）
+     */
+    const val CURRENT: Int = 2
 }

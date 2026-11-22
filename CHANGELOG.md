@@ -52,6 +52,8 @@
 
 ### 变更
 
+- `LoaderInstaller` API 重做：`listVersions` + `install` 返回 overlay 版本 JSON 与警告，
+  插件不再直接写实例目录；删除旧的 `install(mc, targetDir)`，`ApiLevel.CURRENT` 升到 2（API-BREAK）
 - `auth-microsoft` 插件升到 **0.0.2**：登录/刷新时把皮肤地址随令牌一起落盘（`tokens.properties`），
   渲染头像不再发网络请求；旧登录态启动时后台补齐一次，皮肤地址统一升级为 https
 - Release 正文附带全部资产的 **SHA-256**（发布前 CI 下载资产计算并写入，再解除草稿）；

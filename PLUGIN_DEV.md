@@ -223,7 +223,32 @@ interface DownloadSource {
 
 interface LoaderInstaller {
     val loaderId: String
-    suspend fun install(version: String, dir: java.nio.file.Path)
+    suspend fun listVersions(gameVersionId: String): List<LoaderVersion>
+    suspend fun install(request: LoaderInstallRequest): LoaderInstallResult
+}
+
+data class LoaderVersion(val version: String, val stable: Boolean = true, val note: String? = null)
+data class LoaderInstallRequest(val gameVersionId: String, val loaderVersion: String? = null)
+data class LoaderInstallResult(
+    val versionId: String,
+    val detailJson: String,
+    val warnings: List<String> = emptyList(),
+)
+```
+
+加载器插件只返回 **overlay 版本 JSON**（`inheritsFrom` 指向基础版本），
+写 `versions/<id>/`、目录结构、下载与 `inheritsFrom` 合并都由启动器负责；插件不碰实例目录。
+`ApiLevel.CURRENT = 2` 起是这个形状（旧的 `install(mc, dir)` 已删除）。
+
+```kotlin
+// 一个最小的 LoaderInstaller 实现形态（伪代码）
+class MyLoader : LoaderInstaller {
+    override val loaderId = "my-loader"
+    override suspend fun listVersions(gameVersionId: String) = emptyList<LoaderVersion>()
+    override suspend fun install(request: LoaderInstallRequest): LoaderInstallResult {
+        val json = """{"id":"my-loader-26.3","inheritsFrom":"26.3","mainClass":"..."}"""
+        return LoaderInstallResult(versionId = "my-loader-26.3", detailJson = json)
+    }
 }
 ```
 

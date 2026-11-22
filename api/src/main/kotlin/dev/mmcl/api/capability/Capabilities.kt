@@ -1,6 +1,5 @@
 package dev.mmcl.api.capability
 
-import java.nio.file.Path
 
 /**
  * 一次成功认证得到的账户信息。
@@ -93,6 +92,43 @@ interface DownloadSource {
     suspend fun search(query: String): List<ProjectHit>
 }
 
+/** 加载器的一个可用版本。 */
+data class LoaderVersion(
+    /** 加载器版本号，例如 `0.20.1`。 */
+    val version: String,
+    /** 是否稳定版；UI 默认选最新的稳定版。 */
+    val stable: Boolean = true,
+    /** 可选的补充说明（例如 beta 提示）。 */
+    val note: String? = null,
+)
+
+/**
+ * 安装加载器的请求。
+ *
+ * @param gameVersionId 目标 Minecraft 版本（例如 `26.3`）
+ * @param loaderVersion 指定加载器版本；`null` 表示由插件选推荐版本
+ */
+data class LoaderInstallRequest(
+    val gameVersionId: String,
+    val loaderVersion: String? = null,
+)
+
+/**
+ * 加载器安装结果。
+ *
+ * 插件**只生成版本 JSON**（含 `inheritsFrom`，指向基础版本），写盘、目录结构、
+ * 下载与继承合并全部由启动器负责。
+ *
+ * @param versionId 新版本 id，例如 `fabric-loader-0.20.1-26.3`
+ * @param detailJson 版本 JSON 原文，启动器写到 `versions/<id>/<id>.json`
+ * @param warnings 非致命问题（例如某个库没有哈希）
+ */
+data class LoaderInstallResult(
+    val versionId: String,
+    val detailJson: String,
+    val warnings: List<String> = emptyList(),
+)
+
 /**
  * 游戏加载器安装扩展点（Forge / Fabric / NeoForge / Quilt）。
  */
@@ -100,11 +136,13 @@ interface LoaderInstaller {
     /** 加载器标识，例如 `fabric`。 */
     val loaderId: String
 
+    /** 查询该加载器对目标游戏版本可用的版本（最新在前）。 */
+    suspend fun listVersions(gameVersionId: String): List<LoaderVersion>
+
     /**
-     * 安装加载器。
+     * 生成加载器版本。
      *
-     * @param minecraftVersion 目标 Minecraft 版本
-     * @param targetDir 实例目录
+     * @throws Exception 元数据不可用、目标版本不支持或 loader 版本非法时
      */
-    suspend fun install(minecraftVersion: String, targetDir: Path)
+    suspend fun install(request: LoaderInstallRequest): LoaderInstallResult
 }

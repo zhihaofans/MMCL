@@ -29,7 +29,6 @@
 - [ ] classpath 支持父版本 client jar（现在固定 `versions/<id>/<id>.jar`，加载器版本没有该文件）
 - [ ] Maven 坐标库解析（Fabric profile 只有 `name`+`url`，没有 `downloads`）与空 URL 本地产物（Forge 的 patched client jar）
 - [ ] Java 进程执行器：processor 的临时目录、日志、超时、退出码隔离
-- [ ] `LoaderInstaller` API 重做：`listVersions` + `install` 返回 overlay/警告（0.x 允许，标 API-BREAK）
 - [ ] Java 25 前置检查（26.x 的 `javaVersion.majorVersion=25`，安装与启动前都要查）
 
 **加载器插件**
