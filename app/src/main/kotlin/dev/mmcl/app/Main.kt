@@ -351,11 +351,14 @@ fun main(args: Array<String>) {
                     )
             }
             if (macChrome) {
-                // 内容延伸到标题栏，只保留原生红黄绿；缩放 / 阴影 / 全屏仍由系统处理
+                // 原生标题文字由系统按浅色/深色外观绘制，JDK 27 不支持修改窗口外观
+                // （没有 apple.awt.windowAppearance），所以直接隐藏原生标题，
+                // 由 AppShell 顶栏用 Compose/主题色绘制「MMCL vX.Y.Z」。
                 LaunchedEffect(Unit) {
                     window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
                     window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
                     window.rootPane.putClientProperty("apple.awt.draggableWindowBackground", true)
+                    window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
                 }
             }
             LaunchedEffect(windowState) {
@@ -412,6 +415,7 @@ fun main(args: Array<String>) {
                                 ?.skinUrl
                         },
                         skinLoader = skinLoader,
+                        showAppTitle = macChrome,
                     )
                 }
             }

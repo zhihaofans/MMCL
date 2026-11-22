@@ -18,6 +18,9 @@
 
 ### 修复
 
+- macOS 原生标题栏没有跟随主题：系统浅色 + 深色主题时标题是黑字、看不清。
+  实测 JDK 27 不支持 `apple.awt.windowAppearance`，改为隐藏原生标题
+  （`apple.awt.windowTitleVisible=false`），由顶栏用 Compose/主题色绘制「MMCL vX.Y.Z」
 - 下载的 JDK 解压时没有还原 tar 的 POSIX 权限，`bin/java` 变成不可执行，
   启动游戏时进程根本起不来（也没有游戏日志）；现在按条目 mode 还原，并兜底给 `bin` 下文件加可执行位
 - 同一实例（或任何实例）在游戏运行期间禁止再次启动，按钮禁用并在入口做并发检查，

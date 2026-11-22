@@ -64,6 +64,7 @@ fun AppShell(
     accountName: String? = null,
     accountSkinUrlProvider: () -> String? = { null },
     skinLoader: SkinLoader? = null,
+    showAppTitle: Boolean = false,
 ) {
     val navigator = remember { NavigationState(pages.first().id) }
     val current = pages.firstOrNull { it.id == navigator.currentPageId } ?: pages.first()
@@ -86,6 +87,7 @@ fun AppShell(
             accountName = accountName,
             accountSkinUrlProvider = accountSkinUrlProvider,
             skinLoader = skinLoader,
+            showAppTitle = showAppTitle,
         )
         HorizontalDivider()
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -126,6 +128,7 @@ private fun TopBar(
     accountName: String? = null,
     accountSkinUrlProvider: () -> String? = { null },
     skinLoader: SkinLoader? = null,
+    showAppTitle: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -171,7 +174,8 @@ private fun TopBar(
             }
         }
         Text(
-            text = "v${launcher.version}",
+            // 隐藏原生标题后，用顶栏这一行承担窗口标题；颜色由主题控制
+            text = if (showAppTitle) "${launcher.name} v${launcher.version}" else "v${launcher.version}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
