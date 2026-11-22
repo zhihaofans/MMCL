@@ -47,6 +47,27 @@ class InstanceServiceTest {
     }
 
     @Test
+    fun `重命名只改展示名`() {
+        val instance = service.create("26.3")
+
+        val renamed = service.rename(instance.id, "  生存服  ")
+
+        assertEquals("生存服", renamed?.name)
+        val saved = service.list().single { it.id == instance.id }
+        assertEquals("生存服", saved.name)
+        assertEquals("26.3", saved.versionId)
+    }
+
+    @Test
+    fun `空名或不存在时重命名失败`() {
+        val instance = service.create("26.3")
+
+        assertEquals(null, service.rename(instance.id, "   "))
+        assertEquals(null, service.rename("nope", "x"))
+        assertEquals(instance.name, service.list().single { it.id == instance.id }.name)
+    }
+
+    @Test
     fun `对不存在的实例保存启动参数返回 false`() {
         assertFalse(service.updateLaunchSettings("nope", 1024, "", ""))
     }

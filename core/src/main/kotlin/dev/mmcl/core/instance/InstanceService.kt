@@ -76,6 +76,23 @@ class InstanceService(
     }
 
     /**
+     * 重命名实例：只改展示名，[Instance.id] 与实例目录不变。
+     *
+     * @param newName 新名字；首尾空白会去掉，空名视为非法
+     * @return 改名后的实例；实例不存在或名字为空时返回 `null`
+     */
+    fun rename(id: String, newName: String): Instance? {
+        val name = newName.trim()
+        if (name.isEmpty()) return null
+        val existing = store.load()
+        val target = existing.firstOrNull { it.id == id } ?: return null
+        val updated = target.copy(name = name)
+        store.save(existing.map { if (it.id == id) updated else it })
+        logger.info("实例 {} 已重命名为 {}", id, name)
+        return updated
+    }
+
+    /**
      * 新建实例（目录立即创建）。
      *
      * @param versionId 绑定的版本

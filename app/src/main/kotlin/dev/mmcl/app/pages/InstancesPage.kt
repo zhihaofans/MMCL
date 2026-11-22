@@ -620,7 +620,8 @@ class InstancesPage(
             LaunchParamsDialog(
                 instance = target,
                 onDismiss = { editingParams = null },
-                onSave = { memory, jvmArgs, envVars ->
+                onSave = { name, memory, jvmArgs, envVars ->
+                    instanceService?.rename(target.id, name)
                     val ok = instanceService?.updateLaunchSettings(target.id, memory, jvmArgs, envVars) == true
                     editingParams = null
                     refreshInstances()
@@ -737,9 +738,10 @@ internal fun parseEnvVars(raw: String): Map<String, String> =
 private fun LaunchParamsDialog(
     instance: Instance,
     onDismiss: () -> Unit,
-    onSave: (memoryMb: Int?, extraJvmArgs: String, envVars: String) -> Unit,
+    onSave: (name: String, memoryMb: Int?, extraJvmArgs: String, envVars: String) -> Unit,
 ) {
     val strings = LocalStrings.current
+    var name by remember(instance) { mutableStateOf(instance.name) }
     var memoryText by remember(instance) { mutableStateOf(instance.memoryMb?.toString() ?: "") }
     var jvmArgs by remember(instance) { mutableStateOf(instance.extraJvmArgs) }
     var envVars by remember(instance) { mutableStateOf(instance.envVars) }
@@ -749,6 +751,12 @@ private fun LaunchParamsDialog(
         title = { Text(strings.t("instances.params.title", instance.name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(strings.t("instances.params.name")) },
+                    singleLine = true,
+                )
                 OutlinedTextField(
                     value = memoryText,
                     onValueChange = { memoryText = it.filter { ch -> ch.isDigit() } },
@@ -772,7 +780,9 @@ private fun LaunchParamsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(memoryText.toIntOrNull(), jvmArgs, envVars) }) { Text(strings.t("instances.action.save")) }
+            TextButton(onClick = { onSave(name, memoryText.toIntOrNull(), jvmArgs, envVars) }) {
+                Text(strings.t("instances.action.save"))
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(strings.t("instances.action.cancel")) } },
     )
