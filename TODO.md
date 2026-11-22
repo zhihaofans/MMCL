@@ -28,20 +28,18 @@
 
 **加载器前置（core，先做）**
 
-- [ ] `inheritsFrom` 合并：libraries / arguments / mainClass / assetIndex / logging / client jar
-- [ ] classpath 支持父版本 client jar（现在固定 `versions/<id>/<id>.jar`，加载器版本没有该文件）
-- [ ] Maven 坐标库解析（Fabric profile 只有 `name`+`url`，没有 `downloads`）与空 URL 本地产物（Forge 的 patched client jar）
 - [ ] Java 进程执行器：processor 的临时目录、日志、超时、退出码隔离
+- [ ] 空 URL 本地产物支持（Forge 的 patched client jar 在版本 JSON 里 `url` 为空）
 - [ ] Java 25 前置检查（26.x 的 `javaVersion.majorVersion=25`，安装与启动前都要查）
 
 **加载器插件**
 
-- [ ] `loader-fabric`（先做）：26.3 profile 纯 JSON（7 个库、无 natives、无 processor），
-      补 loader 自身哈希；同时验证上面的 core 改造
 - [ ] `loader-neoforge`：先 spike 验证 patched client jar 进 classpath；
       然后 installer processor、`-DlibraryDirectory`、`--fml.*` 参数
 - [ ] `loader-forge`：复用 processor 引擎；promotions（files 主路径 + Maven 兜底）、
       83 MB 本地产物、`--launchTarget forge_client`
+- [ ] 存储空间管理：统计并清理实例、加载器版本、已下载资源（libraries / assets）、
+      已下载游戏版本；**先定放插件还是内置**（若做插件，需要 core 暴露扫描/删除接口）
 - [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
 - [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
 
