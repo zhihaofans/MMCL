@@ -5,6 +5,8 @@ import dev.mmcl.api.OperatingSystem
 import dev.mmcl.core.version.Library
 import dev.mmcl.core.version.LibraryRule
 import dev.mmcl.core.version.VersionDetail
+import dev.mmcl.core.version.mavenPathOf
+import dev.mmcl.core.version.resolvedArtifact
 
 /**
  * 把版本详情转换成"需要哪些文件"的清单。
@@ -48,7 +50,7 @@ object GameFilePlanner {
         detail.client?.takeIf { it.url.isNotBlank() }?.let { client ->
             files +=
                 PlannedFile(
-                    relativePath = "versions/${detail.id}/${detail.id}.jar",
+                    relativePath = "versions/${detail.baseVersionId}/${detail.baseVersionId}.jar",
                     url = plannedUrl(client.url, resolveUrl).first,
                     fallbackUrl = plannedUrl(client.url, resolveUrl).second,
                     sha1 = client.sha1,
@@ -84,7 +86,7 @@ object GameFilePlanner {
         }
 
         for (library in allowedLibraries(detail, os, arch)) {
-            val artifact = library.downloads.artifact
+            val artifact = library.resolvedArtifact()
             if (artifact == null) {
                 if (library.natives.isNotEmpty() || library.downloads.classifiers.isNotEmpty()) {
                     warnings += "跳过 ${library.name}：natives/classifiers 下载暂未支持"
@@ -92,7 +94,7 @@ object GameFilePlanner {
                 continue
             }
             if (artifact.url.isBlank()) continue
-            val path = artifact.path?.takeIf { it.isNotBlank() } ?: guessMavenPath(library.name)
+            val path = artifact.path?.takeIf { it.isNotBlank() } ?: mavenPathOf(library.name) ?: continue
             files +=
                 PlannedFile(
                     relativePath = "libraries/$path",
@@ -171,13 +173,4 @@ object GameFilePlanner {
     private fun baseOf(libraryName: String): String = libraryName.split(':').take(3).joinToString(":")
 
     /** `group:artifact:version[:classifier]` → Maven 相对路径。 */
-    private fun guessMavenPath(coordinates: String): String {
-        val parts = coordinates.split(':')
-        if (parts.size < 3) return "$coordinates.jar"
-        val group = parts[0].replace('.', '/')
-        val artifact = parts[1]
-        val version = parts[2]
-        val classifier = parts.getOrNull(3)?.takeIf { it.isNotBlank() }?.let { "-$it" }.orEmpty()
-        return "$group/$artifact/$version/$artifact-$version$classifier.jar"
-    }
 }

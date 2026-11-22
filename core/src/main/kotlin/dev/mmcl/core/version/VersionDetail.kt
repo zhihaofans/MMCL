@@ -15,6 +15,8 @@ data class VersionDetail(
     val type: String = "release",
     val mainClass: String = "",
     val inheritsFrom: String? = null,
+    /** 合并继承后的根版本 id（例如 Fabric 版本继承的 `26.3`）；未合并且无继承时为空。 */
+    val rootId: String? = null,
     val assets: String = "",
     val assetIndex: AssetIndexRef? = null,
     val downloads: Map<String, DownloadEntry> = emptyMap(),
@@ -25,6 +27,14 @@ data class VersionDetail(
 ) {
     /** 客户端主 JAR 的下载信息。 */
     val client: DownloadEntry? get() = downloads["client"]
+
+    /**
+     * 客户端 JAR / natives 所属的版本 id。
+     *
+     * 加载器版本（`fabric-loader-…-26.3`）自己没有 client jar，实际文件在父版本目录下；
+     * 合并继承后 [rootId] 指向父版本，路径必须按它拼接。
+     */
+    val baseVersionId: String get() = rootId ?: id
 }
 
 /**
@@ -55,11 +65,13 @@ data class AssetIndexRef(
  * 一个库条目。
  *
  * @property natives 老版本的 natives 映射（1.19 之前），当前只做识别不做下载
+ * @property url Maven 仓库根地址；Fabric profile 的库只有 `name`+`url`，没有 `downloads`
  */
 @Serializable
 data class Library(
     val name: String = "",
     val downloads: LibraryDownloads = LibraryDownloads(),
+    val url: String = "",
     val rules: List<LibraryRule> = emptyList(),
     val natives: Map<String, String> = emptyMap(),
 )

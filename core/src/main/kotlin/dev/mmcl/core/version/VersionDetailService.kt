@@ -52,11 +52,16 @@ class VersionDetailService(
      */
     suspend fun load(entry: VersionManifestEntry, forceRefresh: Boolean = false): VersionDetail =
         mutex.withLock {
+            resolveInheritance(loadRaw(entry, forceRefresh))
+        }
+
+    /** 加载原始详情（不解析继承）。 */
+    private suspend fun loadRaw(entry: VersionManifestEntry, forceRefresh: Boolean): VersionDetail {
             val file = detailFile(entry.id)
             if (!forceRefresh && Files.isRegularFile(file)) {
                 parse(readFile(file), entry.id)?.let {
                     logger.debug("命中版本详情缓存：{}", file)
-                    return@withLock it
+                    return it
                 }
                 logger.warn("本地版本详情不可用，重新拉取：{}", file)
             }
@@ -72,8 +77,51 @@ class VersionDetailService(
             val detail = parse(body, entry.id) ?: throw VersionDetailException("版本 ${entry.id} 的详情 JSON 无法解析")
             writeAtomically(file, body)
             logger.info("版本详情已更新：{}（mainClass={}）", detail.id, detail.mainClass)
-            detail
+            return detail
+    }
+
+    /**
+     * 解析 `inheritsFrom`：加载器版本只有自己的 mainClass/libraries/arguments，
+     * client jar、assets、logging、Java 版本都来自父版本（例如 26.3）。
+     *
+     * 父版本必须已安装到本地（加载器安装前置），缺失时给出可操作的错误。
+     */
+    private fun resolveInheritance(detail: VersionDetail, depth: Int = 0): VersionDetail {
+        val parentId = detail.inheritsFrom?.takeIf { it.isNotBlank() } ?: return detail
+        if (depth >= MAX_INHERITANCE_DEPTH) {
+            throw VersionDetailException("版本 ${detail.id} 的继承链超过 $MAX_INHERITANCE_DEPTH 层")
         }
+        val file = detailFile(parentId)
+        if (!Files.isRegularFile(file)) {
+            throw VersionDetailException("缺少父版本 $parentId 的版本详情，请先安装基础版本")
+        }
+        val parent =
+            parse(readFile(file), parentId)
+                ?: throw VersionDetailException("父版本 $parentId 的详情 JSON 无法解析")
+        return merge(resolveInheritance(parent, depth + 1), detail)
+    }
+
+    /** 把父版本与子版本合并成一份可直接启动/规划的详情。 */
+    private fun merge(parent: VersionDetail, child: VersionDetail): VersionDetail {
+        val root = parent.rootId ?: parent.id
+        return child.copy(
+            mainClass = child.mainClass.ifBlank { parent.mainClass },
+            inheritsFrom = root,
+            rootId = root,
+            assets = child.assets.ifBlank { parent.assets },
+            assetIndex = child.assetIndex ?: parent.assetIndex,
+            // 子版本没有 client jar，必须继承父版本的 downloads
+            downloads = parent.downloads + child.downloads,
+            libraries = parent.libraries + child.libraries,
+            logging = child.logging ?: parent.logging,
+            javaVersion = child.javaVersion ?: parent.javaVersion,
+            arguments =
+                VersionArguments(
+                    game = parent.arguments.game + child.arguments.game,
+                    jvm = parent.arguments.jvm + child.arguments.jvm,
+                ),
+        )
+    }
 
     /** 该版本的详情是否已缓存在本地。 */
     fun isCached(versionId: String): Boolean = Files.isRegularFile(detailFile(versionId))
@@ -97,6 +145,11 @@ class VersionDetailService(
             logger.warn("读取版本详情失败：{}", e.message)
             ""
         }
+
+    private companion object {
+        /** 继承链上限：防止损坏的 JSON 造成死循环。 */
+        const val MAX_INHERITANCE_DEPTH = 5
+    }
 
     private fun writeAtomically(file: Path, body: String) {
         val parent = file.toAbsolutePath().parent ?: return

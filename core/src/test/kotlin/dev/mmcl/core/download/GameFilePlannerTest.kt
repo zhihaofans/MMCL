@@ -91,6 +91,23 @@ class GameFilePlannerTest {
     }
 
     @Test
+    fun `只有 name+url 的 Maven 库也会被规划`() {
+        val mavenOnly = Library(name = "net.fabricmc:fabric-loader:0.20.1", url = "https://maven.fabricmc.net/")
+
+        val plan = GameFilePlanner.plan(detail(mavenOnly), OperatingSystem.MACOS, Architecture.ARM64)
+
+        val file = plan.files.single { it.relativePath.contains("fabric-loader") }
+        assertEquals(
+            "libraries/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar",
+            file.relativePath,
+        )
+        assertEquals(
+            "https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar",
+            file.url,
+        )
+    }
+
+    @Test
     fun `没有规则的库会下载`() {
         val plan = GameFilePlanner.plan(detail(library("com.example:always:1.0")), OperatingSystem.LINUX, Architecture.ARM64)
 

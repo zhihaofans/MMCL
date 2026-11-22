@@ -2,6 +2,7 @@ package dev.mmcl.core.launch
 
 import dev.mmcl.api.Architecture
 import dev.mmcl.api.OperatingSystem
+import dev.mmcl.core.version.Library
 import dev.mmcl.core.version.VersionDetail
 import java.io.File
 import java.nio.file.Path
@@ -65,6 +66,29 @@ class LaunchCommandBuilderTest {
         assertEquals("1.21.8", args[args.indexOf("--version") + 1])
         assertEquals("17", args[args.indexOf("--assetIndex") + 1])
         assertEquals(instanceDir.toString(), args[args.indexOf("--gameDir") + 1])
+    }
+
+    @Test
+    fun `加载器版本使用根版本的客户端 JAR`() {
+        val loaderDetail =
+            detail().copy(
+                id = "fabric-loader-0.20.1-26.3",
+                inheritsFrom = "26.3",
+                rootId = "26.3",
+                mainClass = "net.fabricmc.loader.impl.launch.knot.KnotClient",
+                libraries = listOf(Library(name = "net.fabricmc:fabric-loader:0.20.1", url = "https://maven.fabricmc.net/")),
+            )
+
+        val command = LaunchCommandBuilder.build(request(loaderDetail))
+        val classpath = command.classpath.split(File.pathSeparatorChar)
+
+        assertTrue(classpath.contains(sharedRoot.resolve("versions/26.3/26.3.jar").toString()))
+        assertTrue(
+            classpath.contains(
+                sharedRoot.resolve("libraries/net/fabricmc/fabric-loader/0.20.1/fabric-loader-0.20.1.jar").toString(),
+            ),
+        )
+        assertTrue(command.arguments.contains("net.fabricmc.loader.impl.launch.knot.KnotClient"))
     }
 
     @Test

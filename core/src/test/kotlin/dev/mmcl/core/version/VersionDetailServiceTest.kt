@@ -39,6 +39,12 @@ class VersionDetailServiceTest {
 
     private fun detailFile(): Path = dir.resolve("versions").resolve("1.21.8").resolve("1.21.8.json")
 
+    private fun writeDetail(versionId: String, body: String) {
+        val file = dir.resolve("versions").resolve(versionId).resolve("$versionId.json")
+        Files.createDirectories(file.parent)
+        Files.writeString(file, body)
+    }
+
     private fun service(transport: HttpTransport): VersionDetailService =
         VersionDetailService(dir.resolve("versions"), transport, logger)
 
@@ -87,6 +93,59 @@ class VersionDetailServiceTest {
         service.load(entry, forceRefresh = true)
 
         assertEquals(2, transport.textCalls)
+    }
+
+    @Test
+    fun `加载器版本会合并父版本的 client 资源与参数`() = runTest {
+        writeDetail(
+            "26.3",
+            """
+            {"id":"26.3","type":"release","mainClass":"net.minecraft.client.main.Main",
+             "assets":"19",
+             "assetIndex":{"id":"19","url":"https://example.invalid/idx.json","sha1":"idx","size":1},
+             "downloads":{"client":{"url":"https://example.invalid/client.jar","sha1":"c","size":100}},
+             "libraries":[{"name":"com.example:parent:1.0","downloads":{"artifact":{"url":"https://example.invalid/p.jar","path":"com/example/parent/1.0/parent-1.0.jar"}}}],
+             "logging":{"client":{"file":{"url":"https://example.invalid/log.xml","sha1":"l","size":2}}},
+             "javaVersion":{"component":"java-runtime-epsilon","majorVersion":25},
+             "arguments":{"jvm":["-Xmx2G"]}}
+            """.trimIndent(),
+        )
+        writeDetail(
+            "fabric-loader-0.20.1-26.3",
+            """
+            {"id":"fabric-loader-0.20.1-26.3","inheritsFrom":"26.3",
+             "mainClass":"net.fabricmc.loader.impl.launch.knot.KnotClient",
+             "libraries":[{"name":"net.fabricmc:fabric-loader:0.20.1","url":"https://maven.fabricmc.net/"}],
+             "arguments":{"jvm":["-DFabricMcEmu= net.minecraft.client.main.Main "]}}
+            """.trimIndent(),
+        )
+
+        val detail = service(FakeTransport("")).load(VersionManifestEntry("fabric-loader-0.20.1-26.3", "release", ""))
+
+        assertEquals("net.fabricmc.loader.impl.launch.knot.KnotClient", detail.mainClass)
+        assertEquals("26.3", detail.rootId)
+        assertEquals("26.3", detail.baseVersionId)
+        assertEquals("https://example.invalid/client.jar", detail.client?.url)
+        assertEquals("19", detail.assetIndex?.id)
+        assertEquals(25, detail.javaVersion?.majorVersion)
+        assertTrue(detail.logging?.client?.file != null)
+        assertEquals(2, detail.libraries.size)
+        assertEquals(2, detail.arguments.jvm.size)
+    }
+
+    @Test
+    fun `父版本缺失时提示先安装基础版本`() = runTest {
+        writeDetail(
+            "fabric-loader-0.20.1-26.3",
+            """{"id":"fabric-loader-0.20.1-26.3","inheritsFrom":"26.3","mainClass":"KnotClient"}""",
+        )
+
+        val error =
+            assertFailsWith<VersionDetailException> {
+                service(FakeTransport("")).load(VersionManifestEntry("fabric-loader-0.20.1-26.3", "release", ""))
+            }
+
+        assertTrue(error.message!!.contains("先安装基础版本"))
     }
 
     @Test

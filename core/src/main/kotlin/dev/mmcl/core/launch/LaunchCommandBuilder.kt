@@ -2,6 +2,7 @@ package dev.mmcl.core.launch
 
 import dev.mmcl.core.download.GameFilePlanner
 import dev.mmcl.core.version.VersionDetail
+import dev.mmcl.core.version.resolvedArtifact
 import java.io.File
 import java.nio.file.Path
 
@@ -28,13 +29,15 @@ object LaunchCommandBuilder {
 
         val librariesDir = request.sharedRoot.resolve("libraries")
         val assetsDir = request.sharedRoot.resolve("assets")
-        val nativesDir = request.sharedRoot.resolve("versions").resolve(detail.id).resolve("natives")
-        val clientJar = request.sharedRoot.resolve("versions").resolve(detail.id).resolve("${detail.id}.jar")
+        // 加载器版本自己没有 client jar，文件在 root 版本目录下
+        val baseVersionId = detail.baseVersionId
+        val nativesDir = request.sharedRoot.resolve("versions").resolve(baseVersionId).resolve("natives")
+        val clientJar = request.sharedRoot.resolve("versions").resolve(baseVersionId).resolve("$baseVersionId.jar")
 
         val classpath =
             buildList {
                 GameFilePlanner.allowedLibraries(detail, request.os, request.arch)
-                    .mapNotNull { it.downloads.artifact }
+                    .mapNotNull { it.resolvedArtifact() }
                     .forEach { artifact ->
                         val relative = artifact.path?.takeIf { it.isNotBlank() }
                         if (relative != null) add(librariesDir.resolve(relative).toString())
