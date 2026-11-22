@@ -19,7 +19,27 @@
 
 ### 0.3.x — 插件生态（加载器／内容平台）
 
-- [ ] `loader-fabric`／`loader-forge`／`loader-neoforge`（**只针对最新正式版系列**；Quilt 是否单独立项另议）
+> 26.3 调研结论：Fabric 生态最大（Modrinth 10,799 项）且只需纯 JSON 合并；
+> NeoForge/Forge 必须跑 installer 的 processor 生成 patched client jar。
+> 接入顺序 **Fabric → NeoForge → Forge**；Quilt 不做（Loader 仍 beta、QSL 已停）。
+
+**加载器前置（core，先做）**
+
+- [ ] `inheritsFrom` 合并：libraries / arguments / mainClass / assetIndex / logging / client jar
+- [ ] classpath 支持父版本 client jar（现在固定 `versions/<id>/<id>.jar`，加载器版本没有该文件）
+- [ ] Maven 坐标库解析（Fabric profile 只有 `name`+`url`，没有 `downloads`）与空 URL 本地产物（Forge 的 patched client jar）
+- [ ] Java 进程执行器：processor 的临时目录、日志、超时、退出码隔离
+- [ ] `LoaderInstaller` API 重做：`listVersions` + `install` 返回 overlay/警告（0.x 允许，标 API-BREAK）
+- [ ] Java 25 前置检查（26.x 的 `javaVersion.majorVersion=25`，安装与启动前都要查）
+
+**加载器插件**
+
+- [ ] `loader-fabric`（先做）：26.3 profile 纯 JSON（7 个库、无 natives、无 processor），
+      补 loader 自身哈希；同时验证上面的 core 改造
+- [ ] `loader-neoforge`：先 spike 验证 patched client jar 进 classpath；
+      然后 installer processor、`-DlibraryDirectory`、`--fml.*` 参数
+- [ ] `loader-forge`：复用 processor 引擎；promotions（files 主路径 + Maven 兜底）、
+      83 MB 本地产物、`--launchTarget forge_client`
 - [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
 - [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
 
@@ -65,7 +85,7 @@
 
 - [ ] Windows 注册表／Linux 常见目录的 JDK 探测 —— 要不要做；**若两版内未定，默认不做**
 - [ ] Apple Developer 账号与 Developer ID 证书 —— 等用户提供，用于签名与公证
-- [ ] Quilt／OptiFine／Legacy Fabric 是否进入官方插件集（默认可只做「最新系列」主流三加载器）
+- [ ] OptiFine／Legacy Fabric 是否进入官方插件集（Quilt 已定不做）
 - [ ] CurseForge「阻止第三方下载」条目的策略（跳过／官方页打开／自备 API 密钥）
 
 ## 想法（未承诺）
