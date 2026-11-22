@@ -7,6 +7,8 @@
 
 ### 新增
 
+- `loader-fabric` 插件：查询 Fabric meta（官方优先、BMCLAPI 回退）、选 stable loader、
+  校验 profile 并返回 overlay 版本 JSON；安装编排与写盘仍由启动器负责
 - 实例「参数」对话框支持重命名：只改展示名，实例 id 与目录不变
 - 游戏页「新建实例」：扫描 `versions/` 里已安装的版本创建实例（可选名称），
   不再只能靠首次启动向导创建

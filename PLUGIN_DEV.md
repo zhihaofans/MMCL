@@ -494,7 +494,7 @@ cp build/plugins/*.jar "$HOME/Library/Application Support/MMCL/plugins/"
 
 ### 10.2 非内置插件随 Release 分发
 
-推版本 tag 时，CI 会执行 `./gradlew packagePlugins verifyPluginVersions`，把 8 个**非内置**插件 JAR
+推版本 tag 时，CI 会执行 `./gradlew packagePlugins verifyPluginVersions`，把 9 个**非内置**插件 JAR
 和 `SHA256SUMS` 上传到该 tag 的 GitHub Release（发布任务还会把全部资产的 SHA-256 写进 Release 正文）；内置三个（auth-offline / theme-sakura / ui-about）
 随 app 打包，不单独发布。用户下载后放进 `<数据目录>/plugins/` 即可。
 

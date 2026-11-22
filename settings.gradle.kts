@@ -27,6 +27,7 @@ include(
     ":plugins:auth-microsoft",
     ":plugins:auth-offline",
     ":plugins:hello",
+    ":plugins:loader-fabric",
     ":plugins:ui-about",
     ":plugins:theme-sakura",
     ":plugins:runtime-adoptium",
