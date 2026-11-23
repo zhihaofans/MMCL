@@ -10,7 +10,8 @@ import java.util.Properties
 /**
  * 繁體中文語言包（台灣用語），演示 `LocalePack` 擴充點。
  *
- * 只涵蓋啟動器目前的 key；缺的 key 由 `app` 的回退鏈接手機：`zh-TW → 內建 zh-CN → 內建 en`。
+ * 涵蓋啟動器目前全部內建 key（由 `verifyLocaleKeys` 保證）；未來新增 key 若還沒翻譯，
+ * 仍由 `app` 的回退鏈接手機：`zh-TW → 內建 zh-CN → 內建 en`。
  * 翻譯放在 `resources/i18n/strings_zh_TW.properties`，方便非開發者直接改文字。
  */
 class TraditionalChinesePack : LocalePack {
@@ -36,7 +37,7 @@ class TraditionalChinesePack : LocalePack {
 /** 註冊語言包的插件入口。 */
 class TraditionalChineseLocalePlugin : Plugin {
     override val id: String = "dev.mmcl.locale.zh_tw"
-    override val version: String = "0.0.1"
+    override val version: String = "0.0.2"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String = "繁體中文"
     override val author: String = "MMCL"

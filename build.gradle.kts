@@ -94,3 +94,44 @@ val verifyPluginVersions =
     }
 
 tasks.named("packagePlugins") { dependsOn(verifyPluginVersions) }
+
+
+// 语言包一致性：en / zh-CN 与 zh-TW 的 key 与占位符必须完全一致
+val verifyLocaleKeys =
+    tasks.register("verifyLocaleKeys") {
+        group = "verification"
+        description = "校验内置语言包与 zh-TW 的 key、占位符一致"
+        doLast {
+            fun readLocale(path: java.io.File): Map<String, String> {
+                val properties = java.util.Properties()
+                path.inputStream().use { stream ->
+                    properties.load(java.io.InputStreamReader(stream, Charsets.UTF_8))
+                }
+                return properties.stringPropertyNames().associateWith { properties.getProperty(it) }
+            }
+            val en = readLocale(rootDir.resolve("app/src/main/resources/i18n/strings_en.properties"))
+            val zh = readLocale(rootDir.resolve("app/src/main/resources/i18n/strings_zh_CN.properties"))
+            val tw = readLocale(rootDir.resolve("plugins/locale-zh-tw/src/main/resources/i18n/strings_zh_TW.properties"))
+            val problems = mutableListOf<String>()
+            fun compare(name: String, candidate: Map<String, String>) {
+                (zh.keys - candidate.keys).sorted().forEach { problems += "$name 缺少 key：$it" }
+                (candidate.keys - zh.keys).sorted().forEach { problems += "$name 多出 key：$it" }
+            }
+            compare("en", en)
+            compare("zh-TW", tw)
+            val placeholder = Regex("""%(\d+)\$[sd]""")
+            for ((key, value) in zh) {
+                for ((name, candidate) in listOf("en" to en, "zh-TW" to tw)) {
+                    val other = candidate[key] ?: continue
+                    val expected = placeholder.findAll(value).map { it.value }.toSet()
+                    val actual = placeholder.findAll(other).map { it.value }.toSet()
+                    if (expected != actual) problems += "$name 的 $key 占位符不一致"
+                }
+            }
+            if (problems.isNotEmpty()) {
+                throw GradleException("语言包不一致：\n" + problems.joinToString("\n"))
+            }
+        }
+    }
+
+tasks.named("packagePlugins") { dependsOn(verifyLocaleKeys) }

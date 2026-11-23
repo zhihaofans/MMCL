@@ -260,6 +260,7 @@ fun main(args: Array<String>) {
                 downloads = downloads,
                 loaderInstallers = { manager.services.getAll(LoaderInstaller::class) },
                 loaderStore = loaderStore,
+                directoryLauncher = DirectoryLauncher(launcher.os),
             ),
             DownloadsPage(
                 manifests = manifestService,

@@ -46,6 +46,15 @@ class TraditionalChinesePackTest {
         val plugin = TraditionalChineseLocalePlugin()
 
         assertEquals("dev.mmcl.locale.zh_tw", plugin.id)
-        assertEquals("0.0.1", plugin.version)
+        assertEquals("0.0.2", plugin.version)
+    }
+
+    @Test
+    fun `覆盖全部内建文案`() {
+        val strings = pack.strings()
+
+        assertTrue(strings.size >= 280)
+        assertEquals("模組", strings["instances.folder.mods"])
+        assertEquals("建立執行個體", strings["instances.create"])
     }
 }

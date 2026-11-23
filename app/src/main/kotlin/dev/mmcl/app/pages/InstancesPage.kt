@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +60,7 @@ import dev.mmcl.core.java.JavaRuntimeSources
 import dev.mmcl.core.launch.LaunchRequest
 import dev.mmcl.core.launch.LaunchSession
 import dev.mmcl.core.launch.MinecraftLauncher
+import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.version.NoVersionSourceException
 import dev.mmcl.core.version.VersionDetailService
 import dev.mmcl.app.version.isLaunchable
@@ -112,6 +115,7 @@ class InstancesPage(
     private val downloads: DownloadsService? = null,
     private val loaderInstallers: () -> List<LoaderInstaller> = { emptyList() },
     private val loaderStore: LoaderInstallStore? = null,
+    private val directoryLauncher: DirectoryLauncher? = null,
 ) : UiPage {
     override val id: String = INSTANCES_PAGE_ID
     override val title: String = "游戏"
@@ -404,6 +408,22 @@ class InstancesPage(
                 .filter { id -> manifest == null || isLaunchable(id, manifest) }
         }
 
+        fun openInstanceDir(instance: Instance, subdirectory: String?) {
+            val launcher = directoryLauncher
+            val root = launchContext?.sharedRoot
+            if (launcher == null || root == null) {
+                launchStatus = strings.t("instances.open_dir.unavailable")
+                return
+            }
+            val dir =
+                root.resolve("instances")
+                    .resolve(instance.id)
+                    .let { if (subdirectory != null) it.resolve(subdirectory) else it }
+            launcher.open(dir).onFailure {
+                launchStatus = strings.t("instances.open_dir.failed", it.message ?: it::class.simpleName ?: "")
+            }
+        }
+
         fun createInstanceNow(baseVersionId: String) {
             val name = createName.trim().ifBlank { null }
             val loaderId = createLoaderId
@@ -534,6 +554,7 @@ class InstancesPage(
                             onLaunch = { launchInstance(instance) },
                             onRepair = { repairInstance(instance) },
                             onEditParams = { editingParams = instance },
+                            onOpenSubdirectory = { sub -> openInstanceDir(instance, sub) },
                             onDelete = { pendingDelete = instance },
                         )
                     }
@@ -738,6 +759,7 @@ internal fun InstanceCard(
     onLaunch: () -> Unit,
     onRepair: (() -> Unit)? = null,
     onEditParams: (() -> Unit)? = null,
+    onOpenSubdirectory: ((String?) -> Unit)? = null,
     onDelete: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -770,6 +792,38 @@ internal fun InstanceCard(
         }
         onRepair?.let { TextButton(onClick = it, enabled = !running) { Text(strings.t("instances.action.repair")) } }
         onEditParams?.let { TextButton(onClick = it, enabled = !running) { Text(strings.t("instances.action.params")) } }
+        onOpenSubdirectory?.let { open ->
+            var folderMenuOpen by remember { mutableStateOf(false) }
+            Box {
+                TextButton(onClick = { folderMenuOpen = true }, enabled = !running) {
+                    Text(strings.t("instances.action.folder"))
+                }
+                DropdownMenu(expanded = folderMenuOpen, onDismissRequest = { folderMenuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(strings.t("instances.action.folder.game")) },
+                        onClick = {
+                            folderMenuOpen = false
+                            open(null)
+                        },
+                    )
+                    // 显示名跟语言走，实际打开的仍是真实目录名
+                    listOf(
+                        "mods" to "instances.folder.mods",
+                        "resourcepacks" to "instances.folder.resourcepacks",
+                        "shaderpacks" to "instances.folder.shaderpacks",
+                        "saves" to "instances.folder.saves",
+                    ).forEach { (directory, labelKey) ->
+                        DropdownMenuItem(
+                            text = { Text(strings.t(labelKey)) },
+                            onClick = {
+                                folderMenuOpen = false
+                                open(directory)
+                            },
+                        )
+                    }
+                }
+            }
+        }
         TextButton(onClick = onDelete, enabled = !running) { Text(strings.t("instances.action.delete")) }
     }
 }

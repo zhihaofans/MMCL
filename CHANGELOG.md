@@ -7,6 +7,10 @@
 
 ### 新增
 
+- `locale-zh-tw` 插件补全为 287 条台湾用语翻译（原仅 55 条），新增 `verifyLocaleKeys`
+  校验 en / zh-CN / zh-TW 的 key 与占位符一致（`packagePlugins` 依赖）
+- 实例卡片「目录」菜单：打开游戏目录 / mods / resourcepacks / shaderpacks / saves
+  （目录不存在时自动创建）
 - `UrlMirror` 能力：镜像插件可改写下载地址；`source-bmclapi` 注册 Fabric Maven → BMCLAPI
   （实测 JAR 与官方字节一致；BMCLAPI 不代理 `.sha1`，哈希仍取官方）
 - `loader-fabric` 库归一化：写入 `downloads.artifact`（含 sha1/size），缺 sha1 时取官方 `.sha1`，
@@ -26,6 +30,9 @@
 
 ### 修复
 
+- i18n 补齐与统一：补上 `instances.java.auto_prepare`（缺失时界面会显示原始 key）；
+  三种语言统一「退出码 / 模组 / 认证插件 / 资料夹」等说法；英文把 `ships endpoints` 改为
+  `does not include any download sources`；zh-TW 按台湾用语打磨 15 处
 - macOS 原生标题栏没有跟随主题：系统浅色 + 深色主题时标题是黑字、看不清。
   实测 JDK 27 不支持 `apple.awt.windowAppearance`，改为隐藏原生标题
   （`apple.awt.windowTitleVisible=false`），由顶栏用 Compose/主题色绘制「MMCL vX.Y.Z」
