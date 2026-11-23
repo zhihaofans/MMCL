@@ -502,7 +502,7 @@ app\build\compose\binaries\main\app\MMCL\
 发布前会校验 **tag 与 `gradle.properties` 的 `version` 一致**（`v` 前缀忽略），不一致直接失败；
 手动发布 checkout 的是 tag 指向的提交，不是分支头。
 
-版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.6`）。CI 统一安装 JDK 27，
+版本号说明：三个平台都输出 `gradle.properties` 里的真实版本（例如 `0.0.7`）。CI 统一安装 JDK 27，
 编译与 jpackage 同一个 JDK，不做版本映射。
 
 `windows { }` 里的 `upgradeUuid` 已经固定，**发布后不要改**，否则 MSI 会把新版本当成另一个产品，
