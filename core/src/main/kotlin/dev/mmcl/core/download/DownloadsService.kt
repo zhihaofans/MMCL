@@ -69,6 +69,7 @@ class DownloadsService(
 ) {
     private val lock = Any()
     private val tasksById = LinkedHashMap<String, DownloadTask>()
+    private val entriesById = mutableMapOf<String, VersionManifestEntry>()
     private val jobs = ConcurrentHashMap<String, Job>()
     private val queue = Channel<QueuedTask>(Channel.UNLIMITED)
     private val cancelled = mutableSetOf<String>()
@@ -103,6 +104,7 @@ class DownloadsService(
             val existing = tasksById[entry.id]
             if (existing?.state?.isActive == true) return existing
             cancelled -= entry.id
+            entriesById[entry.id] = entry
             val task = DownloadTask(versionId = entry.id, state = DownloadTaskState.QUEUED)
             tasksById[entry.id] = task
             publish()
@@ -122,6 +124,48 @@ class DownloadsService(
         }
         jobs.remove(versionId)?.cancel()
         logger.info("已请求取消下载：{}", versionId)
+    }
+
+    /**
+     * 重试失败/取消的任务；活动任务不受影响。
+     *
+     * @return 重试后的任务快照；没有可重试的任务时返回已有快照或 `null`
+     */
+    fun retry(versionId: String): DownloadTask? {
+        val entry: VersionManifestEntry
+        val task: DownloadTask
+        synchronized(lock) {
+            task = tasksById[versionId] ?: return null
+            if (task.state.isActive) return task
+            entry = entriesById[versionId] ?: return null
+        }
+        return enqueue(entry, forceRefresh = task.state == DownloadTaskState.FAILED)
+    }
+
+    /** 清理一个已结束的任务；活动任务需先取消。 */
+    fun remove(versionId: String) {
+        synchronized(lock) {
+            val task = tasksById[versionId] ?: return
+            if (task.state.isActive) return
+            tasksById.remove(versionId)
+            entriesById.remove(versionId)
+            publish()
+        }
+    }
+
+    /** 清理全部已结束的任务。 */
+    fun clearFinished() {
+        synchronized(lock) {
+            val iterator = tasksById.entries.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (!entry.value.state.isActive) {
+                    entriesById.remove(entry.key)
+                    iterator.remove()
+                }
+            }
+            publish()
+        }
     }
 
     private suspend fun runTask(entry: VersionManifestEntry, forceRefresh: Boolean) {

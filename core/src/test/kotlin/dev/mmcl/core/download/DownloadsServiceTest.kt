@@ -141,4 +141,58 @@ class DownloadsServiceTest {
         assertEquals(listOf("26.3"), fake.started)
         assertEquals(DownloadTaskState.CANCELLED, service.tasks.value.first { it.versionId == "26.2" }.state)
     }
+
+    @Test
+    fun `失败任务可以重试`() = runTest {
+        val fake = FakeInstaller()
+        fake.failure = IllegalStateException("boom")
+        val service = DownloadsService(fake, backgroundScope, logger)
+
+        service.enqueue(entry("26.3"))
+        runCurrent()
+        fake.gate("26.3").complete(Unit)
+        advanceUntilIdle()
+        runCurrent()
+        assertEquals(DownloadTaskState.FAILED, service.tasks.value.single().state)
+
+        fake.failure = null
+        service.retry("26.3")
+        advanceUntilIdle()
+        runCurrent()
+
+        assertEquals(DownloadTaskState.COMPLETED, service.tasks.value.single().state)
+        assertEquals(listOf("26.3", "26.3"), fake.started)
+    }
+
+    @Test
+    fun `活动任务不能直接清理`() = runTest {
+        val fake = FakeInstaller()
+        val service = DownloadsService(fake, backgroundScope, logger)
+
+        service.enqueue(entry("26.3"))
+        runCurrent()
+        service.remove("26.3")
+        assertEquals(1, service.tasks.value.size)
+
+        service.cancel("26.3")
+        advanceUntilIdle()
+        service.remove("26.3")
+        assertTrue(service.tasks.value.isEmpty())
+    }
+
+    @Test
+    fun `清理已完成任务`() = runTest {
+        val fake = FakeInstaller()
+        val service = DownloadsService(fake, backgroundScope, logger)
+
+        service.enqueue(entry("26.3"))
+        runCurrent()
+        fake.gate("26.3").complete(Unit)
+        advanceUntilIdle()
+        runCurrent()
+
+        assertTrue(service.tasks.value.single().state == DownloadTaskState.COMPLETED)
+        service.clearFinished()
+        assertTrue(service.tasks.value.isEmpty())
+    }
 }

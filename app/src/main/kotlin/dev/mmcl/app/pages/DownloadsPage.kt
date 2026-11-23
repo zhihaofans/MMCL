@@ -146,6 +146,14 @@ class DownloadsPage(
                     modifier = Modifier.padding(horizontal = MmclSpacing.m),
                 )
             }
+            DownloadListSection(
+                tasks = tasks,
+                onCancel = { downloads?.cancel(it) },
+                onRetry = { downloads?.retry(it) },
+                onRemove = { downloads?.remove(it) },
+                onClearFinished = { downloads?.clearFinished() },
+            )
+
             when (val current = state) {
                 ManifestUiState.Idle ->
                     if (hasSource) {
@@ -272,6 +280,76 @@ class DownloadsPage(
 
         /** 页面 id，供其他页面跳转。 */
         const val PAGE_ID: String = "dev.mmcl.page.downloads"
+    }
+}
+
+/** 下载列表：所有任务的集中视图，支持取消/重试/清理。 */
+@Composable
+private fun DownloadListSection(
+    tasks: List<DownloadTask>,
+    onCancel: (String) -> Unit,
+    onRetry: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onClearFinished: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    val hasFinished = tasks.any { !it.state.isActive }
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                .padding(MmclSpacing.l),
+        verticalArrangement = Arrangement.spacedBy(MmclSpacing.s),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = strings.t("downloads.list.title"), style = MaterialTheme.typography.titleSmall)
+            Spacer(modifier = Modifier.weight(1f))
+            if (hasFinished) {
+                TextButton(onClick = onClearFinished) {
+                    Text(strings.t("downloads.list.clear"), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+        if (tasks.isEmpty()) {
+            Text(
+                text = strings.t("downloads.list.empty"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            tasks.forEach { task ->
+                Column(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+                            .padding(MmclSpacing.s),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = task.versionId, style = MaterialTheme.typography.bodyLarge)
+                            TaskLine(task)
+                        }
+                        if (task.state.isActive) {
+                            TextButton(onClick = { onCancel(task.versionId) }) {
+                                Text(strings.t("downloads.cancel"))
+                            }
+                        } else {
+                            if (task.state == DownloadTaskState.FAILED || task.state == DownloadTaskState.CANCELLED) {
+                                TextButton(onClick = { onRetry(task.versionId) }) {
+                                    Text(strings.t("downloads.retry"))
+                                }
+                            }
+                            TextButton(onClick = { onRemove(task.versionId) }) {
+                                Text(strings.t("downloads.list.remove"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
