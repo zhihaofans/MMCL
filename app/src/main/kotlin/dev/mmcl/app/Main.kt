@@ -32,6 +32,7 @@ import dev.mmcl.app.pages.InstancesPage
 import dev.mmcl.app.pages.PluginFolder
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
+import dev.mmcl.app.pages.StoragePage
 import dev.mmcl.app.shell.AppRoot
 import dev.mmcl.app.shell.AppShell
 import dev.mmcl.app.shell.SavedWindowState
@@ -41,6 +42,7 @@ import dev.mmcl.app.wizard.WIZARD_DONE_KEY
 import dev.mmcl.app.appearance.AppearanceStore
 import dev.mmcl.app.appearance.SkinLoader
 import dev.mmcl.app.auth.activeAccount
+import dev.mmcl.app.java.JAVA_POLICY_BUNDLED
 import dev.mmcl.app.java.JAVA_POLICY_KEY
 import dev.mmcl.app.loader.LoaderInstallStore
 import dev.mmcl.api.capability.LoaderInstaller
@@ -55,6 +57,7 @@ import dev.mmcl.app.shell.toSavedWindowState
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.builtin.BuiltinPluginSync
 import dev.mmcl.core.platform.DirectoryLauncher
+import dev.mmcl.core.storage.StorageService
 import dev.mmcl.core.platform.Platforms
 import dev.mmcl.core.plugin.PluginManager
 import dev.mmcl.core.plugin.PluginState
@@ -221,6 +224,8 @@ fun main(args: Array<String>) {
             arch = launcher.arch,
         )
     val gameLauncher = MinecraftLauncher(manager.events, logger, logFile = { launcher.dataDir.resolve("logs").resolve("latest.log") })
+    val runningInstanceId = mutableStateOf<String?>(null)
+    val storageService = StorageService(launcher.dataDir, logger) { instanceService.list() }
     val launchContext =
         LaunchContext(
             sharedRoot = launcher.dataDir,
@@ -261,6 +266,7 @@ fun main(args: Array<String>) {
                 loaderInstallers = { manager.services.getAll(LoaderInstaller::class) },
                 loaderStore = loaderStore,
                 directoryLauncher = DirectoryLauncher(launcher.os),
+                onRunningInstanceChanged = { runningInstanceId.value = it },
             ),
             DownloadsPage(
                 manifests = manifestService,
@@ -269,6 +275,21 @@ fun main(args: Array<String>) {
                 intent = intent,
                 autoLoad = true,
                 pluginFolder = pluginFolder,
+            ),
+            StoragePage(
+                storage = storageService,
+                instanceService = instanceService,
+                runningInstanceProvider = { runningInstanceId.value },
+                protectedRuntimes = {
+                    if (javaRuntimePolicy(settings.getString(JAVA_POLICY_KEY)) == JAVA_POLICY_BUNDLED) {
+                        javaDetector
+                            .bundledMajors()
+                            .mapNotNull { major -> javaDetector.detectBundled(major)?.executable?.parent?.parent }
+                            .toSet()
+                    } else {
+                        emptySet()
+                    }
+                },
             ),
             PluginsPage(
                 plugins = plugins,

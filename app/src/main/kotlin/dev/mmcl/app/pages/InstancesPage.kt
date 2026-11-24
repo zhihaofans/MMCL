@@ -116,6 +116,7 @@ class InstancesPage(
     private val loaderInstallers: () -> List<LoaderInstaller> = { emptyList() },
     private val loaderStore: LoaderInstallStore? = null,
     private val directoryLauncher: DirectoryLauncher? = null,
+    private val onRunningInstanceChanged: (String?) -> Unit = {},
 ) : UiPage {
     override val id: String = INSTANCES_PAGE_ID
     override val title: String = "游戏"
@@ -350,11 +351,13 @@ class InstancesPage(
                     logOwnerName = instance.name
                     runningSession = session
                     runningInstanceId = instance.id
+                    onRunningInstanceChanged(instance.id)
                     launchStatus = strings.t("instances.launch.started", instance.name, session.pid)
                 } catch (t: Throwable) {
                     launchStatus = strings.t("instances.launch.failed", t.message ?: t::class.simpleName)
                     runningSession = null
                     runningInstanceId = null
+                    onRunningInstanceChanged(null)
                 } finally {
                     launchInFlight = false
                 }
@@ -387,6 +390,7 @@ class InstancesPage(
             launchStatus = strings.t("instances.launch.exited", exitedCode)
             runningSession = null
             runningInstanceId = null
+            onRunningInstanceChanged(null)
         }
 
 

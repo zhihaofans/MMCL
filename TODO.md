@@ -28,8 +28,6 @@
 
 - [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
 - [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
-- [ ] 存储空间管理：统计并清理实例、加载器版本、已下载资源（libraries / assets）、
-      已下载游戏版本；**先定放插件还是内置**（若做插件，需要 core 暴露扫描/删除接口）
 
 **后续加载器（有需求再做）**
 
