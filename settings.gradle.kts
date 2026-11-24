@@ -26,6 +26,7 @@ include(
     ":app",
     ":plugins:auth-microsoft",
     ":plugins:auth-offline",
+    ":plugins:download-modrinth",
     ":plugins:hello",
     ":plugins:loader-fabric",
     ":plugins:ui-about",

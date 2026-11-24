@@ -201,6 +201,7 @@ sources.forEach { it.search("sodium") }
 | `DownloadSource` | 内容下载源 |
 | `LoaderInstaller` | 游戏加载器安装 |
 | `UrlMirror` | 下载地址镜像改写（镜像插件注册） |
+| `ContentSource` | 内容搜索/版本/文件地址（Modrinth 等） |
 | `UiPage` | 完整页面（导航栏追加一项） |
 | `UiWidget` | 插槽小部件（顶栏 / 状态栏 / 首页卡片），见下 |
 | `VersionManifestSource` | 版本清单来源（官方 / 镜像 / 本地），**应用内不内置任何实现** |

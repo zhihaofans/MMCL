@@ -26,6 +26,7 @@ import dev.mmcl.api.ui.LauncherTheme
 import dev.mmcl.api.ui.LocalLauncherLocale
 import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiWidget
+import dev.mmcl.app.pages.ContentPage
 import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.InstancesPage
@@ -45,6 +46,7 @@ import dev.mmcl.app.auth.activeAccount
 import dev.mmcl.app.java.JAVA_POLICY_BUNDLED
 import dev.mmcl.app.java.JAVA_POLICY_KEY
 import dev.mmcl.app.loader.LoaderInstallStore
+import dev.mmcl.api.capability.ContentSource
 import dev.mmcl.api.capability.LoaderInstaller
 import dev.mmcl.app.java.javaRuntimePolicy
 import dev.mmcl.app.appearance.loadBackgroundBitmap
@@ -56,6 +58,7 @@ import dev.mmcl.app.shell.minimumWindowSize
 import dev.mmcl.app.shell.toSavedWindowState
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.builtin.BuiltinPluginSync
+import dev.mmcl.core.content.ContentInstaller
 import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.storage.StorageService
 import dev.mmcl.core.platform.Platforms
@@ -164,17 +167,18 @@ fun main(args: Array<String>) {
             instancesDir = launcher.dataDir.resolve("instances"),
             logger = logger,
         )
+    val fileDownloader =
+        FileDownloader(
+            transport,
+            logger,
+            maxBytesPerSecond = {
+                (settings.getString(SettingsPage.LIMIT_KEY)?.toLongOrNull() ?: 0L) * 1024L
+            },
+        )
     val installer =
         GameInstaller(
             detailService = detailService,
-            downloader =
-                FileDownloader(
-                    transport,
-                    logger,
-                    maxBytesPerSecond = {
-                        (settings.getString(SettingsPage.LIMIT_KEY)?.toLongOrNull() ?: 0L) * 1024L
-                    },
-                ),
+            downloader = fileDownloader,
             root = launcher.dataDir,
             os = launcher.os,
             arch = launcher.arch,
@@ -226,6 +230,7 @@ fun main(args: Array<String>) {
     val gameLauncher = MinecraftLauncher(manager.events, logger, logFile = { launcher.dataDir.resolve("logs").resolve("latest.log") })
     val runningInstanceId = mutableStateOf<String?>(null)
     val storageService = StorageService(launcher.dataDir, logger) { instanceService.list() }
+    val contentInstaller = ContentInstaller(fileDownloader, logger)
     val launchContext =
         LaunchContext(
             sharedRoot = launcher.dataDir,
@@ -275,6 +280,12 @@ fun main(args: Array<String>) {
                 intent = intent,
                 autoLoad = true,
                 pluginFolder = pluginFolder,
+            ),
+            ContentPage(
+                instances = instanceService,
+                sources = { manager.services.getAll(ContentSource::class) },
+                installer = contentInstaller,
+                dataDir = launcher.dataDir,
             ),
             StoragePage(
                 storage = storageService,

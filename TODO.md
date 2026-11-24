@@ -26,7 +26,7 @@
 
 **内容管理（优先）**
 
-- [ ] `download-modrinth` + `download-curseforge`：按加载器＋游戏版本搜 mod／整合包
+- [ ] `download-curseforge`：按加载器＋游戏版本搜 mod／整合包（Modrinth 已接入）
 - [ ] 资源包／光影包安装入口（至少 Modrinth；CurseForge 视 API）
 
 **后续加载器（有需求再做）**

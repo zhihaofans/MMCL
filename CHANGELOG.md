@@ -7,6 +7,11 @@
 
 ### 新增
 
+- 内容页 + `download-modrinth` 插件（0.0.1）：按实例的加载器与游戏版本搜索 Modrinth，
+  列版本、安装 mod 到实例 `mods/`，自动解析必需依赖（如 Fabric API），已存在文件不覆盖
+- `ContentSource` 能力：内容插件只返回搜索/版本/文件地址与哈希，下载与依赖解析由 core 负责
+- `Plugin.minLauncherVersion`：插件可声明最低启动器版本，低于要求时拒绝加载（`INCOMPATIBLE_LAUNCHER`）；
+  `download-modrinth` 要求 MMCL ≥ 0.0.8
 - 存储页：统计实例、游戏版本、加载器版本、Java 运行时与共享资源（libraries/assets/cache/logs/plugins）
   的占用；可删除未使用内容，删除前检查实例引用、版本继承、游戏运行状态与受保护运行时，
   并显示将释放的空间；支持清理缓存
