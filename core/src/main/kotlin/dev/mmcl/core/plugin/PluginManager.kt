@@ -110,6 +110,23 @@ class PluginManager(
                 required == 0 ->
                     logger.warn("插件 {} 未声明 API 级别（按兼容处理），建议升级到声明 apiLevel 的版本", id)
             }
+
+            val minLauncher = descriptor.plugin.minLauncherVersion?.trim()?.takeIf { it.isNotEmpty() }
+            if (
+                id !in incompatible &&
+                minLauncher != null &&
+                loader.compareVersions(launcher.version, minLauncher) < 0
+            ) {
+                incompatible += id
+                loaded[id] = LoadedPlugin(descriptor, PluginState.INCOMPATIBLE_LAUNCHER)
+                logger.error(
+                    "插件 {} 需要启动器 ≥ {}，当前是 {}，已拒绝加载（请更新启动器）",
+                    id,
+                    minLauncher,
+                    launcher.version,
+                )
+                events.publish(PluginFailed(id, "launcher"))
+            }
         }
 
         // 依赖了被拒绝插件的，按缺失依赖处理，避免半启动
@@ -126,6 +143,7 @@ class PluginManager(
         for (id in result.order) {
             val descriptor = byId.getValue(id)
             if (loaded[id]?.state == PluginState.INCOMPATIBLE_API) continue
+            if (loaded[id]?.state == PluginState.INCOMPATIBLE_LAUNCHER) continue
             if (loaded[id]?.state == PluginState.MISSING_DEP) continue
             try {
                 descriptor.plugin.onLoad(createContext(descriptor))

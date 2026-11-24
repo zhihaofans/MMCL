@@ -244,4 +244,26 @@ class PluginManagerTest {
         assertEquals(1, second.disableCount)
         assertTrue(manager.plugins.all { it.state == PluginState.DISABLED })
     }
+
+    @Test
+    fun `要求更高启动器版本的插件被拒绝加载`() {
+        val plugin = FakePlugin("needs-new-launcher", minLauncherVersion = "0.1.0")
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(plugin)))
+
+        assertEquals(PluginState.INCOMPATIBLE_LAUNCHER, manager.plugins.single().state)
+        assertEquals(0, plugin.loadCount)
+    }
+
+    @Test
+    fun `满足最低启动器版本时正常加载`() {
+        val plugin = FakePlugin("needs-current-launcher", minLauncherVersion = "0.0.1")
+        val manager = PluginManager(launcherInfo(), logger)
+
+        manager.start(listOf(descriptor(plugin)))
+
+        assertEquals(PluginState.ENABLED, manager.plugins.single().state)
+        assertEquals(1, plugin.loadCount)
+    }
 }

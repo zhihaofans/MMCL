@@ -157,6 +157,15 @@ private fun PluginRow(plugin: LoadedPlugin, disabled: Boolean = false, onToggle:
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            plugin.descriptor.plugin.minLauncherVersion
+                ?.takeIf { it.isNotBlank() && plugin.state == PluginState.INCOMPATIBLE_LAUNCHER }
+                ?.let { required ->
+                    Text(
+                        text = strings.t("plugins.requires_launcher", required),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             if (integrity != null) {
                 Text(
                     text =
@@ -205,14 +214,16 @@ private fun StateChip(state: PluginState, onClick: (() -> Unit)? = null) {
         when (state) {
             PluginState.ENABLED -> MaterialTheme.colorScheme.secondaryContainer
             PluginState.FAILED -> MaterialTheme.colorScheme.errorContainer
-            PluginState.MISSING_DEP, PluginState.CYCLE -> MaterialTheme.colorScheme.tertiaryContainer
+            PluginState.MISSING_DEP, PluginState.CYCLE, PluginState.INCOMPATIBLE_LAUNCHER ->
+                MaterialTheme.colorScheme.tertiaryContainer
             else -> MaterialTheme.colorScheme.surfaceVariant
         }
     val content =
         when (state) {
             PluginState.ENABLED -> MaterialTheme.colorScheme.onSecondaryContainer
             PluginState.FAILED -> MaterialTheme.colorScheme.onErrorContainer
-            PluginState.MISSING_DEP, PluginState.CYCLE -> MaterialTheme.colorScheme.onTertiaryContainer
+            PluginState.MISSING_DEP, PluginState.CYCLE, PluginState.INCOMPATIBLE_LAUNCHER ->
+                MaterialTheme.colorScheme.onTertiaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
     val label = strings.t("plugin.state.${state.name}")

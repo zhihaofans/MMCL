@@ -23,6 +23,9 @@ enum class PluginState {
     /** 插件声明的 API 级别高于当前启动器，拒绝加载。 */
     INCOMPATIBLE_API,
 
+    /** 插件要求的最低启动器版本高于当前版本，拒绝加载。 */
+    INCOMPATIBLE_LAUNCHER,
+
     /** 生命周期回调抛出异常，已隔离。 */
     FAILED,
 }

@@ -30,6 +30,15 @@ interface Plugin {
         get() = PluginIcon.DEFAULT
 
     /**
+     * 兼容的最低启动器版本（例如 `0.0.8`）；缺省表示不限制。
+     *
+     * 启动器版本低于该值时插件会被拒绝加载（状态 `INCOMPATIBLE_LAUNCHER`），
+     * 用于依赖较新启动器能力（如新扩展点、页面 API）的插件。
+     */
+    val minLauncherVersion: String?
+        get() = null
+
+    /**
      * 编译该插件时使用的 API 级别，见 [dev.mmcl.api.ApiLevel.CURRENT]。
      *
      * 新插件请写 `override val apiLevel: Int = ApiLevel.CURRENT`；

@@ -10,6 +10,7 @@ class FakePlugin(
     override val dependencies: List<String> = emptyList(),
     override val optionalDependencies: List<String> = emptyList(),
     override val apiLevel: Int = 0,
+    override val minLauncherVersion: String? = null,
     private val onLoadHook: (PluginContext) -> Unit = {},
     private val onEnableHook: () -> Unit = {},
     private val onDisableHook: () -> Unit = {},
