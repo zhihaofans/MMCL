@@ -14,7 +14,8 @@ import dev.mmcl.api.plugin.PluginIcon
  */
 class FabricLoaderPlugin : Plugin {
     override val id: String = "dev.mmcl.loader.fabric"
-    override val version: String = "0.0.2"
+    override val version: String = "0.0.3"
+    override val minLauncherVersion: String = "0.0.7"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val author: String = "MMCL"
     override val icon: PluginIcon = PluginIcon.TOOL

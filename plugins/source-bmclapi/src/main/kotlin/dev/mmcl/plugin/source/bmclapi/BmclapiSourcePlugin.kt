@@ -10,7 +10,8 @@ import dev.mmcl.api.plugin.PluginIcon
 /** 注册 [BmclapiVersionSource] 的插件入口。 */
 class BmclapiSourcePlugin : Plugin {
     override val id: String = "dev.mmcl.source.bmclapi.plugin"
-    override val version: String = "0.0.2"
+    override val version: String = "0.0.3"
+    override val minLauncherVersion: String = "0.0.7"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "BMCLAPI 国内镜像" else "BMCLAPI mirror"

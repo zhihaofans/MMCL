@@ -24,7 +24,8 @@ import kotlinx.coroutines.cancel
  */
 class MicrosoftAuthPlugin : Plugin {
     override val id: String = "dev.mmcl.auth.microsoft"
-    override val version: String = "0.0.2"
+    override val version: String = "0.0.3"
+    override val minLauncherVersion: String = "0.0.6"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "微软账号" else "Microsoft account"
