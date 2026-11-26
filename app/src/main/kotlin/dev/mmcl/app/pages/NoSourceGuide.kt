@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import dev.mmcl.app.i18n.LocalStrings
+import dev.mmcl.app.platform.LinkOpener
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,14 +27,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.mmcl.ui.kit.MmclSpacing
 
-/** 安装下载源插件要执行的命令（跨平台写法都列出来，避免用户猜）。 */
-private const val BUILD_COMMAND = "gradlew :plugins:source-mojang:jar"
+/** 应用 Release 页面：源插件 JAR 随 Release 分发，用户不需要自己编译。 */
+private const val RELEASE_URL = "https://github.com/zhihaofans/MMCL/releases/latest"
 
 /**
  * 没有 `VersionManifestSource` 插件时的引导卡片。
  *
- * 应用**不内置任何下载地址**，所以这里不能"帮你装"，只能把「编译插件 → 放进插件目录 → 重启」
- * 这条路径写清楚，并提供打开目录 / 复制命令两个动作。
+ * 应用**不内置任何下载地址**，所以这里不能"帮你装"，只能把「从 Release 下载插件 →
+ * 放进插件目录 → 重启」这条路径写清楚，并提供打开 Release / 打开目录 / 复制地址。
+ * Release 页面是启动器自己的分发页，不是游戏下载源。
  *
  * @param folder 插件目录与打开方式；为 `null` 时只显示说明（例如测试环境）
  */
@@ -62,7 +64,7 @@ fun NoSourceGuide(
         )
 
         Text(strings.t("no_source.steps"), style = MaterialTheme.typography.titleSmall)
-        StepRow("1", strings.t("no_source.step1"), BUILD_COMMAND, mono = true)
+        StepRow("1", strings.t("no_source.step1"), RELEASE_URL, mono = true)
         StepRow("2", strings.t("no_source.step2"), folder?.path?.toString() ?: "<data>/plugins/")
         StepRow("3", strings.t("no_source.step3"), strings.t("no_source.step3_hint"))
 
@@ -88,7 +90,16 @@ fun NoSourceGuide(
             ) { Text(strings.t("no_source.open")) }
             OutlinedButton(
                 onClick = {
-                    clipboard.setText(AnnotatedString(BUILD_COMMAND))
+                    LinkOpener.open(RELEASE_URL)
+                        .onSuccess { actionMessage = null }
+                        .onFailure {
+                            actionMessage = strings.t("no_source.release_failed", it.message ?: strings.t("no_source.unknown_reason"))
+                        }
+                },
+            ) { Text(strings.t("no_source.release")) }
+            OutlinedButton(
+                onClick = {
+                    clipboard.setText(AnnotatedString(RELEASE_URL))
                     actionMessage = strings.t("no_source.copied")
                 },
             ) { Text(strings.t("no_source.copy")) }

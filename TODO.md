@@ -19,8 +19,8 @@
 
 **P0 — 基本盘**
 
-- [ ] 插件获取与更新入口：没装源插件时，引导页直接给 Release 下载入口（打开页面/复制命令）；
-      插件页支持选择 JAR 安装、从 Release 检查更新（现在仍让用户 `gradlew :plugins:source-mojang:jar`）
+- [ ] 插件更新检查：从 GitHub Release 对比已装插件版本并一键下载
+      （安装 JAR 与首启 Release 入口已完成）
 - [ ] 内容安装后的管理闭环：已装 mod 列表、启用/停用、删除、更新、同名冲突提示；
       `ContentInstaller` 目前写死 `mods/`，资源包/光影还没有入口
 

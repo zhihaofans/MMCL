@@ -12,18 +12,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import java.awt.FileDialog
+import java.awt.Frame
+import java.nio.file.Path
+import kotlinx.coroutines.launch
 import dev.mmcl.app.i18n.LocalStrings
+import dev.mmcl.app.plugin.PluginInstaller
 import dev.mmcl.api.plugin.PluginIcon
 import dev.mmcl.api.ui.AppNavigator
 import dev.mmcl.api.ui.UiGroup
@@ -47,6 +54,8 @@ import dev.mmcl.ui.kit.PageScaffold
  */
 class PluginsPage(
     private val plugins: List<LoadedPlugin>,
+    private val pluginFolder: PluginFolder? = null,
+    private val installer: PluginInstaller? = null,
     private val conflicts: List<PluginConflict> = emptyList(),
     private val disabledIdsProvider: () -> Set<String> = { emptySet() },
     private val onToggle: (String, Boolean) -> Unit = { _, _ -> },
@@ -68,7 +77,48 @@ class PluginsPage(
         val strings = LocalStrings.current
         var disabled by remember { mutableStateOf(disabledIdsProvider()) }
         var changed by remember { mutableStateOf(false) }
-        PageScaffold(title = strings.t("page.plugins.title"), subtitle = strings.t("plugins.subtitle", plugins.size)) {
+        var installMessage by remember { mutableStateOf<String?>(null) }
+        val scope = rememberCoroutineScope()
+        PageScaffold(
+            title = strings.t("page.plugins.title"),
+            subtitle = strings.t("plugins.subtitle", plugins.size),
+            actions = {
+                Row(horizontalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
+                    installer?.let { target ->
+                        OutlinedButton(
+                            onClick = {
+                                val picked = choosePluginJar(strings.t("plugins.install.dialog")) ?: return@OutlinedButton
+                                scope.launch {
+                                    target
+                                        .install(picked)
+                                        .onSuccess {
+                                            installMessage = strings.t("plugins.install.done", it.fileName)
+                                            changed = true
+                                        }
+                                        .onFailure {
+                                            installMessage =
+                                                strings.t(
+                                                    "plugins.install.failed",
+                                                    it.message ?: it::class.simpleName.orEmpty(),
+                                                )
+                                        }
+                                }
+                            },
+                        ) { Text(strings.t("plugins.install")) }
+                    }
+                    pluginFolder?.let { folder ->
+                        OutlinedButton(
+                            onClick = {
+                                folder.open().onFailure {
+                                    installMessage =
+                                        strings.t("plugins.install.failed", it.message ?: it::class.simpleName.orEmpty())
+                                }
+                            },
+                        ) { Text(strings.t("no_source.open")) }
+                    }
+                }
+            },
+        ) {
             if (plugins.isEmpty()) {
                 EmptyState(
                     icon = UiIcon.PLUGIN,
@@ -78,6 +128,15 @@ class PluginsPage(
                 return@PageScaffold
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(MmclSpacing.s)) {
+                installMessage?.let { message ->
+                    item {
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 if (changed) {
                     item {
                         Text(
@@ -307,3 +366,12 @@ private fun PluginConflictRow(conflict: PluginConflict) {
 /** `id version` 形式的冲突标识；两者都没有时返回 `null`。 */
 private fun conflictIdentity(conflict: PluginConflict): String? =
     listOfNotNull(conflict.id, conflict.version).takeIf { it.isNotEmpty() }?.joinToString(" ")
+
+/** 选择插件 JAR；取消返回 `null`。 */
+private fun choosePluginJar(title: String): Path? {
+    val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
+    dialog.setFilenameFilter { _, name -> name.endsWith(".jar", ignoreCase = true) }
+    dialog.isVisible = true
+    val file = dialog.file ?: return null
+    return Path.of(dialog.directory, file)
+}

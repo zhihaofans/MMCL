@@ -31,6 +31,7 @@ import dev.mmcl.app.pages.DownloadsPage
 import dev.mmcl.app.pages.HomePage
 import dev.mmcl.app.pages.InstancesPage
 import dev.mmcl.app.pages.PluginFolder
+import dev.mmcl.app.plugin.PluginInstaller
 import dev.mmcl.app.pages.PluginsPage
 import dev.mmcl.app.pages.SettingsPage
 import dev.mmcl.app.pages.StoragePage
@@ -121,6 +122,7 @@ fun main(args: Array<String>) {
     // 页面用的插件目录入口：装源插件、装运行时来源都要它
     val pluginFolder =
         PluginFolder(path = pluginsDir) { DirectoryLauncher(launcher.os).open(pluginsDir) }
+    val pluginInstaller = PluginInstaller(pluginsDir, logger)
 
     val loaderStore = LoaderInstallStore(launcher.dataDir.resolve("versions"), logger)
     val manager = PluginManager(launcher, logger, settings = settings)
@@ -304,6 +306,8 @@ fun main(args: Array<String>) {
             ),
             PluginsPage(
                 plugins = plugins,
+                pluginFolder = pluginFolder,
+                installer = pluginInstaller,
                 conflicts = manager.conflicts,
                 disabledIdsProvider = { parseDisabledPluginIds(settings.getString(PLUGINS_DISABLED_KEY)) },
                 onToggle = { id, enabled ->
