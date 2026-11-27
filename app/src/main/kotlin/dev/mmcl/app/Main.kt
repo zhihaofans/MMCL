@@ -60,6 +60,7 @@ import dev.mmcl.app.shell.toSavedWindowState
 import dev.mmcl.app.theme.ThemeController
 import dev.mmcl.core.builtin.BuiltinPluginSync
 import dev.mmcl.core.content.ContentInstaller
+import dev.mmcl.core.content.ModManager
 import dev.mmcl.core.platform.DirectoryLauncher
 import dev.mmcl.core.storage.StorageService
 import dev.mmcl.core.platform.Platforms
@@ -233,6 +234,7 @@ fun main(args: Array<String>) {
     val runningInstanceId = mutableStateOf<String?>(null)
     val storageService = StorageService(launcher.dataDir, logger) { instanceService.list() }
     val contentInstaller = ContentInstaller(fileDownloader, logger)
+    val modManager = ModManager(logger)
     val launchContext =
         LaunchContext(
             sharedRoot = launcher.dataDir,
@@ -287,6 +289,7 @@ fun main(args: Array<String>) {
                 instances = instanceService,
                 sources = { manager.services.getAll(ContentSource::class) },
                 installer = contentInstaller,
+                modManager = modManager,
                 dataDir = launcher.dataDir,
             ),
             StoragePage(

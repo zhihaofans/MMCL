@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -23,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +45,8 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.app.i18n.LocalStrings
 import dev.mmcl.core.content.ContentInstallRequest
 import dev.mmcl.core.content.ContentInstaller
+import dev.mmcl.core.content.InstalledMod
+import dev.mmcl.core.content.ModManager
 import dev.mmcl.core.instance.Instance
 import dev.mmcl.core.instance.InstanceService
 import dev.mmcl.ui.kit.MmclSpacing
@@ -63,6 +67,7 @@ class ContentPage(
     private val instances: InstanceService? = null,
     private val sources: () -> List<ContentSource> = { emptyList() },
     private val installer: ContentInstaller? = null,
+    private val modManager: ModManager? = null,
     private val dataDir: Path? = null,
 ) : UiPage {
     override val id: String = PAGE_ID
@@ -87,10 +92,54 @@ class ContentPage(
         var loadingVersions by remember { mutableStateOf(false) }
         var installing by remember { mutableStateOf(false) }
         var status by remember { mutableStateOf<String?>(null) }
+        var installed by remember { mutableStateOf<List<InstalledMod>>(emptyList()) }
+        var pendingDelete by remember { mutableStateOf<InstalledMod?>(null) }
 
         val source = sources().firstOrNull()
         val instance = allInstances.firstOrNull { it.id == instanceId }
         val loader = instance?.let { loaderOf(it) }
+
+        fun instanceDirectory(target: Instance): Path? = dataDir?.resolve("instances")?.resolve(target.id)
+
+        fun refreshInstalled() {
+            val target = instance ?: return
+            val manager = modManager ?: return
+            val dir = instanceDirectory(target) ?: return
+            installed = manager.list(dir)
+        }
+
+        LaunchedEffect(instanceId) { refreshInstalled() }
+
+        fun toggleMod(mod: InstalledMod) {
+            val target = instance ?: return
+            val manager = modManager ?: return
+            val dir = instanceDirectory(target) ?: return
+            manager
+                .setEnabled(dir, mod.fileName, !mod.enabled)
+                .onSuccess {
+                    status =
+                        strings.t(
+                            "content.installed.toggled",
+                            strings.t(if (mod.enabled) "content.installed.disable" else "content.installed.enable"),
+                            mod.name,
+                        )
+                    refreshInstalled()
+                }
+                .onFailure { status = strings.t("content.installed.failed", it.message ?: it::class.simpleName.orEmpty()) }
+        }
+
+        fun deleteMod(mod: InstalledMod) {
+            val target = instance ?: return
+            val manager = modManager ?: return
+            val dir = instanceDirectory(target) ?: return
+            manager
+                .delete(dir, mod.fileName)
+                .onSuccess {
+                    status = strings.t("content.installed.deleted", mod.name)
+                    refreshInstalled()
+                }
+                .onFailure { status = strings.t("content.installed.failed", it.message ?: it::class.simpleName.orEmpty()) }
+        }
 
         fun clearResults() {
             results = emptyList()
@@ -178,6 +227,7 @@ class ContentPage(
                     if (result.unresolvedDependencies.isNotEmpty()) {
                         status = status + " " + strings.t("content.install.unresolved", result.unresolvedDependencies.joinToString(", "))
                     }
+                    refreshInstalled()
                 } catch (t: Throwable) {
                     status = strings.t("content.install.failed", t.message ?: t::class.simpleName.orEmpty())
                 } finally {
@@ -238,6 +288,69 @@ class ContentPage(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
+                }
+
+                if (instance != null) {
+                    Text(
+                        text = strings.t("content.installed.title", installed.size),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    if (installed.isEmpty()) {
+                        Text(
+                            text = strings.t("content.installed.empty"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    installed.forEach { mod ->
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+                                    .padding(MmclSpacing.s),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(mod.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    text =
+                                        buildString {
+                                            append(mod.fileName)
+                                            mod.version?.let {
+                                                append(" · ")
+                                                append(it)
+                                            }
+                                            if (mod.conflict) {
+                                                append(" · ")
+                                                append(strings.t("content.installed.conflict"))
+                                            }
+                                        },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color =
+                                        if (mod.conflict) {
+                                            MaterialTheme.colorScheme.error
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                )
+                            }
+                            TextButton(onClick = { toggleMod(mod) }) {
+                                Text(
+                                    strings.t(
+                                        if (mod.enabled) {
+                                            "content.installed.disable"
+                                        } else {
+                                            "content.installed.enable"
+                                        },
+                                    ),
+                                )
+                            }
+                            TextButton(onClick = { pendingDelete = mod }) {
+                                Text(strings.t("content.installed.delete"))
+                            }
+                        }
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -319,6 +432,26 @@ class ContentPage(
                     }
                 }
             }
+        }
+        pendingDelete?.let { mod ->
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text(strings.t("content.installed.delete.title")) },
+                text = { Text(strings.t("content.installed.delete.body", mod.name, mod.fileName)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingDelete = null
+                            deleteMod(mod)
+                        },
+                    ) { Text(strings.t("content.installed.delete.confirm")) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) {
+                        Text(strings.t("content.installed.delete.cancel"))
+                    }
+                },
+            )
         }
     }
 

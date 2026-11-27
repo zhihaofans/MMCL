@@ -7,6 +7,9 @@
 
 ### 新增
 
+- 内容页新增已安装 Mod 管理：列表（读取 `fabric.mod.json` 的名称/版本）、
+  启用/停用（`.jar` ↔ `.jar.disabled`）、删除确认、同 id 冲突标记；
+  core 新增 `ModManager` 与 4 个测试
 - 内置 `update-checker` 插件：新增「更新」页，检查启动器与插件更新；
   启动器只打开发布页，非内置插件可直接下载新 JAR（SHA-256 校验）并提示重启
 - CI 生成 `update-index.json`（启动器版本 + 非内置插件 id/version/sha256）并随 Release 分发，
