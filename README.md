@@ -20,6 +20,19 @@
 - macOS：仅 Apple Silicon；Windows：默认 Windows 11
 - 加载器：Fabric 已支持；NeoForge / Forge 计划中
 
+## 测试状态
+
+> 最后更新：2026-11-27。**没实机跑过就不写“已验证”**；CI 只能证明能构建/打包。
+
+| 平台 | 构建 / 打包（CI） | 实机运行 | 已验证内容 |
+|---|---|---|---|
+| macOS 27（Apple Silicon / arm64） | ✅ dmg | ✅ | 26.3 原版与 Fabric 0.20.1 启动、进入世界；Modrinth 安装与依赖；存储页删除；插件安装/禁用；更新页（0.0.8 开发版） |
+| Windows 11 | ✅ msi | ⚠️ 未验证 | 仅 CI 构建；MSI 安装/升级/卸载待实机验证（见 TODO） |
+| Linux（主流发行版） | ✅ deb | ⚠️ 未验证 | 仅 CI 构建；运行、桌面环境、字体待实机验证 |
+
+游戏内测试基线：Minecraft 26.3 + Fabric Loader 0.20.1 + Fabric API 0.167.0+26.3；
+Java 25（系统 Zulu 25 / 内置 JDK 25 都启动过）。
+
 ## 构建
 
 需要 JDK 27 与 Gradle Wrapper：

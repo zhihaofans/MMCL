@@ -180,6 +180,8 @@
 - [ ] `CHANGELOG.md` 的 `[Unreleased]` 已记录本次改动（用户可见的行为变化必须写）
 - [ ] `TODO.md` 已完成项已删除、新任务已登记（未完成的只在 TODO，已完成的只在 CHANGELOG）
 - [ ] 文档（本文件 / `ARCHITECTURE.md` / `PLUGIN_DEV.md`）已同步
+- [ ] 涉及平台行为时更新 `README.md`「测试状态」：只写实际跑过的系统；未实机验证的标“未验证”，
+      CI 构建/打包不等于实机运行
 
 ### 6.1 API 兼容规则
 
