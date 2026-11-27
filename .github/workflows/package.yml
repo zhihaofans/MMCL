@@ -222,7 +222,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download assets and compute SHA-256
+      - name: Download release assets
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -230,9 +230,6 @@ jobs:
         run: |
           rm -rf dist && mkdir -p dist
           gh release download "$TAG" -R "$GITHUB_REPOSITORY" --dir dist --clobber
-          # SHA256SUMS 是插件 job 自己生成的校验文件，不参与再哈希
-          (cd dist && shasum -a 256 $(ls | grep -v '^SHA256SUMS$') > "$RUNNER_TEMP/hashes.txt")
-          cat "$RUNNER_TEMP/hashes.txt"
 
       - name: Generate and upload update index
         shell: bash
@@ -279,6 +276,17 @@ jobs:
           PY
           gh release upload "$TAG" dist/update-index.json --clobber -R "$GITHUB_REPOSITORY"
 
+      - name: Generate full SHA256SUMS
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          rm -f dist/SHA256SUMS
+          (cd dist && shasum -a 256 $(ls | grep -v '^SHA256SUMS$') > SHA256SUMS)
+          cat dist/SHA256SUMS
+          gh release upload "$TAG" dist/SHA256SUMS --clobber -R "$GITHUB_REPOSITORY"
+
       - name: Append hashes to release notes and publish
         shell: bash
         env:
@@ -291,7 +299,7 @@ jobs:
             echo "### SHA-256"
             echo ""
             echo '```'
-            cat "$RUNNER_TEMP/hashes.txt"
+            cat dist/SHA256SUMS
             echo '```'
           } >> "$RUNNER_TEMP/body.md"
           gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/body.md" --draft=false

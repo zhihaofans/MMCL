@@ -32,6 +32,8 @@
 
 - 非内置插件补充 `minLauncherVersion`：`auth-microsoft` 0.0.6、`loader-fabric` 0.0.7、
   `source-bmclapi` 0.0.7（三个插件升到 0.0.3）；`download-modrinth` 要求 0.0.8
+- Release 的 `SHA256SUMS` 改为覆盖全部资产（平台安装包 + 插件 + `update-index.json`），
+  不再只有插件 JAR；发布时由 publish job 重新生成
 
 ## [0.0.7] - 2026-11-23
 
