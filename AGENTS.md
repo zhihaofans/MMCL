@@ -33,7 +33,7 @@
   - **改插件就升 PATCH**：插件代码有行为变化时升该插件的 PATCH，并同步 `build.gradle.kts` 的 `version` 与 `Plugin.version`
     （`./gradlew verifyPluginVersions` 会拦不一致；`packagePlugins` 依赖它）
   - **非内置插件随 Release 分发**：推 tag 时 CI 把 10 个非内置插件 JAR 连同 `SHA256SUMS` 传到 Release；
-    内置三个（auth-offline / theme-sakura / ui-about）随 app 打包，不重复发布
+    内置四个（auth-offline / theme-sakura / ui-about / update-checker）随 app 打包，不重复发布
   - **Release 正文带校验和**：发布前 CI 下载该 Release 的全部资产，把 SHA-256 追加到正文再解除草稿
 - 文档清单（都是**必须维护的活文档**，不是一次性产物）：
   - `AGENTS.md`：本文件，AI Agent 规则

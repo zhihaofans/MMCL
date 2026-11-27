@@ -19,8 +19,6 @@
 
 **P0 — 基本盘**
 
-- [ ] 插件更新检查：从 GitHub Release 对比已装插件版本并一键下载
-      （安装 JAR 与首启 Release 入口已完成）
 - [ ] 内容安装后的管理闭环：已装 mod 列表、启用/停用、删除、更新、同名冲突提示；
       `ContentInstaller` 目前写死 `mods/`，资源包/光影还没有入口
 
@@ -96,6 +94,8 @@
 
 ### 质量与工程
 
+- [ ] 单实例锁：避免两个启动器进程同时写 `settings.properties` / `instances.json`
+      互相覆盖（实测两个实例并存时，禁用插件会被旧实例关闭时清空）
 - [ ] ktlint / detekt 接入构建前置检查
 - [ ] 插件版本自动化：`build.gradle.kts` 的 `version` 生成成资源，消除与 `Plugin.version` 的重复
 - [ ] 插件加载测试覆盖循环依赖／缺失依赖／异常隔离的完整矩阵

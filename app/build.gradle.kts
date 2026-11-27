@@ -126,6 +126,7 @@ dependencies {
     builtinPlugins(project(":plugins:auth-offline"))
     builtinPlugins(project(":plugins:ui-about"))
     builtinPlugins(project(":plugins:theme-sakura"))
+    builtinPlugins(project(":plugins:update-checker"))
 }
 
 val builtinResourcesDir = layout.buildDirectory.dir("generated/builtin-resources")

@@ -117,7 +117,7 @@ jobs:
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
           # 内置插件随 app 打包，不重复发布
-          files=$(ls build/plugins/*.jar | grep -v -E 'dev\.mmcl\.(auth\.offline|theme\.sakura|ui\.about)-')
+          files=$(ls build/plugins/*.jar | grep -v -E 'dev\.mmcl\.(auth\.offline|theme\.sakura|ui\.about|update\.checker)-')
           gh release upload "$TAG" $files build/plugins/SHA256SUMS --clobber
 
   package:
@@ -233,6 +233,51 @@ jobs:
           # SHA256SUMS 是插件 job 自己生成的校验文件，不参与再哈希
           (cd dist && shasum -a 256 $(ls | grep -v '^SHA256SUMS$') > "$RUNNER_TEMP/hashes.txt")
           cat "$RUNNER_TEMP/hashes.txt"
+
+      - name: Generate and upload update index
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          python3 - "$TAG" "$GITHUB_REPOSITORY" <<'PY'
+          import hashlib, json, pathlib, re, sys
+
+          tag, repo = sys.argv[1], sys.argv[2]
+          version = tag[1:] if tag.startswith("v") else tag
+          dist = pathlib.Path("dist")
+          launcher_assets = []
+          plugins = []
+          for file in sorted(dist.iterdir()):
+              if not file.is_file() or file.name in ("SHA256SUMS", "update-index.json"):
+                  continue
+              digest = hashlib.sha256(file.read_bytes()).hexdigest()
+              if file.suffix == ".jar":
+                  match = re.match(r"^(?P<id>.+)-(?P<version>\d+\.\d+\.\d+)\.jar$", file.name)
+                  if not match:
+                      continue
+                  plugins.append(
+                      {
+                          "id": match.group("id"),
+                          "version": match.group("version"),
+                          "file": file.name,
+                          "sha256": digest,
+                      }
+                  )
+              else:
+                  launcher_assets.append({"name": file.name, "sha256": digest})
+          index = {
+              "launcher": {
+                  "version": version,
+                  "tag": tag,
+                  "releaseUrl": f"https://github.com/{repo}/releases/tag/{tag}",
+                  "assets": launcher_assets,
+              },
+              "plugins": plugins,
+          }
+          (dist / "update-index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n")
+          PY
+          gh release upload "$TAG" dist/update-index.json --clobber -R "$GITHUB_REPOSITORY"
 
       - name: Append hashes to release notes and publish
         shell: bash

@@ -31,6 +31,7 @@ include(
     ":plugins:loader-fabric",
     ":plugins:ui-about",
     ":plugins:theme-sakura",
+    ":plugins:update-checker",
     ":plugins:runtime-adoptium",
     ":plugins:runtime-foojay",
     ":plugins:runtime-mirror",
