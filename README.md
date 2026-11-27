@@ -1,6 +1,8 @@
 # MMCL
 
-插件化 Minecraft Java 启动器（Kotlin + Compose Multiplatform），支持 Windows / macOS / Linux。
+**MMCL** 的正式全称是 **Mosaic Minecraft Client Launcher**；它同样可以理解为
+**Minecraft Mod Client Launcher**。这是一个插件化 Minecraft Java 启动器
+（Kotlin + Compose Multiplatform），支持 Windows / macOS / Linux。
 
 ## 下载
 
