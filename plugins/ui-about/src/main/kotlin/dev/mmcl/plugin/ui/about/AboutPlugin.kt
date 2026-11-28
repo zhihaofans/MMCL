@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import dev.mmcl.api.ApiLevel
 import dev.mmcl.api.LauncherInfo
 import dev.mmcl.api.plugin.Plugin
@@ -18,6 +19,8 @@ import dev.mmcl.api.ui.UiPage
 import dev.mmcl.api.ui.UiSlot
 import dev.mmcl.api.ui.UiWidget
 import dev.mmcl.ui.kit.MmclSpacing
+import dev.mmcl.ui.kit.SystemInfo
+import dev.mmcl.ui.kit.SystemNote
 import dev.mmcl.ui.kit.PageScaffold
 
 /** 「关于」插件里所有会展示给用户的文案；中英各一份，按当前语言选。 */
@@ -28,6 +31,16 @@ internal data class AboutTexts(
     val launcherVersion: String,
     val platform: String,
     val dataDir: String,
+    val system: String,
+    val cpu: String,
+    val memory: String,
+    val memoryUnknown: String,
+    val checkOk: String,
+    val checkLowMemory: String,
+    val checkIntegrated: String,
+    val checkLowCores: String,
+    val checkUnknownMemory: String,
+    val checkHint: String,
     val pageFooter: String,
     val homeCard: String,
     val statusBadge: String,
@@ -41,6 +54,16 @@ internal val ABOUT_ENGLISH =
         launcherVersion = "Launcher version: %s",
         platform = "Platform: %s",
         dataDir = "Data folder: %s",
+        system = "System: %s",
+        cpu = "CPU: %s cores",
+        memory = "Memory: %s",
+        memoryUnknown = "Memory: unknown",
+        checkOk = "Meets the 26.x minimum (a Vulkan 1.3 GPU is still required).",
+        checkLowMemory = "Below the Minecraft 26.x minimum: 8 GB (discrete GPU) or 12 GB (integrated GPU).",
+        checkIntegrated = "Under 12 GB: with integrated graphics this is below the 26.x minimum.",
+        checkLowCores = "Fewer than 4 CPU cores; below the 26.x minimum.",
+        checkUnknownMemory = "Could not read physical memory; please confirm at least 8 GB manually.",
+        checkHint = "Official 26.x requirements: 64-bit OS, 4 cores, 8 GB (dGPU) / 12 GB (iGPU), Vulkan 1.3. Below-spec devices may still launch, but performance is not guaranteed.",
         pageFooter = "This page is registered by a plugin through UiPage, proving plugins can append pages to the left navigation.",
         homeCard = "This card is registered by the ui-about plugin through UiWidget, proving the home slot works.",
         statusBadge = "about plugin",
@@ -54,6 +77,16 @@ internal val ABOUT_CHINESE =
         launcherVersion = "启动器版本：%s",
         platform = "运行平台：%s",
         dataDir = "数据目录：%s",
+        system = "系统：%s",
+        cpu = "CPU：%s 核",
+        memory = "内存：%s",
+        memoryUnknown = "内存：未知",
+        checkOk = "满足 26.x 最低配置（仍需 Vulkan 1.3 GPU）。",
+        checkLowMemory = "低于 Minecraft 26.x 最低要求：独显 8 GB / 核显 12 GB 内存。",
+        checkIntegrated = "内存不足 12 GB：核显环境下低于 26.x 最低要求。",
+        checkLowCores = "CPU 少于 4 核，低于 26.x 最低要求。",
+        checkUnknownMemory = "无法读取物理内存，请手动确认至少 8 GB。",
+        checkHint = "26.x 官方要求：64 位系统、4 核、8 GB（独显）/12 GB（核显）内存、Vulkan 1.3。低于配置仍可能启动，但不保证体验。",
         pageFooter = "这一页由插件通过 UiPage 注册，用来验证插件可以往左侧导航栏追加页面。",
         homeCard = "这张卡片由 ui-about 插件通过 UiWidget 注册，用来验证首页插槽。",
         statusBadge = "about 插件",
@@ -85,6 +118,54 @@ class AboutPage(private val launcher: LauncherInfo) : UiPage {
                 Text(text = texts.launcherVersion.format(launcher.version), style = MaterialTheme.typography.bodyMedium)
                 Text(text = texts.platform.format("${launcher.os} / ${launcher.arch}"), style = MaterialTheme.typography.bodyMedium)
                 Text(text = texts.dataDir.format(launcher.dataDir), style = MaterialTheme.typography.bodyMedium)
+                val systemCheck = remember { SystemInfo.evaluate(SystemInfo.profile()) }
+                val profile = systemCheck.profile
+                Text(
+                    text = texts.system.format(listOf(profile.osName, profile.osVersion, profile.arch).filter { it.isNotBlank() }.joinToString(" / ")),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(text = texts.cpu.format(profile.cpuCores), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text =
+                        if (profile.memoryMb > 0) {
+                            texts.memory.format(String.format(java.util.Locale.ROOT, "%.1f GB", profile.memoryMb / 1024.0))
+                        } else {
+                            texts.memoryUnknown
+                        },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (systemCheck.notes.isEmpty()) {
+                    Text(
+                        text = texts.checkOk,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    systemCheck.notes.forEach { note ->
+                        val line =
+                            when (note) {
+                                SystemNote.LOW_MEMORY -> texts.checkLowMemory
+                                SystemNote.INTEGRATED_MAY_NEED_MORE -> texts.checkIntegrated
+                                SystemNote.LOW_CORES -> texts.checkLowCores
+                                SystemNote.UNKNOWN_MEMORY -> texts.checkUnknownMemory
+                            }
+                        Text(
+                            text = line,
+                            style = MaterialTheme.typography.labelSmall,
+                            color =
+                                if (systemCheck.belowMinimum) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                        )
+                    }
+                }
+                Text(
+                    text = texts.checkHint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
                 text = texts.pageFooter,
@@ -98,7 +179,7 @@ class AboutPage(private val launcher: LauncherInfo) : UiPage {
 /** 注册 [AboutPage] 的插件入口。 */
 class AboutPlugin : Plugin {
     override val id: String = "dev.mmcl.ui.about.plugin"
-    override val version: String = "0.0.2"
+    override val version: String = "0.0.3"
     override val apiLevel: Int = ApiLevel.CURRENT
     override val title: String
         get() = if (isChinese(localeProvider())) "关于页面" else "About page"

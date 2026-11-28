@@ -100,6 +100,8 @@
 
 ### 质量与工程
 
+- [ ] 将可通用功能抽成独立 Kotlin 库：先列候选（如 `SystemInfo`、`GameLogFormatter`、
+      下载/哈希校验、版本模型），再逐个抽出并补测试；避免过度拆分
 - [ ] 单实例锁：避免两个启动器进程同时写 `settings.properties` / `instances.json`
       互相覆盖（实测两个实例并存时，禁用插件会被旧实例关闭时清空）
 - [ ] ktlint / detekt 接入构建前置检查

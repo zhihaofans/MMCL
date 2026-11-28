@@ -20,6 +20,36 @@
 - macOS：仅 Apple Silicon；Windows：默认 Windows 11
 - 加载器：Fabric 已支持；NeoForge / Forge 计划中
 
+## 系统要求
+
+### 启动器本身
+
+| 项目 | 要求 |
+|---|---|
+| 系统 | Windows 11 64 位 / macOS 12+（仅 Apple Silicon arm64）/ Linux 64 位 |
+| Java | 无需自装，安装包自带裁剪后的 JRE 27 |
+| 内存 | 约 2 GB 可打开界面（实际游戏另算） |
+| 显卡 | 不强制独显；界面支持软件渲染回退 |
+
+### Minecraft 26.x（官方最低，2026-07-21 上调）
+
+来源：[Mojang 公告](https://www.minecraft.net/en-us/article/minecraft-java-edition-system-requirements)、[官方 Java System Requirements 表](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc)。
+
+| 项目 | 最低 | 推荐 |
+|---|---|---|
+| 目标 | 1080p / 30 FPS（Fast） | 1080p / 60 FPS（Fancy） |
+| OS | Windows 10 64 位 / macOS 12+ / **Linux 64 位** | Windows 11 64 位 / macOS 14+ / **Linux 64 位** |
+| 架构 | x64、ARM64 | x64、ARM64 |
+| 内存 | 8 GB（独显）/ 12 GB（核显） | 16 GB |
+| CPU | i3-10100 / Ryzen 3 3100 / Snapdragon X / Apple M1（≥4 核） | i5-12400 / Ryzen 5 5600 / Apple M2 Pro |
+| GPU | **Vulkan 1.3，≥2 GB VRAM**（GTX 950 / RX 460 / Arc A310 起） | RTX 2060 / RX 5600 XT / Arc A580，6 GB VRAM |
+
+- 官方 Linux 只要求 **64 位**，没有指定发行版；真正门槛是 Vulkan 1.3 驱动
+- 低于最低配置**可能仍能启动**，但官方不保证性能/画质，并会逐步从 OpenGL 转向 Vulkan
+- 云机/软件渲染（llvmpipe、lavapipe）低于官方配置，只用于验证启动链路，不代表可玩体验
+
+内置「关于」插件页会显示本机系统、CPU 核数与内存，并给出是否达到 26.x 最低配置的提示（只提示，不阻止启动）。
+
 ## 测试状态
 
 > 最后更新：2026-11-28。**没实机跑过就不写“已验证”**；CI 只能证明能构建/打包。

@@ -218,7 +218,7 @@ compose.desktop {
                 dirChooser = true
             }
             // jlink 默认会裁掉这些模块：logback 需要 java.naming，Compose/skiko 偶发需要 unsupported
-            modules("java.naming", "java.sql", "java.net.http", "jdk.crypto.ec", "jdk.unsupported")
+            modules("java.naming", "java.sql", "java.net.http", "jdk.crypto.ec", "jdk.unsupported", "jdk.management")
         }
     }
 }

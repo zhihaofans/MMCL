@@ -7,6 +7,9 @@
 
 ### 新增
 
+- README 增加「系统要求」（启动器 + Minecraft 26.x 官方最低/推荐）；内置 `ui-about` 插件
+  （0.0.3）的关于页显示本机系统/CPU/内存与 26.x 最低配置提示（只提示不拦）；
+  修复物理内存读取（走公开接口，macOS/Linux 命令回退），jlink 增加 `jdk.management`
 - 内容页新增已安装 Mod 管理：列表（读取 `fabric.mod.json` 的名称/版本）、
   启用/停用（`.jar` ↔ `.jar.disabled`）、删除确认、同 id 冲突标记；
   core 新增 `ModManager` 与 4 个测试
